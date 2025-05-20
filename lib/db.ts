@@ -21,6 +21,12 @@ export interface Scenario {
   platform?: "zapier" | "make" | "n8n";
   // JSON payload of questionnaire inputs and computed ROI results
   payload: unknown;
+
+  /* ---------- ROI inputs ---------- */
+  runsPerMonth?: number; // e.g. 1000
+  minutesPerRun?: number; // e.g. 5
+  hourlyRate?: number; // $/hour
+  taskMultiplier?: number; // V*
 }
 
 export interface FlowNode {
@@ -79,6 +85,22 @@ class ApicusDB extends Dexie {
         scenarios: "++id, slug, updatedAt, platform",
         nodes: "++id, scenarioId, reactFlowId, type",
         edges: "++id, scenarioId, reactFlowId",
+      });
+
+    // Version 4 – add ROI input fields
+    this.version(4)
+      .stores({
+        scenarios: "++id, slug, updatedAt, platform, runsPerMonth, hourlyRate, taskMultiplier",
+        nodes: "++id, scenarioId, reactFlowId, type",
+        edges: "++id, scenarioId, reactFlowId",
+      })
+      .upgrade(tx => {
+        tx.table("scenarios").toCollection().modify((sc: any) => {
+          if (!("runsPerMonth" in sc)) sc.runsPerMonth = 1000;
+          if (!("minutesPerRun" in sc)) sc.minutesPerRun = 5;
+          if (!("hourlyRate" in sc)) sc.hourlyRate = 30;
+          if (!("taskMultiplier" in sc)) sc.taskMultiplier = 1.5;
+        });
       });
   }
 }

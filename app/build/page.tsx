@@ -39,11 +39,20 @@ import {
 } from "@dnd-kit/core";
 import { createSnapModifier } from "@dnd-kit/modifiers";
 import { pointerWithin } from "@dnd-kit/core";
-import { Toolbox } from "@/components/flow/Toolbox";
+import dynamic from "next/dynamic";
+import { pricing } from "../api/data/pricing";
+import { Gamepad2, Sword, Coins } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import type { Scenario } from "@/lib/db";
 import { nanoid } from "nanoid";
 import { useDroppable } from "@dnd-kit/core";
 
 const PLATFORMS = ["zapier", "make", "n8n"] as const;
+
+// Disable SSR for Toolbox because dnd-kit generates ids non-deterministically, which causes hydration mismatch warnings.
+const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.Toolbox), {
+  ssr: false,
+});
 
 export default function BuildPage() {
   const router = useRouter();
@@ -65,6 +74,20 @@ export default function BuildPage() {
 
   // droppable for canvas
   const { setNodeRef: setDroppableRef } = useDroppable({ id: "canvas" });
+
+  // ROI input state (default values will be overwritten by Dexie load)
+  const [runsPerMonth, setRunsPerMonth] = useState(1000);
+  const [minutesPerRun, setMinutesPerRun] = useState(5);
+  const [hourlyRate, setHourlyRate] = useState(30);
+  const [taskMultiplier, setTaskMultiplier] = useState(1.5);
+
+  const updateScenarioROI = useCallback(
+    (partial: Partial<Scenario>) => {
+      if (!scenarioId) return;
+      db.scenarios.update(scenarioId, { updatedAt: Date.now(), ...partial });
+    },
+    [scenarioId]
+  );
 
   const nodeTypes = {
     trigger: PixelNode,
@@ -111,19 +134,31 @@ export default function BuildPage() {
   // Persist edges when they change
   useEffect(() => {
     if (!scenarioId) return;
-    edges.forEach((e) => {
-      db.edges.put({
-        scenarioId,
-        reactFlowId: e.id,
-        label: (e as any).label,
-        data: {
-          source: (e as any).source,
-          target: (e as any).target,
-          ...e.data,
-        },
-      });
-    });
-  }, [edges, scenarioId]);
+    (async () => {
+      const storedEdges = await db.edges
+        .where("scenarioId")
+        .equals(scenarioId)
+        .toArray();
+      if (storedEdges.length) {
+        setEdges(
+          Array.from(
+            new Map(
+              storedEdges.map((se) => [
+                se.reactFlowId,
+                {
+                  id: se.reactFlowId,
+                  source: (se.data as any)?.source,
+                  target: (se.data as any)?.target,
+                  label: se.label,
+                  data: se.data as any,
+                },
+              ])
+            ).values()
+          )
+        );
+      }
+    })();
+  }, [scenarioId]);
 
   // Load stored data (platform, nodes, viewport)
   useEffect(() => {
@@ -131,6 +166,11 @@ export default function BuildPage() {
     (async () => {
       const scenario = await db.scenarios.get(scenarioId);
       if (scenario?.platform) setPlatform(scenario.platform);
+
+      if (scenario?.runsPerMonth) setRunsPerMonth(scenario.runsPerMonth);
+      if (scenario?.minutesPerRun) setMinutesPerRun(scenario.minutesPerRun);
+      if (scenario?.hourlyRate) setHourlyRate(scenario.hourlyRate);
+      if (scenario?.taskMultiplier) setTaskMultiplier(scenario.taskMultiplier);
 
       const storedNodes = await db.nodes
         .where("scenarioId")
@@ -145,26 +185,6 @@ export default function BuildPage() {
             data: sn.data as any,
           }))
         );
-      }
-
-      const storedEdges = await db.edges
-        .where("scenarioId")
-        .equals(scenarioId)
-        .toArray();
-      if (storedEdges.length) {
-        setEdges(
-          storedEdges.map((se) => ({
-            id: se.reactFlowId,
-            source: (se.data as any)?.source,
-            target: (se.data as any)?.target,
-            label: se.label,
-            data: se.data as any,
-          }))
-        );
-      }
-
-      if ((scenario as any)?.viewport) {
-        setInitialViewport((scenario as any).viewport as Viewport);
       }
     })();
   }, [scenarioId]);
@@ -183,10 +203,13 @@ export default function BuildPage() {
   };
 
   // Add new edge on connect
-  const handleConnect = React.useCallback(
-    (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
-    []
-  );
+  const handleConnect = React.useCallback((connection: Connection) => {
+    setEdges((eds) => {
+      const next = addEdge(connection, eds);
+      // Deduplicate by id to avoid React duplicate key errors
+      return Array.from(new Map(next.map((e) => [e.id, e])).values());
+    });
+  }, []);
 
   const snapToGridModifier = createSnapModifier(8);
 
@@ -229,6 +252,70 @@ export default function BuildPage() {
     [rfInstance, setNodes]
   );
 
+  /* ------------------------------------------------------------ */
+  /*  RPG-style Platform Stats Banner                             */
+  /* ------------------------------------------------------------ */
+
+  function StatsBar({ p }: { p: "zapier" | "make" | "n8n" }) {
+    const tierName: Record<typeof p, string> = {
+      zapier: "Professional",
+      make: "Core",
+      n8n: "Starter",
+    } as any;
+
+    const data = pricing[p];
+    const tier = data.tiers.find((t) => t.name === tierName[p]) || data.tiers[0];
+
+    const costPerUnit = tier.quota
+      ? (tier.monthlyUSD / tier.quota).toFixed(4)
+      : "—";
+
+    // ROI calculations
+    const costPerUnitNum = tier.quota ? tier.monthlyUSD / tier.quota : 0;
+    const platformCost = runsPerMonth * costPerUnitNum;
+
+    const hoursSaved = (runsPerMonth * minutesPerRun) / 60;
+    const timeValue = hoursSaved * hourlyRate * taskMultiplier;
+    const netROI = timeValue - platformCost;
+    const roiRatio = platformCost ? timeValue / platformCost : 0;
+
+    return (
+      <div
+        className="flex items-center gap-2 rounded-sm border bg-muted/50 px-2 py-1 text-xs font-mono shadow-inner"
+      >
+        <Sword className="h-3 w-3 text-primary" />
+        <span className="capitalize font-semibold tracking-tight text-foreground">
+          {p}
+        </span>
+        <span className="opacity-70">•</span>
+        <span title="Included quota">
+          {tier.quota.toLocaleString()} {data.unit}
+        </span>
+        <span className="opacity-70">@</span>
+        <span>${costPerUnit}/{data.unit}</span>
+
+        {/* Dividers */}
+        <span className="opacity-30 mx-1">|</span>
+
+        {/* Value */}
+        <span title="Monthly Time Value" className="text-green-600 dark:text-green-400">
+          +${timeValue.toFixed(0)}
+        </span>
+        <span className="opacity-70">/</span>
+        <span title="Platform Cost" className="text-red-600 dark:text-red-400">
+          -${platformCost.toFixed(0)}
+        </span>
+        <span className="opacity-30">=</span>
+        <span title="Net ROI" className="font-semibold">
+          ${netROI.toFixed(0)}
+        </span>
+      </div>
+    );
+  }
+
+  /* ---------- ROI Sheet open state ---------- */
+  const [roiOpen, setRoiOpen] = useState(false);
+
   return (
     <ReactFlowProvider>
       <DndContext
@@ -240,9 +327,16 @@ export default function BuildPage() {
         <div className="flex h-screen w-full flex-col">
           {/* Header */}
           <header className="flex items-center justify-between border-b bg-background/60 px-4 py-2 backdrop-blur">
-            <h1 className="text-lg font-semibold">Workflow Builder</h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-lg font-semibold">Apicus.io</h1>
+              {/* RPG-style dynamic stats bar */}
+              <StatsBar p={platform} />
+            </div>
             <div className="flex items-center gap-2">
               <PlatformSwitcher value={platform} onChange={setPlatform} />
+              <Button size="icon" variant="ghost" onClick={() => setRoiOpen(true)} title="ROI Settings">
+                <Coins className="h-4 w-4" />
+              </Button>
               <Button size="sm" onClick={() => handleAddNode(setNodes, nodes)}>
                 + Node
               </Button>
@@ -322,6 +416,86 @@ export default function BuildPage() {
             </div>
           </div>
         </div>
+
+        {/* ROI Settings Sheet */}
+        <Sheet open={roiOpen} onOpenChange={setRoiOpen}>
+          <SheetContent side="right" className="w-80">
+            <SheetHeader>
+              <SheetTitle>ROI Settings</SheetTitle>
+              <SheetDescription>
+                Adjust workload and labor assumptions to see live ROI.
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="space-y-4 py-4">
+              {/* Runs per month */}
+              <div>
+                <Label htmlFor="runs">Runs per Month</Label>
+                <Input
+                  id="runs"
+                  type="number"
+                  min={0}
+                  value={runsPerMonth}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setRunsPerMonth(v);
+                    updateScenarioROI({ runsPerMonth: v });
+                  }}
+                />
+              </div>
+
+              {/* Minutes saved */}
+              <div>
+                <Label htmlFor="minutes">Minutes Saved per Run</Label>
+                <Input
+                  id="minutes"
+                  type="number"
+                  min={0}
+                  value={minutesPerRun}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setMinutesPerRun(v);
+                    updateScenarioROI({ minutesPerRun: v });
+                  }}
+                />
+              </div>
+
+              {/* Hourly rate */}
+              <div>
+                <Label htmlFor="hourly">Hourly Wage ($)</Label>
+                <Input
+                  id="hourly"
+                  type="number"
+                  min={0}
+                  value={hourlyRate}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setHourlyRate(v);
+                    updateScenarioROI({ hourlyRate: v });
+                  }}
+                />
+              </div>
+
+              {/* Task multiplier */}
+              <div>
+                <Label htmlFor="mult">Task Value Multiplier (V*)</Label>
+                <Input
+                  id="mult"
+                  type="number"
+                  step={0.1}
+                  min={0.5}
+                  max={5}
+                  value={taskMultiplier}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setTaskMultiplier(v);
+                    updateScenarioROI({ taskMultiplier: v });
+                  }}
+                />
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </DndContext>
     </ReactFlowProvider>
   );
