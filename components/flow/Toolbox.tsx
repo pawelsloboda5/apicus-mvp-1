@@ -1,17 +1,20 @@
 import { useDraggable } from "@dnd-kit/core";
-import { Sparkles, PlayCircle, GitBranch } from "lucide-react";
+import { Sparkles, PlayCircle, GitBranch, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NodeType } from "@/lib/types";
 
-const ITEMS: { type: "trigger" | "action" | "decision"; label: string }[] = [
+const ITEMS: { type: NodeType; label: string }[] = [
   { type: "trigger", label: "Trigger" },
   { type: "action", label: "Action" },
   { type: "decision", label: "Decision" },
+  { type: "group", label: "Group" },
 ];
 
 const typeIcon = {
   trigger: PlayCircle,
   action: Sparkles,
   decision: GitBranch,
+  group: Calculator,
 };
 
 export function Toolbox() {
@@ -27,7 +30,12 @@ export function Toolbox() {
   );
 }
 
-function ToolboxItem({ type, label }: { type: "trigger" | "action" | "decision"; label: string }) {
+interface ToolboxItemProps {
+  type: NodeType;
+  label: string;
+}
+
+function ToolboxItem({ type, label }: ToolboxItemProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `tool-${type}`,
     data: { nodeType: type },

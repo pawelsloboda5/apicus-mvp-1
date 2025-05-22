@@ -41,11 +41,31 @@ import { createSnapModifier } from "@dnd-kit/modifiers";
 import { pointerWithin } from "@dnd-kit/core";
 import dynamic from "next/dynamic";
 import { pricing } from "../api/data/pricing";
-import { Gamepad2, Sword, Coins } from "lucide-react";
+import { Gamepad2, Sword, Coins, HelpCircle, Calculator } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import type { Scenario } from "@/lib/db";
 import { nanoid } from "nanoid";
 import { useDroppable } from "@dnd-kit/core";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Slider } from "@/components/ui/slider";
+import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+
+// Import custom components
+import { StatsBar } from "@/components/flow/StatsBar";
+import { PlatformSwitcher } from "@/components/flow/PlatformSwitcher";
+import { NodePropertiesPanel } from "@/components/flow/NodePropertiesPanel";
+import { ROISettingsPanel } from "@/components/roi/ROISettingsPanel";
+import { FlowCanvas } from "@/components/flow/FlowCanvas";
+import { CustomEdge } from "@/components/flow/CustomEdge";
+import { NodeGroup } from "@/components/flow/NodeGroup";
+import { GroupPropertiesPanel } from "@/components/flow/GroupPropertiesPanel";
+
+// Import utility functions
+import { handleAddNode, snapToGrid } from "@/lib/flow-utils";
+import { calculateNodeTimeSavings, calculateGroupROI } from "@/lib/roi-utils";
+import { NodeType } from "@/lib/types";
 
 const PLATFORMS = ["zapier", "make", "n8n"] as const;
 
@@ -58,6 +78,7 @@ export default function BuildPage() {
   const router = useRouter();
   const params = useSearchParams();
   const scenarioIdParam = params.get("sid");
+  const templateIdParam = params.get("tid");
   const [scenarioId, setScenarioId] = useState<number | null>(null);
   const [platform, setPlatform] = useState<"zapier" | "make" | "n8n">("zapier");
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<any>>([]);
@@ -80,6 +101,63 @@ export default function BuildPage() {
   const [minutesPerRun, setMinutesPerRun] = useState(5);
   const [hourlyRate, setHourlyRate] = useState(30);
   const [taskMultiplier, setTaskMultiplier] = useState(1.5);
+  const [taskType, setTaskType] = useState<string>("general");
+  const [complianceEnabled, setComplianceEnabled] = useState(false);
+  const [revenueEnabled, setRevenueEnabled] = useState(false);
+  
+  // Risk/Compliance factors
+  const [riskLevel, setRiskLevel] = useState(3);
+  const [riskFrequency, setRiskFrequency] = useState(5);
+  const [errorCost, setErrorCost] = useState(500);
+
+  // Revenue uplift factors
+  const [monthlyVolume, setMonthlyVolume] = useState(100);
+  const [conversionRate, setConversionRate] = useState(5);
+  const [valuePerConversion, setValuePerConversion] = useState(200);
+
+  // Task type multiplier mappings
+  const taskTypeMultipliers = {
+    general: 1.5,
+    admin: 1.3,
+    customer_support: 1.7,
+    sales: 2.0,
+    marketing: 1.8,
+    compliance: 2.2,
+    operations: 1.6,
+    finance: 1.9,
+    lead_gen: 2.1,
+  };
+
+  // Industry benchmarks
+  const benchmarks = {
+    runs: {
+      low: 100,
+      medium: 1000,
+      high: 5000,
+    },
+    minutes: {
+      admin: 4,
+      customer_support: 8,
+      sales: 10,
+      marketing: 15,
+      compliance: 12,
+      operations: 7,
+      finance: 9,
+      lead_gen: 6,
+      general: 5,
+    },
+    hourlyRate: {
+      admin: 25,
+      customer_support: 30,
+      sales: 45,
+      marketing: 40,
+      compliance: 50,
+      operations: 35,
+      finance: 55,
+      lead_gen: 40,
+      general: 30,
+    }
+  };
 
   const updateScenarioROI = useCallback(
     (partial: Partial<Scenario>) => {
@@ -93,7 +171,18 @@ export default function BuildPage() {
     trigger: PixelNode,
     action: PixelNode,
     decision: PixelNode,
+    group: NodeGroup,
   };
+
+  // Define edge types
+  const edgeTypes = {
+    custom: CustomEdge,
+  };
+
+  // After existing imports, add:
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isMultiSelectionActive, setIsMultiSelectionActive] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
   // Ensure a Scenario exists (one per user for now)
   useEffect(() => {
@@ -104,7 +193,17 @@ export default function BuildPage() {
       }
       const id = await createScenario("Untitled Scenario");
       setScenarioId(id);
-      router.replace(`/build?sid=${id}`);
+
+      // Preserve any existing query params (e.g. templateId) when we add the new scenarioId
+      const query = new URLSearchParams(window.location.search);
+      query.set("sid", String(id));
+
+      // If the current URL included a templateId (tid) keep it so the template can be loaded
+      if (templateIdParam) {
+        query.set("tid", templateIdParam);
+      }
+
+      router.replace(`/build?${query.toString()}`);
     }
     ensureScenario();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,7 +230,9 @@ export default function BuildPage() {
     });
   }, [nodes, scenarioId]);
 
-  // Persist edges when they change
+  // ------------------------------------------------------------------
+  // Load stored edges once we have a scenarioId
+  // ------------------------------------------------------------------
   useEffect(() => {
     if (!scenarioId) return;
     (async () => {
@@ -159,6 +260,28 @@ export default function BuildPage() {
       }
     })();
   }, [scenarioId]);
+
+  // ------------------------------------------------------------------
+  // Persist edges whenever they change so IndexedDB stays up-to-date
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    if (!scenarioId) return;
+
+    edges.forEach((e) => {
+      db.edges.put({
+        scenarioId,
+        reactFlowId: e.id,
+        label: typeof e.label === "string" ? e.label : undefined,
+        data: {
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle,
+          targetHandle: e.targetHandle,
+          ...e.data,
+        },
+      });
+    });
+  }, [edges, scenarioId]);
 
   // Load stored data (platform, nodes, viewport)
   useEffect(() => {
@@ -189,8 +312,145 @@ export default function BuildPage() {
     })();
   }, [scenarioId]);
 
-  // Selected node convenience
+  // Update selected node convenience to handle both nodes and groups
   const selectedNode = nodes.find((n) => n.id === selectedId);
+  const selectedGroup = nodes.find((n) => n.id === selectedGroupId && n.type === "group") || null;
+
+  // Add a function to handle node selection with multi-select
+  const handleNodeClick = useCallback((evt: React.MouseEvent, node: Node) => {
+    // Handle groups separately
+    if (node.type === "group") {
+      setSelectedGroupId(node.id);
+      setSelectedId(null);
+      return;
+    }
+    
+    // Check if Shift key is pressed for multi-select
+    if (evt.shiftKey) {
+      setIsMultiSelectionActive(true);
+      setSelectedIds((ids) => {
+        if (ids.includes(node.id)) {
+          // If already selected, deselect it
+          return ids.filter(id => id !== node.id);
+        } else {
+          // Otherwise add to selection
+          return [...ids, node.id];
+        }
+      });
+    } else {
+      // Regular single selection
+      setSelectedId(node.id);
+      setSelectedGroupId(null);
+      setSelectedIds([]);
+      setIsMultiSelectionActive(false);
+    }
+  }, []);
+  
+  // Function to create a group from selected nodes
+  const createGroupFromSelection = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    
+    // Find bounding box of selected nodes
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const selectedNodesData: Record<string, any> = {};
+    
+    selectedIds.forEach(id => {
+      const node = nodes.find(n => n.id === id);
+      if (!node) return;
+      
+      // Update bounding box
+      const { x, y } = node.position;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + 150); // Approximate node width
+      maxY = Math.max(maxY, y + 40);  // Approximate node height
+      
+      // Store node minutes contribution
+      const nodeType = node.type as any; // Cast to any first to avoid NodeType conflicts
+      const operationType = (node.data as any)?.typeOf;
+      const nodeMinutes = calculateNodeTimeSavings(
+        nodeType,
+        minutesPerRun,
+        nodes,
+        {
+          trigger: 0.5,
+          action: 1.2,
+          decision: 0.8,
+        },
+        operationType
+      );
+      
+      selectedNodesData[id] = {
+        minuteContribution: nodeMinutes,
+        ...node.data,
+      };
+    });
+    
+    // Add some padding
+    const padding = 20;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+    
+    // Create group node
+    const groupId = `group-${nanoid(6)}`;
+    const groupNode = {
+      id: groupId,
+      type: "group",
+      position: { x: minX, y: minY },
+      data: {
+        label: `Group ${nodes.filter(n => n.type === "group").length + 1}`,
+        nodes: selectedIds,
+        nodeMap: selectedNodesData,
+        width: maxX - minX,
+        height: maxY - minY,
+        runsPerMonth,
+        minutesPerRun,
+        hourlyRate,
+        taskMultiplier,
+        platform,
+        isLocked: false,
+        nodeCount: selectedIds.length,
+        onLockToggle: (locked: boolean) => {
+          setNodes(ns => ns.map(n => 
+            n.id === groupId 
+              ? { ...n, data: { ...n.data, isLocked: locked } } 
+              : n
+          ));
+        },
+      },
+      // Make the group selectable but not connectable
+      selectable: true,
+      connectable: false,
+    };
+    
+    // Add group node to the canvas
+    setNodes(ns => [...ns, groupNode]);
+    
+    // Clear selection
+    setSelectedIds([]);
+    setIsMultiSelectionActive(false);
+    
+    // Select the new group
+    setSelectedGroupId(groupId);
+    setSelectedId(null);
+  }, [selectedIds, nodes, setNodes, platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier]);
+  
+  // Function to ungroup
+  const ungroupSelection = useCallback(() => {
+    if (!selectedGroupId) return;
+    
+    // Get the group to remove
+    const group = nodes.find(n => n.id === selectedGroupId);
+    if (!group || group.type !== "group") return;
+    
+    // Remove the group node
+    setNodes(ns => ns.filter(n => n.id !== selectedGroupId));
+    
+    // Clear group selection
+    setSelectedGroupId(null);
+  }, [selectedGroupId, nodes, setNodes]);
 
   // handler to persist viewport
   const handleMoveEnd = (_: any, viewport: Viewport) => {
@@ -205,7 +465,16 @@ export default function BuildPage() {
   // Add new edge on connect
   const handleConnect = React.useCallback((connection: Connection) => {
     setEdges((eds) => {
-      const next = addEdge(connection, eds);
+      const next = addEdge({
+        ...connection,
+        // Use custom edge type for better visualization
+        type: 'custom',
+        // Add data to distinguish decision paths
+        data: {
+          ...(connection.sourceHandle === 'true' ? { isTrue: true } : {}),
+          ...(connection.sourceHandle === 'false' ? { isFalse: true } : {}),
+        }
+      }, eds);
       // Deduplicate by id to avoid React duplicate key errors
       return Array.from(new Map(next.map((e) => [e.id, e])).values());
     });
@@ -233,10 +502,7 @@ export default function BuildPage() {
         y: (centerY - wrapperRect.top - viewport.y) / viewport.zoom,
       };
 
-      const snapped = {
-        x: Math.round(pos.x / 8) * 8,
-        y: Math.round(pos.y / 8) * 8,
-      };
+      const snapped = snapToGrid(pos.x, pos.y);
 
       const newId = nanoid(6);
       setNodes((nds) => [
@@ -252,69 +518,57 @@ export default function BuildPage() {
     [rfInstance, setNodes]
   );
 
-  /* ------------------------------------------------------------ */
-  /*  RPG-style Platform Stats Banner                             */
-  /* ------------------------------------------------------------ */
-
-  function StatsBar({ p }: { p: "zapier" | "make" | "n8n" }) {
-    const tierName: Record<typeof p, string> = {
-      zapier: "Professional",
-      make: "Core",
-      n8n: "Starter",
-    } as any;
-
-    const data = pricing[p];
-    const tier = data.tiers.find((t) => t.name === tierName[p]) || data.tiers[0];
-
-    const costPerUnit = tier.quota
-      ? (tier.monthlyUSD / tier.quota).toFixed(4)
-      : "—";
-
-    // ROI calculations
-    const costPerUnitNum = tier.quota ? tier.monthlyUSD / tier.quota : 0;
-    const platformCost = runsPerMonth * costPerUnitNum;
-
-    const hoursSaved = (runsPerMonth * minutesPerRun) / 60;
-    const timeValue = hoursSaved * hourlyRate * taskMultiplier;
-    const netROI = timeValue - platformCost;
-    const roiRatio = platformCost ? timeValue / platformCost : 0;
-
-    return (
-      <div
-        className="flex items-center gap-2 rounded-sm border bg-muted/50 px-2 py-1 text-xs font-mono shadow-inner"
-      >
-        <Sword className="h-3 w-3 text-primary" />
-        <span className="capitalize font-semibold tracking-tight text-foreground">
-          {p}
-        </span>
-        <span className="opacity-70">•</span>
-        <span title="Included quota">
-          {tier.quota.toLocaleString()} {data.unit}
-        </span>
-        <span className="opacity-70">@</span>
-        <span>${costPerUnit}/{data.unit}</span>
-
-        {/* Dividers */}
-        <span className="opacity-30 mx-1">|</span>
-
-        {/* Value */}
-        <span title="Monthly Time Value" className="text-green-600 dark:text-green-400">
-          +${timeValue.toFixed(0)}
-        </span>
-        <span className="opacity-70">/</span>
-        <span title="Platform Cost" className="text-red-600 dark:text-red-400">
-          -${platformCost.toFixed(0)}
-        </span>
-        <span className="opacity-30">=</span>
-        <span title="Net ROI" className="font-semibold">
-          ${netROI.toFixed(0)}
-        </span>
-      </div>
-    );
-  }
-
   /* ---------- ROI Sheet open state ---------- */
   const [roiOpen, setRoiOpen] = useState(false);
+
+  /* -------------------------------------------------------------------- */
+  /*  Load template into new scenario (once)                               */
+  /* -------------------------------------------------------------------- */
+  const templateLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!templateIdParam || !scenarioId || templateLoadedRef.current) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/templates/${templateIdParam}`);
+        if (!res.ok) throw new Error("Template fetch failed");
+        const tpl = await res.json();
+
+        if (Array.isArray(tpl.nodes) && tpl.nodes.length) {
+          // Map template nodes/edges to ReactFlow shapes
+          setNodes(
+            tpl.nodes.map((n: any) => ({
+              id: n.reactFlowId,
+              type: n.type,
+              position: n.position,
+              data: n.data,
+            }))
+          );
+        }
+
+        if (Array.isArray(tpl.edges) && tpl.edges.length) {
+          setEdges(
+            tpl.edges.map((e: any) => ({
+              id: e.reactFlowId,
+              source: e.data?.source,
+              target: e.data?.target,
+              label: e.label,
+              data: e.data,
+            }))
+          );
+        }
+
+        // Set platform guess from template source if available
+        if (tpl.source && ["zapier", "make", "n8n"].includes(tpl.source)) {
+          setPlatform(tpl.source);
+        }
+
+        templateLoadedRef.current = true;
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, [templateIdParam, scenarioId, setNodes, setEdges]);
 
   return (
     <ReactFlowProvider>
@@ -330,13 +584,44 @@ export default function BuildPage() {
             <div className="flex items-center gap-4">
               <h1 className="text-lg font-semibold">Apicus.io</h1>
               {/* RPG-style dynamic stats bar */}
-              <StatsBar p={platform} />
+              <StatsBar 
+                platform={platform}
+                runsPerMonth={runsPerMonth}
+                minutesPerRun={minutesPerRun}
+                hourlyRate={hourlyRate}
+                taskMultiplier={taskMultiplier}
+              />
             </div>
             <div className="flex items-center gap-2">
               <PlatformSwitcher value={platform} onChange={setPlatform} />
               <Button size="icon" variant="ghost" onClick={() => setRoiOpen(true)} title="ROI Settings">
                 <Coins className="h-4 w-4" />
               </Button>
+              
+              {/* Group Controls */}
+              {isMultiSelectionActive && selectedIds.length > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex items-center gap-1"
+                  onClick={createGroupFromSelection}
+                >
+                  <Calculator className="h-3 w-3" />
+                  Group ({selectedIds.length})
+                </Button>
+              )}
+              
+              {selectedGroupId && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex items-center gap-1"
+                  onClick={ungroupSelection}
+                >
+                  Ungroup
+                </Button>
+              )}
+              
               <Button size="sm" onClick={() => handleAddNode(setNodes, nodes)}>
                 + Node
               </Button>
@@ -349,191 +634,87 @@ export default function BuildPage() {
             <Toolbox />
 
             {/* Canvas Wrapper */}
-            <div
-              ref={(node) => {
+            <FlowCanvas
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={handleNodeClick}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              defaultViewport={initialViewport}
+              onMoveEnd={handleMoveEnd}
+              onInit={(instance) => setRfInstance(instance as ReactFlowInstance)}
+              setWrapperRef={(node) => {
                 reactFlowWrapper.current = node;
                 setDroppableRef(node);
               }}
-              className="flex-grow"
-            >
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={handleConnect}
-                onNodeClick={(_, node) => setSelectedId(node.id)}
-                nodeTypes={nodeTypes}
-                fitView
-                defaultViewport={initialViewport}
-                onMoveEnd={handleMoveEnd}
-                snapToGrid
-                snapGrid={[8, 8]}
-                onInit={(instance) => setRfInstance(instance as ReactFlowInstance)}
-                className="bg-[linear-gradient(to_right,transparent_49%,theme(colors.border)_50%),linear-gradient(to_bottom,transparent_49%,theme(colors.border)_50%)] bg-[size:1rem_1rem]"
-              >
-                <Background gap={16} color="var(--border)" />
-                <Controls position="bottom-right" />
-              </ReactFlow>
+            />
 
-              {/* Parameter Sheet */}
-              <Sheet
-                open={!!selectedNode}
-                onOpenChange={(open) => {
-                  if (!open) setSelectedId(null);
-                }}
-              >
-                <SheetContent side="right" className="w-80">
-                  <SheetHeader>
-                    <SheetTitle>Node Properties</SheetTitle>
-                    <SheetDescription>
-                      Configure the selected node's basic settings.
-                    </SheetDescription>
-                  </SheetHeader>
-                  {selectedNode && (
-                    <div className="p-4 space-y-4">
-                      <label className="text-xs font-medium text-foreground/80">
-                        Label
-                        <Input
-                          className="mt-1"
-                          value={selectedNode.data?.label ?? ""}
-                          onChange={(e) => {
-                            const newLabel = e.target.value;
-                            setNodes((ns: Node<any>[]) =>
-                              ns.map((n) =>
-                                n.id === selectedNode.id
-                                  ? { ...n, data: { ...n.data, label: newLabel } }
-                                  : n
-                              )
-                            );
-                          }}
-                        />
-                      </label>
-                    </div>
-                  )}
-                </SheetContent>
-              </Sheet>
-            </div>
+            {/* Node Properties Panel */}
+            <NodePropertiesPanel
+              selectedNode={selectedNode}
+              onClose={() => setSelectedId(null)}
+              platform={platform}
+              nodes={nodes}
+              setNodes={setNodes}
+              runsPerMonth={runsPerMonth}
+              minutesPerRun={minutesPerRun}
+              hourlyRate={hourlyRate}
+              taskMultiplier={taskMultiplier}
+            />
+            
+            {/* Group Properties Panel */}
+            <GroupPropertiesPanel
+              selectedGroup={selectedGroup}
+              onClose={() => setSelectedGroupId(null)}
+              platform={platform}
+              nodes={nodes}
+              setNodes={setNodes}
+              runsPerMonth={runsPerMonth}
+              minutesPerRun={minutesPerRun}
+              hourlyRate={hourlyRate}
+              taskMultiplier={taskMultiplier}
+            />
           </div>
         </div>
 
-        {/* ROI Settings Sheet */}
-        <Sheet open={roiOpen} onOpenChange={setRoiOpen}>
-          <SheetContent side="right" className="w-80">
-            <SheetHeader>
-              <SheetTitle>ROI Settings</SheetTitle>
-              <SheetDescription>
-                Adjust workload and labor assumptions to see live ROI.
-              </SheetDescription>
-            </SheetHeader>
-
-            <div className="space-y-4 py-4">
-              {/* Runs per month */}
-              <div>
-                <Label htmlFor="runs">Runs per Month</Label>
-                <Input
-                  id="runs"
-                  type="number"
-                  min={0}
-                  value={runsPerMonth}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setRunsPerMonth(v);
-                    updateScenarioROI({ runsPerMonth: v });
-                  }}
-                />
-              </div>
-
-              {/* Minutes saved */}
-              <div>
-                <Label htmlFor="minutes">Minutes Saved per Run</Label>
-                <Input
-                  id="minutes"
-                  type="number"
-                  min={0}
-                  value={minutesPerRun}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setMinutesPerRun(v);
-                    updateScenarioROI({ minutesPerRun: v });
-                  }}
-                />
-              </div>
-
-              {/* Hourly rate */}
-              <div>
-                <Label htmlFor="hourly">Hourly Wage ($)</Label>
-                <Input
-                  id="hourly"
-                  type="number"
-                  min={0}
-                  value={hourlyRate}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setHourlyRate(v);
-                    updateScenarioROI({ hourlyRate: v });
-                  }}
-                />
-              </div>
-
-              {/* Task multiplier */}
-              <div>
-                <Label htmlFor="mult">Task Value Multiplier (V*)</Label>
-                <Input
-                  id="mult"
-                  type="number"
-                  step={0.1}
-                  min={0.5}
-                  max={5}
-                  value={taskMultiplier}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setTaskMultiplier(v);
-                    updateScenarioROI({ taskMultiplier: v });
-                  }}
-                />
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+        {/* ROI Settings Panel */}
+        <ROISettingsPanel
+          open={roiOpen}
+          onOpenChange={setRoiOpen}
+          platform={platform}
+          runsPerMonth={runsPerMonth}
+          setRunsPerMonth={setRunsPerMonth}
+          minutesPerRun={minutesPerRun}
+          setMinutesPerRun={setMinutesPerRun}
+          hourlyRate={hourlyRate}
+          setHourlyRate={setHourlyRate}
+          taskMultiplier={taskMultiplier}
+          setTaskMultiplier={setTaskMultiplier}
+          taskType={taskType}
+          setTaskType={setTaskType}
+          complianceEnabled={complianceEnabled}
+          setComplianceEnabled={setComplianceEnabled}
+          revenueEnabled={revenueEnabled}
+          setRevenueEnabled={setRevenueEnabled}
+          riskLevel={riskLevel}
+          setRiskLevel={setRiskLevel}
+          riskFrequency={riskFrequency}
+          setRiskFrequency={setRiskFrequency}
+          errorCost={errorCost}
+          setErrorCost={setErrorCost}
+          monthlyVolume={monthlyVolume}
+          setMonthlyVolume={setMonthlyVolume}
+          conversionRate={conversionRate}
+          setConversionRate={setConversionRate}
+          valuePerConversion={valuePerConversion}
+          setValuePerConversion={setValuePerConversion}
+          taskTypeMultipliers={taskTypeMultipliers}
+          benchmarks={benchmarks}
+          updateScenarioROI={updateScenarioROI}
+        />
       </DndContext>
     </ReactFlowProvider>
   );
-}
-
-function PlatformSwitcher({
-  value,
-  onChange,
-}: {
-  value: "zapier" | "make" | "n8n";
-  onChange: (p: "zapier" | "make" | "n8n") => void;
-}) {
-  return (
-    <div className="inline-flex gap-1 rounded-md border p-1 bg-muted">
-      {PLATFORMS.map((p) => (
-        <Button
-          key={p}
-          size="sm"
-          variant={p === value ? "default" : "ghost"}
-          className={cn("capitalize", p === value && "shadow")}
-          onClick={() => onChange(p)}
-        >
-          {p}
-        </Button>
-      ))}
-    </div>
-  );
-}
-
-function handleAddNode(setNodes: any, currentNodes: Node<any>[]) {
-  const id = `n-${currentNodes.length + 1}`;
-  setNodes((nds: any[]) => [
-    ...nds,
-    {
-      id,
-      type: "action",
-      position: { x: Math.random() * 400 + 100, y: Math.random() * 200 + 100 },
-      data: { label: `Node ${nds.length + 1}` },
-    },
-  ]);
 } 

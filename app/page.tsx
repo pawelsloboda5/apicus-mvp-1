@@ -1,13 +1,17 @@
 "use client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { BadgeCheck, Wand2, BarChart3, Sparkles } from "lucide-react";
+import { BadgeCheck, Wand2, BarChart3, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   // Small client-only hook to fade-in hero for a touch of delight
   const [mounted, setMounted] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -31,11 +35,50 @@ export default function Home() {
           in Minutes<span className="text-primary">.</span>
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-          Apicus turns your workflow ideas into crystal-clear business value—no spreadsheets, no guesswork.
+          Describe a business process and let Apicus suggest the closest ready-made automation—or jump right in and build from scratch.
         </p>
-        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+
+        {/* Business-process query input */}
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const q = inputRef.current?.value.trim();
+            if (!q) return;
+            setSearching(true);
+            try {
+              const res = await fetch(`/api/templates/search?q=${encodeURIComponent(q)}`);
+              const data = await res.json();
+              if (data.templateId) {
+                router.push(`/build?tid=${data.templateId}`);
+              } else {
+                alert("No matching template found");
+              }
+            } catch (_err) {
+              alert("Search failed. Please try again.");
+            } finally {
+              setSearching(false);
+            }
+          }}
+          className="relative mx-auto mt-8 flex w-full max-w-xl items-center gap-2"
+        >
+          <input
+            ref={inputRef}
+            type="text"
+            name="q"
+            required
+            placeholder="e.g. Send a Slack alert when a Stripe payment fails"
+            className="flex-1 rounded-md border px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-40"
+            disabled={searching}
+          />
+          <Button type="submit" size="lg" disabled={searching} className="flex items-center gap-2">
+            {searching && <Loader2 className="h-4 w-4 animate-spin" />}
+            {searching ? "Searching…" : "Find Template"}
+          </Button>
+        </form>
+
+        <div className="mt-6 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button size="lg" className="shadow-lg" asChild>
-            <Link href="/build">Get Started</Link>
+            <Link href="/build">Start Blank</Link>
           </Button>
           <Button variant="secondary" size="lg" asChild>
             <Link href="#features">Learn More</Link>

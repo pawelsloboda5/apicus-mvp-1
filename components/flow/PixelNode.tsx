@@ -3,29 +3,27 @@ import { Handle, Position, NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { Sparkles, GitBranch, PlayCircle } from "lucide-react";
 import * as React from "react";
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
+import { NodeData, NodeType } from "@/lib/types";
 
 // Map node variants to colours & icons – strictly typed keys
 const variantStyles = {
   trigger: {
     bg: "bg-secondary/80",
-    icon: <PlayCircle className="h-4 w-4" /> as JSX.Element,
+    icon: <PlayCircle className="h-4 w-4" /> as ReactNode,
   },
   action: {
     bg: "bg-muted",
-    icon: <Sparkles className="h-4 w-4" /> as JSX.Element,
+    icon: <Sparkles className="h-4 w-4" /> as ReactNode,
   },
   decision: {
     bg: "bg-primary/20",
-    icon: <GitBranch className="h-4 w-4" /> as JSX.Element,
+    icon: <GitBranch className="h-4 w-4" /> as ReactNode,
   },
-} satisfies Record<
-  "trigger" | "action" | "decision",
-  { bg: string; icon: JSX.Element }
->;
+} satisfies Record<NodeType, { bg: string; icon: ReactNode }>;
 
 export function PixelNode({ data, selected, type }: NodeProps) {
-  const variant = variantStyles[(type as keyof typeof variantStyles) ?? "action"];
+  const variant = variantStyles[(type as NodeType) ?? "action"];
   return (
     <div
       className={cn(
@@ -39,16 +37,33 @@ export function PixelNode({ data, selected, type }: NodeProps) {
       <span className="truncate">{data?.label ?? "Node"}</span>
       {/* Connection Handles */}
       <Handle type="target" position={Position.Left} className="!bg-ring" />
-      <Handle type="source" position={Position.Right} className="!bg-ring" />
-      {type === "decision" && (
+      
+      {type === "decision" ? (
         <>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="alt"
-            className="!bg-ring"
-          />
+          {/* True path - right handle */}
+          <div className="absolute right-0 top-0 flex items-center justify-end h-full pr-[3px]">
+            <span className="text-[9px] text-green-600 dark:text-green-400 mr-1">True</span>
+            <Handle
+              type="source"
+              position={Position.Right}
+              id="true"
+              className="!bg-green-500 dark:!bg-green-400"
+            />
+          </div>
+          
+          {/* False path - bottom handle */}
+          <div className="absolute bottom-0 left-0 flex flex-col items-center justify-center w-full pb-[3px]">
+            <Handle
+              type="source"
+              position={Position.Bottom}
+              id="false"
+              className="!bg-red-500 dark:!bg-red-400"
+            />
+            <span className="text-[9px] text-red-600 dark:text-red-400 mt-1">False</span>
+          </div>
         </>
+      ) : (
+        <Handle type="source" position={Position.Right} className="!bg-ring" />
       )}
     </div>
   );
