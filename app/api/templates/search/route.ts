@@ -4,6 +4,7 @@ import clientPromise from "@/lib/mongo";
 import { Db } from "mongodb";
 
 export const runtime = "nodejs"; // Use Node.js runtime for MongoDB driver compatibility
+// This is necessary because the MongoDB driver relies on Node.js core modules
 
 // GET /api/templates/search?q=...
 export async function GET(req: Request) {
