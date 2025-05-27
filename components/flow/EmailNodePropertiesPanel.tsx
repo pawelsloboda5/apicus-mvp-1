@@ -80,15 +80,17 @@ export function EmailNodePropertiesPanel({
     field: keyof EmailPreviewNodeData,
     value: string
   ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleBlur = (field: keyof EmailPreviewNodeData) => {
-    if (selectedNode && formData[field] !== selectedNode.data[field]) {
-      onUpdateNodeData(selectedNode.id, { [field]: formData[field] });
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+    
+    // Update immediately for real-time preview
+    if (selectedNode) {
+      onUpdateNodeData(selectedNode.id, { [field]: value });
     }
   };
-  
+
+  // Remove handleBlur function since we're updating in real-time
+
   const renderAISection = (
     sectionName: 'Subject Line' | 'Hook Text' | 'CTA Text' | 'Offer Text',
     fieldKey: 'subjectLine' | 'hookText' | 'ctaText' | 'offerText',
@@ -135,7 +137,6 @@ export function EmailNodePropertiesPanel({
              id={fieldKey}
              value={formData[fieldKey] || ''}
              onChange={(e) => handleInputChange(fieldKey, e.target.value)}
-             onBlur={() => handleBlur(fieldKey)}
              placeholder={`Enter ${sectionName}`}
              disabled={isGeneratingAIContent}
            />
@@ -144,7 +145,6 @@ export function EmailNodePropertiesPanel({
             id={fieldKey}
             value={formData[fieldKey] || ''}
             onChange={(e) => handleInputChange(fieldKey, e.target.value)}
-            onBlur={() => handleBlur(fieldKey)}
             placeholder={`Enter ${sectionName}`}
             rows={fieldKey === 'hookText' ? 5 : (fieldKey === 'offerText' ? 4 : 3)}
             className="min-h-[80px]"
@@ -167,23 +167,22 @@ export function EmailNodePropertiesPanel({
         if (!open) onClose();
       }}
     >
-      <SheetContent side="right" className="w-[480px] sm:w-[540px] flex flex-col p-0">
-        <SheetHeader className="p-6 pb-4 border-b">
+      <SheetContent side="right" className="w-[480px] sm:w-[540px] flex flex-col p-0 max-h-screen">
+        <SheetHeader className="p-6 pb-4 border-b flex-shrink-0">
           <SheetTitle className="text-xl">Edit Email Content</SheetTitle>
           <SheetDescription>
-            Modify the details for your generated email. Changes are saved on blur.
+            Modify the details for your generated email. Changes update in real-time.
           </SheetDescription>
         </SheetHeader>
         
-        <ScrollArea className="flex-grow px-6 py-4">
-          <div className="space-y-6">
+        <ScrollArea className="flex-1 px-6 py-4">
+          <div className="space-y-6 pb-6">
             <div>
               <Label htmlFor="nodeTitle" className="text-base font-medium">Node Title on Canvas</Label>
               <Input
                 id="nodeTitle"
                 value={formData.nodeTitle || ''}
                 onChange={(e) => handleInputChange('nodeTitle', e.target.value)}
-                onBlur={() => handleBlur('nodeTitle')}
                 placeholder="e.g., Follow-up Email Q1"
               />
             </div>
@@ -192,15 +191,31 @@ export function EmailNodePropertiesPanel({
               <h4 className="text-base font-semibold text-muted-foreground">Your Details</h4>
               <div>
                 <Label htmlFor="yourName">Your Name</Label>
-                <Input id="yourName" value={formData.yourName || ''} onChange={(e) => handleInputChange('yourName', e.target.value)} onBlur={() => handleBlur('yourName')} placeholder="Jane Doe" />
+                <Input 
+                  id="yourName" 
+                  value={formData.yourName || ''} 
+                  onChange={(e) => handleInputChange('yourName', e.target.value)} 
+                  placeholder="Jane Doe" 
+                />
               </div>
               <div>
                 <Label htmlFor="yourCompany">Your Company</Label>
-                <Input id="yourCompany" value={formData.yourCompany || ''} onChange={(e) => handleInputChange('yourCompany', e.target.value)} onBlur={() => handleBlur('yourCompany')} placeholder="Acme Corp" />
+                <Input 
+                  id="yourCompany" 
+                  value={formData.yourCompany || ''} 
+                  onChange={(e) => handleInputChange('yourCompany', e.target.value)} 
+                  placeholder="Acme Corp" 
+                />
               </div>
               <div>
                 <Label htmlFor="yourEmail">Your Email</Label>
-                <Input id="yourEmail" type="email" value={formData.yourEmail || ''} onChange={(e) => handleInputChange('yourEmail', e.target.value)} onBlur={() => handleBlur('yourEmail')} placeholder="jane@acme.com" />
+                <Input 
+                  id="yourEmail" 
+                  type="email" 
+                  value={formData.yourEmail || ''} 
+                  onChange={(e) => handleInputChange('yourEmail', e.target.value)} 
+                  placeholder="jane@acme.com" 
+                />
               </div>
             </div>
 
@@ -208,15 +223,30 @@ export function EmailNodePropertiesPanel({
               <h4 className="text-base font-semibold text-muted-foreground">Recipient & Links</h4>
               <div>
                 <Label htmlFor="firstName">Recipient First Name</Label>
-                <Input id="firstName" value={formData.firstName || ''} onChange={(e) => handleInputChange('firstName', e.target.value)} onBlur={() => handleBlur('firstName')} placeholder="John" />
+                <Input 
+                  id="firstName" 
+                  value={formData.firstName || ''} 
+                  onChange={(e) => handleInputChange('firstName', e.target.value)} 
+                  placeholder="John" 
+                />
               </div>
               <div>
                 <Label htmlFor="calendlyLink">Calendly Link</Label>
-                <Input id="calendlyLink" value={formData.calendlyLink || ''} onChange={(e) => handleInputChange('calendlyLink', e.target.value)} onBlur={() => handleBlur('calendlyLink')} placeholder="https://calendly.com/your-link" />
+                <Input 
+                  id="calendlyLink" 
+                  value={formData.calendlyLink || ''} 
+                  onChange={(e) => handleInputChange('calendlyLink', e.target.value)} 
+                  placeholder="https://calendly.com/your-link" 
+                />
               </div>
               <div>
                 <Label htmlFor="pdfLink">PDF/Resource Link</Label>
-                <Input id="pdfLink" value={formData.pdfLink || ''} onChange={(e) => handleInputChange('pdfLink', e.target.value)} onBlur={() => handleBlur('pdfLink')} placeholder="https://example.com/roi-snapshot.pdf" />
+                <Input 
+                  id="pdfLink" 
+                  value={formData.pdfLink || ''} 
+                  onChange={(e) => handleInputChange('pdfLink', e.target.value)} 
+                  placeholder="https://example.com/roi-snapshot.pdf" 
+                />
               </div>
             </div>
             
@@ -230,7 +260,7 @@ export function EmailNodePropertiesPanel({
           </div>
         </ScrollArea>
         
-        <SheetFooter className="p-6 pt-4 border-t">
+        <SheetFooter className="p-6 pt-4 border-t flex-shrink-0">
           <SheetClose asChild>
             <Button variant="outline">Close</Button>
           </SheetClose>
@@ -238,4 +268,4 @@ export function EmailNodePropertiesPanel({
       </SheetContent>
     </Sheet>
   );
-} 
+}

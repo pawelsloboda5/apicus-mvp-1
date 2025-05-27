@@ -355,14 +355,6 @@ export function StatsBar({
         color={roiRatio >= 1 ? "text-green-600 dark:text-green-400" : "text-amber-500"}
       />
       <Separator orientation="vertical" className="h-10 hidden sm:block" />
-      <Button 
-        variant="outline" 
-        size="sm" 
-        className="ml-auto"
-      >
-        <Mail className="h-4 w-4 mr-2" />
-        Generate Email
-      </Button>
     </div>
   );
 } 
