@@ -4,7 +4,7 @@ import clientPromise from "@/lib/mongo";
 import { Db } from "mongodb";
 
 // Note: Must run in Node.js runtime because MongoDB driver relies on Node core modules.
-// (Edge runtime lacks 'net', 'tls', etc.)
+// (Edge runtime lacks 'net', 'tls', etc.) added
 
 // GET /api/templates/search?q=...
 export async function GET(req: Request) {
