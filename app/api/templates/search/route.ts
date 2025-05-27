@@ -15,19 +15,24 @@ export async function GET(req: Request) {
   }
 
   // Build embedding for query ------------------------------------------------
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.AZURE_OPENAI_API_KEY;
+  const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
   const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
   const embeddingDeployment = process.env.AZURE_TEXT_EMBEDDING_3_SMALL_DEPLOYMENT || "text-embedding-3-small";
   const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2025-01-01-preview";
 
-  if (!OPENAI_API_KEY || !azureEndpoint) {
-    return NextResponse.json({ error: "OpenAI env vars missing" }, { status: 500 });
+  if (!AZURE_OPENAI_API_KEY || !azureEndpoint) {
+    console.error("Missing Azure OpenAI environment variables:", {
+      hasApiKey: !!AZURE_OPENAI_API_KEY,
+      hasEndpoint: !!azureEndpoint,
+      hasDeployment: !!embeddingDeployment
+    });
+    return NextResponse.json({ error: "Azure OpenAI env vars missing" }, { status: 500 });
   }
 
   const openai = new OpenAI({
-    apiKey: OPENAI_API_KEY,
+    apiKey: AZURE_OPENAI_API_KEY,
     baseURL: `${azureEndpoint}/openai/deployments/${embeddingDeployment}`,
-    defaultHeaders: { "api-key": OPENAI_API_KEY },
+    defaultHeaders: { "api-key": AZURE_OPENAI_API_KEY },
     defaultQuery: { "api-version": apiVersion },
   });
 
@@ -135,4 +140,4 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({ templates: results });
-} 
+}
