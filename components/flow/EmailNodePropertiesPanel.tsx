@@ -32,7 +32,7 @@ interface EmailNodePropertiesPanelProps {
     section: 'hook' | 'cta' | 'offer' | 'subject',
     promptType: string,
     currentText: string
-  ) => Promise<void>; // Returns a promise to handle loading state
+  ) => Promise<void>;
   isGeneratingAIContent: boolean;
 }
 
@@ -89,23 +89,30 @@ export function EmailNodePropertiesPanel({
     }
   };
 
-  // Remove handleBlur function since we're updating in real-time
-
   const renderAISection = (
     sectionName: 'Subject Line' | 'Hook Text' | 'CTA Text' | 'Offer Text',
     fieldKey: 'subjectLine' | 'hookText' | 'ctaText' | 'offerText',
     promptKey: 'subject' | 'hook' | 'cta' | 'offer'
   ) => {
     return (
-      <div className="space-y-1">
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor={fieldKey} className="text-base font-medium">
             {sectionName}
           </Label>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="ml-2 px-2 py-1 h-auto text-xs" disabled={isGeneratingAIContent}>
-                {isGeneratingAIContent ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="ml-2 px-2 py-1 h-auto text-xs" 
+                disabled={isGeneratingAIContent}
+              >
+                {isGeneratingAIContent ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3 w-3" />
+                )}
                 <span className="ml-1">Rewrite</span>
                 <ChevronDown className="h-3 w-3 ml-1" />
               </Button>
@@ -147,14 +154,13 @@ export function EmailNodePropertiesPanel({
             onChange={(e) => handleInputChange(fieldKey, e.target.value)}
             placeholder={`Enter ${sectionName}`}
             rows={fieldKey === 'hookText' ? 5 : (fieldKey === 'offerText' ? 4 : 3)}
-            className="min-h-[80px]"
+            className="min-h-[80px] resize-none"
             disabled={isGeneratingAIContent}
           />
         )}
       </div>
     );
   };
-
 
   if (!selectedNode) {
     return null;
@@ -167,7 +173,10 @@ export function EmailNodePropertiesPanel({
         if (!open) onClose();
       }}
     >
-      <SheetContent side="right" className="w-[480px] sm:w-[540px] flex flex-col p-0 max-h-screen">
+      <SheetContent 
+        side="right" 
+        className="w-[480px] sm:w-[540px] flex flex-col p-0 h-screen max-h-screen overflow-hidden"
+      >
         <SheetHeader className="p-6 pb-4 border-b flex-shrink-0">
           <SheetTitle className="text-xl">Edit Email Content</SheetTitle>
           <SheetDescription>
@@ -175,90 +184,110 @@ export function EmailNodePropertiesPanel({
           </SheetDescription>
         </SheetHeader>
         
-        <ScrollArea className="flex-1 px-6 py-4">
-          <div className="space-y-6 pb-6">
-            <div>
-              <Label htmlFor="nodeTitle" className="text-base font-medium">Node Title on Canvas</Label>
-              <Input
-                id="nodeTitle"
-                value={formData.nodeTitle || ''}
-                onChange={(e) => handleInputChange('nodeTitle', e.target.value)}
-                placeholder="e.g., Follow-up Email Q1"
-              />
-            </div>
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="p-6 space-y-6">
+              <div>
+                <Label htmlFor="nodeTitle" className="text-base font-medium">
+                  Node Title on Canvas
+                </Label>
+                <Input
+                  id="nodeTitle"
+                  value={formData.nodeTitle || ''}
+                  onChange={(e) => handleInputChange('nodeTitle', e.target.value)}
+                  placeholder="e.g., Follow-up Email Q1"
+                  className="mt-2"
+                />
+              </div>
 
-            <div className="space-y-3 pt-2">
-              <h4 className="text-base font-semibold text-muted-foreground">Your Details</h4>
-              <div>
-                <Label htmlFor="yourName">Your Name</Label>
-                <Input 
-                  id="yourName" 
-                  value={formData.yourName || ''} 
-                  onChange={(e) => handleInputChange('yourName', e.target.value)} 
-                  placeholder="Jane Doe" 
-                />
+              <div className="space-y-4">
+                <h4 className="text-base font-semibold text-muted-foreground">Your Details</h4>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="yourName">Your Name</Label>
+                    <Input 
+                      id="yourName" 
+                      value={formData.yourName || ''} 
+                      onChange={(e) => handleInputChange('yourName', e.target.value)} 
+                      placeholder="Jane Doe"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="yourCompany">Your Company</Label>
+                    <Input 
+                      id="yourCompany" 
+                      value={formData.yourCompany || ''} 
+                      onChange={(e) => handleInputChange('yourCompany', e.target.value)} 
+                      placeholder="Acme Corp"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="yourEmail">Your Email</Label>
+                    <Input 
+                      id="yourEmail" 
+                      type="email" 
+                      value={formData.yourEmail || ''} 
+                      onChange={(e) => handleInputChange('yourEmail', e.target.value)} 
+                      placeholder="jane@acme.com"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="yourCompany">Your Company</Label>
-                <Input 
-                  id="yourCompany" 
-                  value={formData.yourCompany || ''} 
-                  onChange={(e) => handleInputChange('yourCompany', e.target.value)} 
-                  placeholder="Acme Corp" 
-                />
-              </div>
-              <div>
-                <Label htmlFor="yourEmail">Your Email</Label>
-                <Input 
-                  id="yourEmail" 
-                  type="email" 
-                  value={formData.yourEmail || ''} 
-                  onChange={(e) => handleInputChange('yourEmail', e.target.value)} 
-                  placeholder="jane@acme.com" 
-                />
-              </div>
-            </div>
 
-            <div className="space-y-3 pt-2">
-              <h4 className="text-base font-semibold text-muted-foreground">Recipient & Links</h4>
-              <div>
-                <Label htmlFor="firstName">Recipient First Name</Label>
-                <Input 
-                  id="firstName" 
-                  value={formData.firstName || ''} 
-                  onChange={(e) => handleInputChange('firstName', e.target.value)} 
-                  placeholder="John" 
-                />
+              <div className="space-y-4">
+                <h4 className="text-base font-semibold text-muted-foreground">Recipient & Links</h4>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="firstName">Recipient First Name</Label>
+                    <Input 
+                      id="firstName" 
+                      value={formData.firstName || ''} 
+                      onChange={(e) => handleInputChange('firstName', e.target.value)} 
+                      placeholder="John"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="calendlyLink">Calendly Link</Label>
+                    <Input 
+                      id="calendlyLink" 
+                      value={formData.calendlyLink || ''} 
+                      onChange={(e) => handleInputChange('calendlyLink', e.target.value)} 
+                      placeholder="https://calendly.com/your-link"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pdfLink">PDF/Resource Link</Label>
+                    <Input 
+                      id="pdfLink" 
+                      value={formData.pdfLink || ''} 
+                      onChange={(e) => handleInputChange('pdfLink', e.target.value)} 
+                      placeholder="https://example.com/roi-snapshot.pdf"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="calendlyLink">Calendly Link</Label>
-                <Input 
-                  id="calendlyLink" 
-                  value={formData.calendlyLink || ''} 
-                  onChange={(e) => handleInputChange('calendlyLink', e.target.value)} 
-                  placeholder="https://calendly.com/your-link" 
-                />
+              
+              <div className="space-y-4">
+                <h4 className="text-base font-semibold text-muted-foreground">Email Content (AI Assisted)</h4>
+                <div className="space-y-6">
+                  {renderAISection('Subject Line', 'subjectLine', 'subject')}
+                  {renderAISection('Hook Text', 'hookText', 'hook')}
+                  {renderAISection('CTA Text', 'ctaText', 'cta')}
+                  {renderAISection('Offer Text', 'offerText', 'offer')}
+                </div>
               </div>
-              <div>
-                <Label htmlFor="pdfLink">PDF/Resource Link</Label>
-                <Input 
-                  id="pdfLink" 
-                  value={formData.pdfLink || ''} 
-                  onChange={(e) => handleInputChange('pdfLink', e.target.value)} 
-                  placeholder="https://example.com/roi-snapshot.pdf" 
-                />
-              </div>
+
+              {/* Add some bottom padding to ensure last element is fully visible */}
+              <div className="h-6"></div>
             </div>
-            
-            <div className="space-y-4 pt-2">
-              <h4 className="text-base font-semibold text-muted-foreground">Email Content (AI Assisted)</h4>
-              {renderAISection('Subject Line', 'subjectLine', 'subject')}
-              {renderAISection('Hook Text', 'hookText', 'hook')}
-              {renderAISection('CTA Text', 'ctaText', 'cta')}
-              {renderAISection('Offer Text', 'offerText', 'offer')}
-            </div>
-          </div>
-        </ScrollArea>
+          </ScrollArea>
+        </div>
         
         <SheetFooter className="p-6 pt-4 border-t flex-shrink-0">
           <SheetClose asChild>
