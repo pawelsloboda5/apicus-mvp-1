@@ -1233,7 +1233,6 @@ function BuildPageContent() {
                   )}
                   {selectedGroupId && (
                     <DropdownMenuItem onClick={ungroupSelection}>
-                      {/* Add appropriate icon for ungroup if available */}
                       Ungroup
                     </DropdownMenuItem>
                   )}
@@ -1241,9 +1240,10 @@ function BuildPageContent() {
                   <DropdownMenuItem onClick={() => handleAddNode(setNodes, nodes)}>
                     + Add Node
                   </DropdownMenuItem>
+                  {/* SINGLE Generate Email button for mobile */}
                   <DropdownMenuItem onClick={handleGenerateEmailOnCanvas}>
                     <Mail className="mr-2 h-4 w-4" />
-                    Generate Email on Canvas
+                    Generate Email
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1283,9 +1283,10 @@ function BuildPageContent() {
                 <Button size="sm" onClick={() => handleAddNode(setNodes, nodes)}>
                   + Node
                 </Button>
-                <Button size="sm" variant="outline" onClick={handleGenerateEmailOnCanvas} title="Generate Email on Canvas">
-                    <Mail className="mr-2 h-4 w-4" />
-                    Email to Canvas
+                {/* SINGLE Generate Email button for desktop */}
+                <Button size="sm" variant="outline" onClick={handleGenerateEmailOnCanvas}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Generate Email
                 </Button>
               </div>
             )}
