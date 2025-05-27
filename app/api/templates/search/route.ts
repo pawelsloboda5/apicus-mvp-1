@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import clientPromise from "@/lib/mongo";
 import { Db } from "mongodb";
 
+export const runtime = "nodejs"; // Use Node.js runtime for MongoDB driver compatibility
 // Note: Must run in Node.js runtime because MongoDB driver relies on Node core modules.
 // (Edge runtime lacks 'net', 'tls', etc.) added
 
@@ -141,3 +142,4 @@ export async function GET(req: Request) {
 
   return NextResponse.json({ templates: results });
 }
+
