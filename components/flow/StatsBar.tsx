@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, DollarSign, Clock, Zap, MinusIcon, PlusIcon, ShieldCheck, Percent, Mail } from "lucide-react";
 import { pricing } from "@/app/api/data/pricing";
-import { StatsBarProps, PlatformType } from "@/lib/types";
+import { StatsBarProps } from "@/lib/types";
 import { 
   calculateTimeValue, 
   calculatePlatformCost,

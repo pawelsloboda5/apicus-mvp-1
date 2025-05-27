@@ -10,7 +10,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronUp, ChevronDown, RefreshCw, Workflow, Zap, CheckSquare, MessageSquare } from 'lucide-react';
-import { type Scenario } from '@/lib/db'; // Assuming Scenario type includes necessary fields for display
 import { cn } from '@/lib/utils';
 import { Node } from '@xyflow/react';
 
@@ -157,12 +156,12 @@ export function AlternativeTemplatesSheet({
                         <div>
                           <h5 className="text-xs font-semibold mb-1">Apps Involved:</h5>
                           <div className="flex flex-wrap gap-1">
-                            {[...new Set(alt.nodesSnapshot?.map(n => (n.data as any)?.appName).filter(Boolean) as string[])].slice(0, 5).map(appName => (
+                            {[...new Set(alt.nodesSnapshot?.map(n => (n.data as Record<string, unknown>)?.appName).filter(Boolean) as string[])].slice(0, 5).map(appName => (
                               <span key={appName} className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-sm">
                                 {appName}
                               </span>
                             ))}
-                            {(alt.nodesSnapshot?.map(n => (n.data as any)?.appName).filter(Boolean) as string[]).length > 5 && (
+                            {(alt.nodesSnapshot?.map(n => (n.data as Record<string, unknown>)?.appName).filter(Boolean) as string[]).length > 5 && (
                                <span className="text-[10px] text-muted-foreground">...and more</span>
                             )}
                           </div>

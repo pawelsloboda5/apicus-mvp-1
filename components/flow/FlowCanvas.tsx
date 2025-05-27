@@ -64,7 +64,7 @@ export function FlowCanvas({
   }, []);
   
   // Function to validate connections
-  const isValidConnection: IsValidConnection = (connection) => {
+  const isValidConnection: IsValidConnection = useCallback((connection) => {
     // Don't allow connections to self
     if (connection.source === connection.target) {
       return false;
@@ -103,7 +103,7 @@ export function FlowCanvas({
     
     // Allow connection if validation passes
     return true;
-  };
+  }, [nodes, edges]);
 
   // Add new edge on connect
   const handleConnect = useCallback((connection: Connection) => {

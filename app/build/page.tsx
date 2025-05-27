@@ -537,10 +537,10 @@ export default function BuildPage() {
     }
     
     // Persist the snapshots. If updatedAt is in updatePayload, it gets updated too.
-    db.scenarios.update(currentScenario.id, updatePayload).catch(err => {
+    db.scenarios.update(currentScenario.id, updatePayload).catch(() => {
+      // Silently handle database update errors
     });
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, rfInstance, currentScenario, isLoading]); // currentScenario is the key addition for comparison
 
   // Update selected node convenience to handle both nodes and groups
@@ -594,7 +594,10 @@ export default function BuildPage() {
     
     // Find bounding box of selected nodes
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const selectedNodesData: Record<string, any> = {};
+    const selectedNodesData: Record<string, {
+      minuteContribution: number;
+      [key: string]: unknown;
+    }> = {};
     
     selectedIds.forEach(id => {
       const node = nodes.find(n => n.id === id);
@@ -827,11 +830,11 @@ export default function BuildPage() {
 
         if (data.templates && Array.isArray(data.templates)) {
             const primaryId = currentScenario.originalTemplateId;
-            newAltsState = data.templates.filter((t: any) => t.templateId !== primaryId).slice(0, 5).map((t: any) => ({
+            newAltsState = data.templates.filter((t) => t.templateId !== primaryId).slice(0, 5).map((t) => ({
                 slug: nanoid(8), name: t.title || "Alternative", createdAt: Date.now(), updatedAt: Date.now(),
-                platform: t.platform || t.source || "zapier",
-                nodesSnapshot: t.nodes?.map((n: any) => ({ id: n.reactFlowId || n.id, type: n.type, position: n.position, data: n.data })) || [],
-                edgesSnapshot: t.edges?.map((e: any) => ({ id: e.reactFlowId || e.id, source: e.data?.source || e.source, target: e.data?.target || e.target, label: e.label, data: e.data, type: 'custom' })) || [],
+                platform: (t.platform || t.source || "zapier") as LibPlatformType,
+                nodesSnapshot: t.nodes?.map((n) => ({ id: n.reactFlowId || n.id, type: n.type, position: n.position, data: n.data })) || [],
+                edgesSnapshot: t.edges?.map((e) => ({ id: e.reactFlowId || e.id, source: e.data?.source || e.source, target: e.data?.target || e.target, label: e.label, data: e.data, type: 'custom' })) || [],
                 originalTemplateId: t.templateId, 
                 searchQuery: queryToSearch, // Use queryToSearch from parameter
                 runsPerMonth: 250, minutesPerRun: 3, hourlyRate: 30, taskMultiplier: 1.5, taskType: "general",
