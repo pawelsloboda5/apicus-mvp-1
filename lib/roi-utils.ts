@@ -207,6 +207,7 @@ export function calculateNodeTimeSavings(
     trigger: 0.5,
     action: 1.2,
     decision: 0.8,
+    group: 0,
   },
   operationType?: string
 ): number {
@@ -284,6 +285,7 @@ export function calculateGroupROI(
         trigger: 0.5,
         action: 1.2,
         decision: 0.8,
+        group: 0,
       },
       operationType
     );

@@ -61,6 +61,10 @@ export interface StatsBarProps {
   minutesPerRun: number;
   hourlyRate: number;
   taskMultiplier: number;
+  onUpdateRuns: (runs: number) => void;
+  onUpdateMinutes: (minutes: number) => void;
+  nodes?: Node[];
+  currentScenario?: any;
 }
 
 export interface PlatformSwitcherProps {
@@ -74,10 +78,20 @@ export interface FlowCanvasProps {
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
-  onMoveEnd?: (event: React.MouseEvent, viewport: Viewport) => void;
+  onMoveEnd?: (event: MouseEvent | TouchEvent | null, viewport: Viewport) => void;
   onInit?: (instance: ReactFlowInstance) => void;
   nodeTypes?: Record<string, React.ComponentType<any>>;
   edgeTypes?: Record<string, React.ComponentType<any>>;
   defaultViewport?: Viewport;
   setWrapperRef?: (ref: HTMLDivElement | null) => void;
+
+  // Props for scenario title editing
+  currentScenarioName?: string;
+  isEditingTitle?: boolean;
+  editingScenarioName?: string;
+  onToggleEditTitle?: (editing: boolean) => void;
+  onScenarioNameChange?: (newName: string) => void;
+  onSaveScenarioName?: () => void;
+  onScenarioNameKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  titleInputRef?: React.RefObject<HTMLInputElement | null>;
 } 

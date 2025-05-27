@@ -58,34 +58,34 @@ export async function GET(req: Request) {
         cosmosSearch: {
           vector: embedding,
           path: "embedding",
-          k: 1,
+          k: 6,
         },
       },
     },
-    { $limit: 1 },
-    { $project: { templateId: 1, title: 1, nodes: 1, edges: 1, _id: 0 } },
+    { $limit: 6 },
+    { $project: { templateId: 1, title: 1, nodes: 1, edges: 1, source: 1, platform: 1, description: 1, _id: 0 } },
   ];
 
-  let result: any;
+  let results: any[];
   try {
-    [result] = await collection.aggregate(cosmosPipeline).toArray();
+    results = await collection.aggregate(cosmosPipeline).toArray();
   } catch (err: any) {
     // If Cosmos operator not found, fall back to Atlas $vectorSearch
     if (err.message?.includes("cosmosSearch")) {
       const atlasPipeline = [
         {
           $vectorSearch: {
-            index: "embedding_index", // ensure this index exists
+            index: "embedding_index",
             path: "embedding",
             queryVector: embedding,
-            numCandidates: 50,
-            limit: 1,
+            numCandidates: 100,
+            limit: 6,
           },
         },
-        { $project: { templateId: 1, title: 1, nodes: 1, edges: 1, _id: 0 } },
+        { $project: { templateId: 1, title: 1, nodes: 1, edges: 1, source: 1, platform: 1, description: 1, _id: 0 } },
       ];
       try {
-        [result] = await collection.aggregate(atlasPipeline).toArray();
+        results = await collection.aggregate(atlasPipeline).toArray();
       } catch (err2) {
         console.error("Vector search error", err2);
         return NextResponse.json({ error: "Vector search failed", detail: err2 instanceof Error ? err2.message : String(err2) }, { status: 500 });
@@ -96,9 +96,9 @@ export async function GET(req: Request) {
     }
   }
 
-  if (!result) {
+  if (!results || results.length === 0) {
     return NextResponse.json({ error: "No match" }, { status: 404 });
   }
 
-  return NextResponse.json({ templateId: result.templateId });
+  return NextResponse.json({ templates: results });
 } 

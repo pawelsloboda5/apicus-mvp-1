@@ -17,6 +17,9 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { FlowCanvasProps } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Edit2Icon } from "lucide-react";
 
 export function FlowCanvas({
   nodes,
@@ -30,6 +33,14 @@ export function FlowCanvas({
   edgeTypes,
   defaultViewport,
   setWrapperRef,
+  currentScenarioName,
+  isEditingTitle,
+  editingScenarioName,
+  onToggleEditTitle,
+  onScenarioNameChange,
+  onSaveScenarioName,
+  onScenarioNameKeyDown,
+  titleInputRef,
 }: FlowCanvasProps) {
   // Local state to track selection mode
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(SelectionMode.Partial);
@@ -127,8 +138,45 @@ export function FlowCanvas({
   return (
     <div
       ref={setWrapperRef}
-      className="flex-grow"
+      className="flex-grow relative"
     >
+      {/* Scenario Title Display/Edit */}
+      {onToggleEditTitle && onScenarioNameChange && onSaveScenarioName && onScenarioNameKeyDown && titleInputRef && (
+        <div className="absolute top-4 left-4 z-10 bg-background/80 backdrop-blur-sm p-2 rounded-lg shadow flex items-center max-w-[calc(100%-40px)] min-w-[200px]"> 
+          {isEditingTitle ? (
+            <Input
+              ref={titleInputRef}
+              type="text"
+              value={editingScenarioName || ""}
+              onChange={(e) => onScenarioNameChange(e.target.value)}
+              onBlur={onSaveScenarioName} 
+              onKeyDown={onScenarioNameKeyDown}
+              className="text-lg font-semibold h-8 border-primary focus:ring-primary/50 flex-grow min-w-0"
+              placeholder="Enter scenario name"
+            />
+          ) : (
+            <h2 
+              className="text-lg font-semibold truncate cursor-pointer hover:text-primary transition-colors duration-150 flex-grow min-w-0"
+              onClick={() => onToggleEditTitle(true)}
+              title={currentScenarioName || "Untitled Scenario"}
+            >
+              {currentScenarioName || "Untitled Scenario"}
+            </h2>
+          )}
+          {!isEditingTitle && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => onToggleEditTitle(true)} 
+              className="ml-2 h-7 w-7 flex-shrink-0"
+              title="Edit scenario name"
+            >
+              <Edit2Icon className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      )}
+
       <ReactFlow
         nodes={nodes}
         edges={edges}

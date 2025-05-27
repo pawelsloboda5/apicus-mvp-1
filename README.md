@@ -15,7 +15,10 @@ Apicus MVP is a web application designed to help operations managers, automation
 - Interactive node-based workflow builder using React Flow.
 - Custom pixel-art styled nodes for a unique, engaging user experience.
 - Drag-and-drop functionality with intuitive UI/UX.
-- JSON export/import and local storage persistence via Dexie.js.
+- Scenario management: Editable titles, add/delete, implicit saving, and loading of saved scenarios via Toolbox.
+- Alternative templates: Display and load alternative workflow templates.
+- Responsive UI: Enhanced `StatsBar` and header for various screen sizes.
+- Local storage persistence via Dexie.js for scenarios, nodes, edges, and viewport.
 
 ### 3. Modular ROI Dashboard
 - Notion-inspired modular dashboard for displaying ROI metrics.
@@ -25,10 +28,11 @@ Apicus MVP is a web application designed to help operations managers, automation
 ### 4. Automation Template Import & Generation
 - 50+ Zapier templates migrated into `apicus-templates` (Azure Cosmos DB for MongoDB vCore).
 - Each template is enriched with React-Flow `nodes` / `edges` for 1-click canvas import.
+- API returns primary template and up to 5 alternatives with full node/edge data.
 - Azure OpenAI embeddings (`text-embedding-3-small`) pre-computed for `title`, `richDescription`, and `exampleUserPrompts`.
 - Vector index (`vector-ivf`) created on the `embedding` field – enables sub-100 ms semantic search via `$search.cosmosSearch`.
-- `/api/templates/search` endpoint embeds user query on the fly and returns the best matching `templateId`.
-- Landing-page form now shows a loading spinner and redirects directly to `/build?tid=…` where the template is rendered.
+- `/api/templates/search` endpoint embeds user query on the fly and returns the best matching `templateId` along with alternatives.
+- Landing-page form now shows a loading spinner and redirects directly to `/build?tid=…&q=...` where the template and alternatives are processed.
 
 ## Tech Stack
 
@@ -40,7 +44,7 @@ Apicus MVP is a web application designed to help operations managers, automation
 - **Local Storage:** Dexie.js (IndexedDB)
 - **Database:** Azure Cosmos DB for MongoDB (collection: `apicus-templates`)
 - **AI Integration:** Azure OpenAI API
-- **State Management:** React hooks and Zustand
+- **State Management:** React hooks (primarily `useState`, `useEffect`, `useCallback`, `useRef`)
 
 ## Backend Scripts (`/backend`)
 

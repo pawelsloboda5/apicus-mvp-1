@@ -98,6 +98,7 @@ export function GroupPropertiesPanel({
                 variant={groupData?.isLocked ? "default" : "outline"}
                 className="flex items-center gap-1"
                 onClick={() => {
+                  if (!selectedGroup) return;
                   const newLocked = !groupData?.isLocked;
                   setNodes((ns) =>
                     ns.map((n) =>
