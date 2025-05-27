@@ -3,25 +3,31 @@ import OpenAI from "openai";
 
 export const runtime = "edge";
 
-const apiKey = process.env.OPENAI_API_KEY || process.env.AZURE_OPENAI_API_KEY;
+const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
-// Use the same deployment name as in generate-full-email or a specific one if different
 const chatDeploymentName = process.env.AZURE_CHAT_DEPLOYMENT_NAME || "gpt-4.1"; 
-const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2024-02-15-preview"; // or your specific API version
+const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2025-03-01-preview";
 
-if (!apiKey || !azureEndpoint) {
-  console.error("Missing Azure OpenAI API Key or Endpoint environment variables for /api/openai/generate-email-section.");
-  // It's good practice to also check for chatDeploymentName if it's critical
+if (!AZURE_OPENAI_API_KEY || !azureEndpoint) {
+  console.error("Missing Azure OpenAI environment variables for /api/openai/generate-email-section:", {
+    hasApiKey: !!AZURE_OPENAI_API_KEY,
+    hasEndpoint: !!azureEndpoint,
+    hasDeployment: !!chatDeploymentName
+  });
 }
 
 const openai = new OpenAI({
-  apiKey: apiKey,
+  apiKey: AZURE_OPENAI_API_KEY,
   baseURL: `${azureEndpoint}/openai/deployments/${chatDeploymentName}`,
   defaultQuery: { "api-version": apiVersion },
-  defaultHeaders: { "api-key": apiKey },
+  defaultHeaders: { "api-key": AZURE_OPENAI_API_KEY },
 });
 
 export async function POST(req: Request) {
+  if (!AZURE_OPENAI_API_KEY || !azureEndpoint) {
+    return NextResponse.json({ error: "Azure OpenAI env vars missing" }, { status: 500 });
+  }
+
   try {
     const { roiData, textToRewrite, systemPrompt } = await req.json();
 
@@ -36,15 +42,15 @@ export async function POST(req: Request) {
       },
       {
         role: "user",
-        content: textToRewrite, // Provide the text to rewrite again as user message for context
+        content: textToRewrite,
       },
     ];
 
     const completion = await openai.chat.completions.create({
-      model: chatDeploymentName, // Use the deployment name as the model
+      model: chatDeploymentName,
       messages,
       temperature: 0.7,
-      max_tokens: 300, // Increased slightly for potentially richer content
+      max_tokens: 300,
     });
 
     const generatedText = completion.choices[0]?.message?.content?.trim();
@@ -61,4 +67,4 @@ export async function POST(req: Request) {
       error: error instanceof Error ? error.message : "Unexpected error during email section generation" 
     }, { status: 500 });
   }
-} 
+}
