@@ -350,10 +350,10 @@ export default function BuildPage() {
           if (primaryTemplateData && primaryTemplateData.nodes && primaryTemplateData.edges) {
             const updatedScenarioData: Partial<Scenario> = {
               name: primaryTemplateData.title || scenarioToLoad.name,
-              nodesSnapshot: primaryTemplateData.nodes.map((n: any) => ({
+              nodesSnapshot: primaryTemplateData.nodes.map((n) => ({
                 id: n.reactFlowId, type: n.type, position: n.position, data: n.data,
               })),
-              edgesSnapshot: primaryTemplateData.edges.map((e: any) => ({
+              edgesSnapshot: primaryTemplateData.edges.map((e) => ({
                 id: e.reactFlowId, source: e.data?.source, target: e.data?.target, label: e.label, data: e.data, type: 'custom',
               })),
               platform: (primaryTemplateData.platform || primaryTemplateData.source || scenarioToLoad.platform) as LibPlatformType,
@@ -483,7 +483,7 @@ export default function BuildPage() {
       setIsLoading(false);
     }
     manageScenario();
-  }, [scenarioIdParam, templateIdParam, queryParam]); // Removed router from dependencies to avoid infinite re-renders
+  }, [scenarioIdParam, templateIdParam, queryParam, router]); // Added router to dependencies
 
   // Load scenario data once rfInstance is available AND currentScenario is set
   useEffect(() => {
@@ -1417,7 +1417,7 @@ export default function BuildPage() {
               templateId: altScenario.originalTemplateId,
               title: altScenario.name,
               platform: altScenario.platform as string,
-              description: (altScenario as any).description,
+              description: (altScenario as { description?: string }).description,
               nodesCount: altScenario.nodesSnapshot?.length || 0,
               ...altScenario 
           } as AlternativeTemplateForDisplay))}

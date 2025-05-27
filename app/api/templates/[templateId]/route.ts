@@ -3,7 +3,7 @@ import clientPromise from "@/lib/mongo";
 
 export async function GET(
   req: Request,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   const { templateId } = await params;
   if (!templateId) {
