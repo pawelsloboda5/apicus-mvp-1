@@ -1,21 +1,33 @@
+import { OpenAI } from "openai";
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
 
-export const runtime = "edge"; // Runs on the Edge runtime for lowest latency
+export const runtime = "edge";
 
-// Expected payload shape
-// {
-//   "messages": [{ role: "system" | "user" | "assistant", content: string }],
-//   "model"?: string,
-//   "tools"?: any[]
-// }
+// Azure OpenAI configuration
+const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
+const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
+const chatDeploymentName = process.env.AZURE_CHAT_DEPLOYMENT_NAME || "gpt-4.1";
+const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2025-03-01-preview";
+
+if (!AZURE_OPENAI_API_KEY || !azureEndpoint) {
+  console.error("Missing Azure OpenAI environment variables:", {
+    hasApiKey: !!AZURE_OPENAI_API_KEY,
+    hasEndpoint: !!azureEndpoint
+  });
+}
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.AZURE_OPENAI_API_KEY,
-  baseURL: process.env.AZURE_OPENAI_ENDPOINT, // For Azure deployments; ignored for OpenAI cloud
+  apiKey: AZURE_OPENAI_API_KEY,
+  baseURL: `${azureEndpoint}/openai/deployments/${chatDeploymentName}`,
+  defaultHeaders: { "api-key": AZURE_OPENAI_API_KEY },
+  defaultQuery: { "api-version": apiVersion },
 });
 
 export async function POST(req: Request) {
+  if (!AZURE_OPENAI_API_KEY || !azureEndpoint) {
+    return NextResponse.json({ error: "Azure OpenAI env vars missing" }, { status: 500 });
+  }
+
   try {
     const { messages, model = "gpt-4.1", tools } = await req.json();
 
@@ -36,4 +48,4 @@ export async function POST(req: Request) {
       error: error instanceof Error ? error.message : "Unexpected error" 
     }, { status: 500 });
   }
-} 
+}

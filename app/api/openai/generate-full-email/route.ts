@@ -1,27 +1,26 @@
+import { OpenAI } from "openai";
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
 
 export const runtime = "edge";
 
-const apiKey = process.env.OPENAI_API_KEY || process.env.AZURE_OPENAI_API_KEY;
+// Azure OpenAI configuration
+const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
-// This should be your CHAT COMPLETION deployment name, e.g., the deployment of gpt-4.1
-const chatDeploymentName = process.env.AZURE_CHAT_DEPLOYMENT_NAME || "gpt-4.1"; 
-const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2024-02-15-preview";
+const chatDeploymentName = process.env.AZURE_CHAT_DEPLOYMENT_NAME || "gpt-4.1";
+const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2025-03-01-preview";
 
-if (!apiKey || !azureEndpoint) {
-  // Added a check here to make sure essential env vars are present
-  console.error("Missing Azure OpenAI API Key or Endpoint environment variables.");
-  // Consider not throwing here directly if you want to return a JSON response, 
-  // but for critical config, an early exit might be desired in some setups.
+if (!AZURE_OPENAI_API_KEY || !azureEndpoint) {
+  console.error("Missing Azure OpenAI environment variables:", {
+    hasApiKey: !!AZURE_OPENAI_API_KEY,
+    hasEndpoint: !!azureEndpoint
+  });
 }
 
 const openai = new OpenAI({
-  apiKey: apiKey,
-  // Construct baseURL similar to the working embeddings route, including the deployment name
+  apiKey: AZURE_OPENAI_API_KEY,
   baseURL: `${azureEndpoint}/openai/deployments/${chatDeploymentName}`,
+  defaultHeaders: { "api-key": AZURE_OPENAI_API_KEY },
   defaultQuery: { "api-version": apiVersion },
-  defaultHeaders: { "api-key": apiKey },
 });
 
 interface EmailGenerationPayload {
@@ -56,6 +55,10 @@ async function generateSection(prompt: string, roiData: Record<string, unknown>,
 }
 
 export async function POST(req: Request) {
+  if (!AZURE_OPENAI_API_KEY || !azureEndpoint) {
+    return NextResponse.json({ error: "Azure OpenAI env vars missing" }, { status: 500 });
+  }
+
   try {
     const payload = await req.json() as EmailGenerationPayload;
     const { roiData, scenarioName, platform } = payload;
@@ -89,4 +92,4 @@ export async function POST(req: Request) {
       error: error instanceof Error ? error.message : "Unexpected error during full email generation" 
     }, { status: 500 });
   }
-} 
+}
