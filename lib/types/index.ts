@@ -12,7 +12,7 @@ export interface NodeData {
   appName?: string;
   action?: string;
   typeOf?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -124,13 +124,13 @@ export interface NodePropertiesPanelProps {
 export interface FlowCanvasProps {
   nodes: Node<NodeData>[];
   edges: Edge[];
-  onNodesChange: (changes: any) => void;
-  onEdgesChange: (changes: any) => void;
+  onNodesChange: (changes: unknown) => void;
+  onEdgesChange: (changes: unknown) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
-  onMoveEnd: (viewport: any, event?: any) => void;
-  onInit: (instance: any) => void;
-  nodeTypes: Record<string, React.ComponentType<any>>;
-  edgeTypes?: Record<string, React.ComponentType<any>>;
+  onMoveEnd: (viewport: unknown, event?: unknown) => void;
+  onInit: (instance: unknown) => void;
+  nodeTypes: Record<string, React.ComponentType<unknown>>;
+  edgeTypes?: Record<string, React.ComponentType<unknown>>;
   defaultViewport?: { x: number; y: number; zoom: number };
   setWrapperRef: (ref: HTMLDivElement | null) => void;
 }

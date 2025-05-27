@@ -1,32 +1,19 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { TrendingUp, Clock, DollarSign, Zap, Calculator, Sparkles, Plus, Minus, Edit3, ShieldCheck, Percent, MinusIcon, PlusIcon, Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, DollarSign, Clock, Zap, MinusIcon, PlusIcon, ShieldCheck, Percent, Mail } from "lucide-react";
 import { pricing } from "@/app/api/data/pricing";
 import { StatsBarProps, PlatformType } from "@/lib/types";
-import { Scenario } from "@/lib/db";
-import { Node } from "@xyflow/react";
 import { 
   calculateTimeValue, 
   calculatePlatformCost,
-  formatROIRatio,
-  calculateROIRatio,
-  calculateRiskValue,
-  calculateRevenueValue,
-  calculateTotalValue,
-  calculateNetROI,
-  calculatePaybackPeriod
+  formatROIRatio
 } from "@/lib/roi-utils";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-
-interface StatsBarExtendedProps extends StatsBarProps {
-  onUpdateRuns: (runs: number) => void;
-  onUpdateMinutes: (minutes: number) => void;
-}
 
 // Helper function for dynamic minute steps
 const getMinuteStep = (currentMinutes: number): number => {
@@ -44,27 +31,15 @@ export function StatsBar({
   onUpdateRuns,
   onUpdateMinutes,
   nodes,
-  currentScenario,
 }: StatsBarProps) {
-  const tierName: Record<PlatformType, string> = {
-    zapier: "Professional",
-    make: "Core",
-    n8n: "Starter",
-  };
-
-  const data = pricing[platform];
-  const tier = data.tiers.find((t) => t.name === tierName[platform]) || data.tiers[0];
-
   const [timeValue, setTimeValue] = useState(0);
   const [platformCost, setPlatformCost] = useState(0);
   const [netROI, setNetROI] = useState(0);
   const [roiRatio, setRoiRatio] = useState(0);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [editingMinutes, setEditingMinutes] = useState(false);
   const [editingRuns, setEditingRuns] = useState(false);
   const [tempMinutes, setTempMinutes] = useState(minutesPerRun);
   const [tempRuns, setTempRuns] = useState(runsPerMonth);
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   useEffect(() => {
     setTempMinutes(minutesPerRun);
@@ -73,7 +48,8 @@ export function StatsBar({
 
   useEffect(() => {
     const initialTimeValue = calculateTimeValue(runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier);
-    const initialPlatformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodes?.length || 0);
+    const nodeCount = nodes?.length || 0;
+    const initialPlatformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodeCount);
     
     setTimeValue(initialTimeValue);
     setPlatformCost(initialPlatformCost);
@@ -82,13 +58,12 @@ export function StatsBar({
     
     const debounceTimeout = setTimeout(() => {
       const newTimeValue = calculateTimeValue(runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier);
-      const newPlatformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodes?.length || 0);
+      const newPlatformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodeCount);
       
       setTimeValue(newTimeValue);
       setPlatformCost(newPlatformCost);
       setNetROI(newTimeValue - newPlatformCost);
       setRoiRatio(newPlatformCost ? newTimeValue / newPlatformCost : 0);
-      setIsLoaded(true);
     }, 200);
     
     return () => clearTimeout(debounceTimeout);
@@ -383,13 +358,11 @@ export function StatsBar({
       <Button 
         variant="outline" 
         size="sm" 
-        onClick={() => setEmailModalOpen(true)}
         className="ml-auto"
       >
         <Mail className="h-4 w-4 mr-2" />
         Generate Email
       </Button>
-      {/* EmailGenerationModal is now in parent (app/build/page.tsx) */}
     </div>
   );
 } 

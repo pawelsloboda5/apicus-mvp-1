@@ -51,14 +51,12 @@ export function snapToGrid(x: number, y: number, gridSize: number = 8) {
  * Gets a position for a new node that doesn't overlap with existing nodes
  * @param nodes Existing nodes
  * @param nodeWidth Width of the node
- * @param nodeHeight Height of the node
  * @param gridSize Grid size for snapping
  * @returns Non-overlapping position snapped to grid
  */
 export function getNonOverlappingPosition(
   nodes: Node[],
   nodeWidth: number = 150,
-  nodeHeight: number = 40,
   gridSize: number = 8
 ) {
   // Start with a base position

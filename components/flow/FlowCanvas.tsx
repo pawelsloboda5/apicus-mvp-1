@@ -5,15 +5,9 @@ import {
   ReactFlow,
   Background,
   Controls,
-  addEdge,
   Connection,
-  Edge,
-  Node,
-  ReactFlowInstance,
-  useReactFlow,
   IsValidConnection,
   SelectionMode,
-  useOnSelectionChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { FlowCanvasProps } from "@/lib/types";
@@ -133,7 +127,7 @@ export function FlowCanvas({
         },
       },
     ]);
-  }, [onEdgesChange, edges, nodes]);
+  }, [onEdgesChange, isValidConnection]);
 
   return (
     <div

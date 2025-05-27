@@ -3,10 +3,11 @@ import { Handle, Position, NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { Sparkles, GitBranch, PlayCircle } from "lucide-react";
 import * as React from "react";
-import type { JSX, ReactNode } from "react";
-import { NodeData, NodeType } from "@/lib/types";
+import type { ReactNode } from "react";
 
 // Map node variants to colours & icons – strictly typed keys
+type PixelNodeType = "trigger" | "action" | "decision";
+
 const variantStyles = {
   trigger: {
     bg: "bg-secondary/80",
@@ -20,10 +21,10 @@ const variantStyles = {
     bg: "bg-primary/20",
     icon: <GitBranch className="h-4 w-4" /> as ReactNode,
   },
-} satisfies Record<NodeType, { bg: string; icon: ReactNode }>;
+} satisfies Record<PixelNodeType, { bg: string; icon: ReactNode }>;
 
 export function PixelNode({ data, selected, type }: NodeProps) {
-  const variant = variantStyles[(type as NodeType) ?? "action"];
+  const variant = variantStyles[(type as PixelNodeType) ?? "action"];
   return (
     <div
       className={cn(
@@ -34,7 +35,7 @@ export function PixelNode({ data, selected, type }: NodeProps) {
       )}
     >
       {variant.icon}
-      <span className="truncate">{data?.label ?? "Node"}</span>
+      <span className="truncate">{(data?.label as string) ?? "Node"}</span>
       {/* Connection Handles */}
       <Handle type="target" position={Position.Left} className="!bg-ring" />
       

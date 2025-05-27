@@ -41,7 +41,7 @@ export function NodePropertiesPanel({
         <SheetHeader className="p-6 pb-4 border-b">
           <SheetTitle>Node Properties</SheetTitle>
           <SheetDescription>
-            Configure the selected node's basic settings.
+            Configure the selected node&apos;s basic settings.
           </SheetDescription>
         </SheetHeader>
         {selectedNode && (
@@ -291,7 +291,7 @@ export function NodePropertiesPanel({
                     n8n: "Starter"
                   };
                   const currentTierName = tierName[platform] || Object.values(tierName)[0];
-                  const tier = data.tiers.find((t: any) => t.name === currentTierName) || data.tiers[0];
+                  const tier = data.tiers.find((t: { name: string; monthlyUSD: number; quota: number }) => t.name === currentTierName) || data.tiers[0];
                   const costPerUnit = tier.quota ? (tier.monthlyUSD / tier.quota) : 0;
                   
                   let unitsPerRunNode = 1; 

@@ -1,5 +1,6 @@
 import Dexie, { Table } from "dexie";
 import { nanoid } from "nanoid";
+import { useLiveQuery } from "dexie-react-hooks";
 
 /**
  * Dexie database instance for Apicus
@@ -38,9 +39,9 @@ export interface Scenario {
   valuePerConversion?: number;
 
   /* ---------- Canvas & Workflow State ---------- */
-  nodesSnapshot?: any[]; // Store React Flow nodes directly
-  edgesSnapshot?: any[]; // Store React Flow edges directly
-  viewport?: any; // Store React Flow viewport
+  nodesSnapshot?: unknown[]; // Store React Flow nodes directly
+  edgesSnapshot?: unknown[]; // Store React Flow edges directly
+  viewport?: unknown; // Store React Flow viewport
 
   // For linking to an original template if this scenario was derived from one
   originalTemplateId?: string;
@@ -49,7 +50,7 @@ export interface Scenario {
   // To store alternative templates, if this scenario is the primary from a search
   // This might be better managed in a separate table or transient state depending on exact UX
   // For now, let's consider it might be part of the scenario that holds the primary result.
-  alternativeTemplatesCache?: any[]; // Simplified: stores full alternative template objects
+  alternativeTemplatesCache?: unknown[]; // Simplified: stores full alternative template objects
 
   /* ---------- Email Generation Details ---------- */
   emailFirstName?: string;
@@ -109,7 +110,7 @@ class ApicusDB extends Dexie {
         edges: "++id, scenarioId, reactFlowId",
       })
       .upgrade(tx => {
-        tx.table("scenarios").toCollection().modify((sc: any) => {
+        tx.table("scenarios").toCollection().modify((sc: Scenario) => {
           if (!("platform" in sc)) sc.platform = "zapier";
         });
       });
@@ -130,7 +131,7 @@ class ApicusDB extends Dexie {
         edges: "++id, scenarioId, reactFlowId",
       })
       .upgrade(tx => {
-        tx.table("scenarios").toCollection().modify((sc: any) => {
+        tx.table("scenarios").toCollection().modify((sc: Scenario) => {
           if (!("runsPerMonth" in sc)) sc.runsPerMonth = 1000;
           if (!("minutesPerRun" in sc)) sc.minutesPerRun = 5;
           if (!("hourlyRate" in sc)) sc.hourlyRate = 30;
@@ -234,7 +235,5 @@ export async function createScenario(name: string): Promise<number> {
  */
 export function useScenario(id?: number) {
   // Dynamic import to avoid including Dexie hooks in server bundles
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { useLiveQuery } = require("dexie-react-hooks");
   return useLiveQuery(() => (id ? db.scenarios.get(id) : undefined), [id]);
 } 

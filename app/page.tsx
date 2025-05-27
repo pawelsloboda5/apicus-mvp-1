@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { BadgeCheck, Wand2, BarChart3, Sparkles, Loader2, Calculator, Zap, TrendingUp, Clock, DollarSign, ArrowRight, Lightbulb, Target, Rocket } from "lucide-react";
+import { BadgeCheck, Wand2, BarChart3, Sparkles, Loader2, Calculator, TrendingUp, ArrowRight, Lightbulb, Target, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -58,7 +58,6 @@ export default function Home() {
     try {
       const res = await fetch(`/api/templates/search?q=${encodeURIComponent(q)}`);
       if (!res.ok) {
-        console.error("API search error:", res.status, await res.text());
         router.push(`/build?q=${encodeURIComponent(q)}`);
         return;
       }
@@ -66,14 +65,11 @@ export default function Home() {
       
       if (data.templates && data.templates.length > 0) {
         const primaryTemplate = data.templates[0];
-        console.log("Primary template found:", primaryTemplate.templateId, "for query:", q);
         router.push(`/build?tid=${primaryTemplate.templateId}&q=${encodeURIComponent(q)}`);
       } else {
-        console.log("No template found for query:", q);
         router.push(`/build?q=${encodeURIComponent(q)}`);
       }
-    } catch (err) {
-      console.error("Error during template search/redirect:", err);
+    } catch {
       router.push('/build');
     } finally {
       setSearching(false);

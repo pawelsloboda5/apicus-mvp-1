@@ -1,7 +1,7 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, MongoClientOptions } from "mongodb";
 
 const uri = process.env.MONGODB_URI as string;
-const options: any = {};
+const options: MongoClientOptions = {};
 
 if (!uri) {
   throw new Error("Please define the MONGODB_URI environment variable inside .env");

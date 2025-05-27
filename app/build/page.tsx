@@ -4,13 +4,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ReactFlowProvider,
-  ReactFlow,
-  Background,
-  Controls,
   useNodesState,
   useEdgesState,
-  addEdge,
-  Connection,
   Edge,
   Node,
   Viewport,
@@ -18,16 +13,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet as UISheet,
-  SheetContent as UISheetContent,
-  SheetHeader as UISheetHeader,
-  SheetTitle as UISheetTitle,
-  SheetDescription as UISheetDescription,
-} from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
 import { db, createScenario, type Scenario } from "@/lib/db";
-import { cn } from "@/lib/utils";
 import { PixelNode } from "@/components/flow/PixelNode";
 import {
   DndContext,
@@ -41,15 +27,9 @@ import { createSnapModifier } from "@dnd-kit/modifiers";
 import { pointerWithin } from "@dnd-kit/core";
 import dynamic from "next/dynamic";
 import { pricing } from "../api/data/pricing";
-import { Coins, Calculator, Loader2, MoreHorizontal, Edit2Icon, Mail, MailOpen } from "lucide-react";
-import { Label } from "@/components/ui/label";
+import { Coins, Calculator, Loader2, MoreHorizontal, Mail } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useDroppable } from "@dnd-kit/core";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Slider } from "@/components/ui/slider";
-import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,7 +55,6 @@ import { EmailNodePropertiesPanel } from "@/components/flow/EmailNodePropertiesP
 import { handleAddNode, snapToGrid } from "@/lib/flow-utils";
 import {
   calculateNodeTimeSavings,
-  calculateGroupROI,
   calculateTimeValue,
   calculateRiskValue,
   calculateRevenueValue,
@@ -83,13 +62,10 @@ import {
   calculatePlatformCost,
   calculateNetROI,
   calculateROIRatio,
-  formatROIRatio,
   calculatePaybackPeriod,
   formatPaybackPeriod
 } from "@/lib/roi-utils";
-import { NodeType, PlatformType as LibPlatformType } from "@/lib/types";
-
-const PLATFORMS = ["zapier", "make", "n8n"] as const;
+import { PlatformType as LibPlatformType, NodeType, NodeData } from "@/lib/types";
 
 // Disable SSR for Toolbox because dnd-kit generates ids non-deterministically, which causes hydration mismatch warnings.
 const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.Toolbox), {
@@ -120,10 +96,9 @@ export default function BuildPage() {
   const [currentScenario, setCurrentScenario] = useState<Scenario | null>(null);
   const [alternativeTemplates, setAlternativeTemplates] = useState<Scenario[]>([]);
   const [platform, setPlatform] = useState<LibPlatformType>("zapier");
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<any>>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<any>>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<Record<string, unknown>>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<Record<string, unknown>>>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [initialViewport, setInitialViewport] = useState<Viewport | undefined>(undefined);
 
   // ReactFlow instance & wrapper ref
   const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
@@ -235,10 +210,6 @@ export default function BuildPage() {
     }
   }, [isEditingTitle]);
 
-  const handleScenarioNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setEditingScenarioName(event.target.value);
-  };
-
   const saveScenarioName = async () => {
     if (currentScenario && currentScenario.id && editingScenarioName.trim() !== "") {
       const newName = editingScenarioName.trim();
@@ -259,7 +230,6 @@ export default function BuildPage() {
 
   // Function to load scenario data into page state (ROI inputs, nodes, edges, etc.)
   const loadScenarioDataToState = useCallback((scenario: Scenario | null | undefined) => {
-    console.log("[loadScenarioDataToState] Loading scenario:", scenario?.id);
     if (!scenario) {
       setNodes([]);
       setEdges([]);
@@ -298,12 +268,10 @@ export default function BuildPage() {
     setConversionRate(scenario.conversionRate || 5);
     setValuePerConversion(scenario.valuePerConversion || 200);
 
-    setNodes(scenario.nodesSnapshot || []);
-    console.log("[loadScenarioDataToState] Setting nodes from snapshot:", scenario.nodesSnapshot);
-    setEdges(scenario.edgesSnapshot || []);
-    console.log("[loadScenarioDataToState] Setting edges from snapshot:", scenario.edgesSnapshot);
+    setNodes(scenario.nodesSnapshot as Node<Record<string, unknown>>[] || []);
+    setEdges(scenario.edgesSnapshot as Edge<Record<string, unknown>>[] || []);
     if (rfInstance && scenario.viewport) {
-      rfInstance.setViewport(scenario.viewport);
+      rfInstance.setViewport(scenario.viewport as Viewport);
     } else if (rfInstance) {
       // Default viewport if none in scenario
       rfInstance.setViewport({ x: 0, y: 0, zoom: 1});
@@ -326,10 +294,24 @@ export default function BuildPage() {
   useEffect(() => {
     setIsLoading(true);
     async function manageScenario() {
-      console.log("[manageScenario] Start. sid:", scenarioIdParam, "tid:", templateIdParam, "q:", queryParam);
       let activeScenarioIdToLoad: number | null = scenarioIdParam ? Number(scenarioIdParam) : null;
       let scenarioToLoad: Scenario | undefined;
-      let primaryTemplateData: any = null;
+      let primaryTemplateData: {
+        title?: string;
+        nodes?: Array<{
+          reactFlowId: string;
+          type: string;
+          position: { x: number; y: number };
+          data: Record<string, unknown>;
+        }>;
+        edges?: Array<{
+          reactFlowId: string;
+          data?: { source?: string; target?: string };
+          label?: string;
+        }>;
+        platform?: string;
+        source?: string;
+      } | null = null;
 
       if (activeScenarioIdToLoad) {
         scenarioToLoad = await db.scenarios.get(activeScenarioIdToLoad);
@@ -360,12 +342,10 @@ export default function BuildPage() {
 
       // Fetch primary template if tid is present AND scenario lacks nodes/edges (i.e., needs initialization)
       if (templateIdParam && scenarioToLoad && activeScenarioIdToLoad && (!scenarioToLoad.nodesSnapshot || scenarioToLoad.nodesSnapshot.length === 0)) {
-        console.log("[manageScenario] Scenario lacks nodes, attempting to initialize from templateId:", templateIdParam);
         try {
           const res = await fetch(`/api/templates/${templateIdParam}`);
           if (!res.ok) throw new Error("Primary template fetch failed");
           primaryTemplateData = await res.json();
-          console.log("[manageScenario] Fetched primary template:", primaryTemplateData);
 
           if (primaryTemplateData && primaryTemplateData.nodes && primaryTemplateData.edges) {
             const updatedScenarioData: Partial<Scenario> = {
@@ -376,25 +356,21 @@ export default function BuildPage() {
               edgesSnapshot: primaryTemplateData.edges.map((e: any) => ({
                 id: e.reactFlowId, source: e.data?.source, target: e.data?.target, label: e.label, data: e.data, type: 'custom',
               })),
-              platform: primaryTemplateData.platform || primaryTemplateData.source || scenarioToLoad.platform,
+              platform: (primaryTemplateData.platform || primaryTemplateData.source || scenarioToLoad.platform) as LibPlatformType,
               originalTemplateId: templateIdParam,
               searchQuery: queryParam || scenarioToLoad.searchQuery,
               updatedAt: Date.now(),
             };
-            console.log("[manageScenario] Updating DB with primary template data:", updatedScenarioData);
             await db.scenarios.update(activeScenarioIdToLoad!, updatedScenarioData);
             scenarioToLoad = { ...scenarioToLoad, ...updatedScenarioData } as Scenario;
-            console.log("[manageScenario] scenarioToLoad after merging primary template:", scenarioToLoad);
           }
-        } catch (err) {
-          console.error("Error fetching primary template:", err);
+        } catch {
           // Potentially update scenario name to indicate error or use default
           if (activeScenarioIdToLoad) { // Ensure activeScenarioId is not null
             await db.scenarios.update(activeScenarioIdToLoad, { name: scenarioToLoad?.name || "Error Loading Template" });
           }
         }
       } else if (templateIdParam && scenarioToLoad) {
-        console.log("[manageScenario] Scenario already has nodes/edges, skipping template initialization for tid:", templateIdParam);
       }
       
       // Set currentScenario here after all potential modifications
@@ -406,21 +382,65 @@ export default function BuildPage() {
         try {
           const res = await fetch(`/api/templates/search?q=${encodeURIComponent(queryParam)}`);
           if (!res.ok) throw new Error("Alternative templates fetch failed");
-          const data = await res.json();
+          const data: {
+            templates?: Array<{
+              templateId: string;
+              title?: string;
+              platform?: string;
+              source?: string;
+              nodes?: Array<{
+                reactFlowId?: string;
+                id?: string;
+                type: string;
+                position: { x: number; y: number };
+                data: Record<string, unknown>;
+              }>;
+              edges?: Array<{
+                reactFlowId?: string;
+                id?: string;
+                source?: string;
+                target?: string;
+                label?: string;
+                data?: Record<string, unknown>;
+              }>;
+              description?: string;
+            }>;
+          } = await res.json();
           if (data.templates && Array.isArray(data.templates)) {
             const primaryTemplateIdToExclude = scenarioToLoad.originalTemplateId;
             // Map API results to Scenario-like objects for the state
             const scenariosFromTemplates: Scenario[] = data.templates
-              .filter((t: any) => t.templateId !== primaryTemplateIdToExclude)
+              .filter((t: { templateId: string }) => t.templateId !== primaryTemplateIdToExclude)
               .slice(0, 5)
-              .map((t: any) => ({
+              .map((t: {
+                templateId: string;
+                title?: string;
+                platform?: string;
+                source?: string;
+                nodes?: Array<{
+                  reactFlowId?: string;
+                  id?: string;
+                  type: string;
+                  position: { x: number; y: number };
+                  data: Record<string, unknown>;
+                }>;
+                edges?: Array<{
+                  reactFlowId?: string;
+                  id?: string;
+                  source?: string;
+                  target?: string;
+                  label?: string;
+                  data?: Record<string, unknown>;
+                }>;
+                description?: string;
+              }) => ({
                 slug: nanoid(8), // Generate a new slug for this representation
                 name: t.title || "Alternative",
                 createdAt: Date.now(), // Set creation/update times
                 updatedAt: Date.now(),
-                platform: t.platform || t.source || "zapier",
-                nodesSnapshot: t.nodes?.map((n: any) => ({ id: n.reactFlowId || n.id, type: n.type, position: n.position, data: n.data })) || [],
-                edgesSnapshot: t.edges?.map((e: any) => ({ id: e.reactFlowId || e.id, source: e.data?.source || e.source, target: e.data?.target || e.target, label: e.label, data: e.data, type: 'custom' })) || [],
+                platform: (t.platform || t.source || "zapier") as LibPlatformType,
+                nodesSnapshot: t.nodes?.map((n) => ({ id: n.reactFlowId || n.id, type: n.type, position: n.position, data: n.data })) || [],
+                edgesSnapshot: t.edges?.map((e) => ({ id: e.reactFlowId || e.id, source: e.data?.source || e.source, target: e.data?.target || e.target, label: e.label, data: e.data, type: 'custom' })) || [],
                 originalTemplateId: t.templateId,
                 searchQuery: queryParam || "", // Use queryParam here
                 // description: t.description, // Scenario type doesn't have description by default
@@ -432,21 +452,26 @@ export default function BuildPage() {
 
             setAlternativeTemplates(scenariosFromTemplates); // This should now be compatible with Scenario[]
 
-            const alternativesCache: any[] = scenariosFromTemplates.map(s => ({
+            const altsCacheForDb: Array<{
+              templateId?: string;
+              title: string;
+              platform: string;
+              nodesCount: number;
+              description?: string;
+            }> = scenariosFromTemplates.map(s => ({
               templateId: s.originalTemplateId,
               title: s.name,
-              platform: s.platform,
-              // description: s.description, // Not on Scenario type by default
+              platform: s.platform || 'zapier',
               nodesCount: s.nodesSnapshot?.length || 0,
+              description: (s as { description?: string }).description
             }));
 
             if (scenarioToLoad && scenarioToLoad.id) {
-              await db.scenarios.update(scenarioToLoad.id, { alternativeTemplatesCache: alternativesCache, updatedAt: Date.now(), searchQuery: queryParam });
-              setCurrentScenario(prev => prev ? ({...prev, alternativeTemplatesCache: alternativesCache, searchQuery: queryParam }) : null);
+              await db.scenarios.update(scenarioToLoad.id, { alternativeTemplatesCache: altsCacheForDb, updatedAt: Date.now(), searchQuery: queryParam });
+              setCurrentScenario(prev => prev ? ({...prev, alternativeTemplatesCache: altsCacheForDb, searchQuery: queryParam }) : null);
             }
           }
-        } catch (err) {
-          console.error("Error in handleFindNewAlternatives:", err);
+        } catch {
           setAlternativeTemplates([]); // Clear on error
           if (scenarioToLoad && scenarioToLoad.id) {
             // Corrected variable name here
@@ -458,26 +483,22 @@ export default function BuildPage() {
       setIsLoading(false);
     }
     manageScenario();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenarioIdParam, templateIdParam, queryParam]); // Removed router from dependencies
+  }, [scenarioIdParam, templateIdParam, queryParam]); // Removed router from dependencies to avoid infinite re-renders
 
   // Load scenario data once rfInstance is available AND currentScenario is set
   useEffect(() => {
     if (rfInstance && currentScenario) {
-      console.log("[useEffect currentScenario] Loading data for scenario:", currentScenario.id, currentScenario.name);
       loadScenarioDataToState(currentScenario);
     } else if (rfInstance && !currentScenario && scenarioId) {
       // This case handles when scenarioId is set (e.g. by handleLoadScenario)
       // but currentScenario hasn't been fetched and set yet in the main useEffect.
       // Or if currentScenario was cleared.
       if (isManipulatingNodesProgrammatically) return; // Guard against re-loading while programmatically changing nodes
-      console.log(`[useEffect currentScenario] currentScenario is null, but scenarioId exists: ${scenarioId} . Attempting to load from DB.`);
       db.scenarios.get(scenarioId).then(fetchedScenario => {
         if (fetchedScenario) {
           setCurrentScenario(fetchedScenario); // This will re-trigger this effect
         } else {
           // Handle case where scenarioId is invalid or scenario deleted elsewhere
-          console.warn(`[useEffect currentScenario] Scenario with id ${scenarioId} not found in DB.`);
           // Potentially create a new one or load a default.
           // For now, let's clear the canvas.
           loadScenarioDataToState(null); 
@@ -485,7 +506,6 @@ export default function BuildPage() {
         }
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rfInstance, currentScenario, scenarioId, loadScenarioDataToState, router, isManipulatingNodesProgrammatically]); // loadScenarioDataToState and router were already here
 
   // Canvas State Sync Effect (Saving nodes/edges/viewport to Dexie for the currentScenario.id)
@@ -512,15 +532,12 @@ export default function BuildPage() {
     // Only update the timestamp if there was an actual change to the flow content or viewport.
     // Other updates to `updatedAt` (e.g., renaming, ROI param changes) are handled by their specific functions.
     if (hasContentChanged) {
-        console.log("[Canvas Sync] Content changed, updating timestamp for scenario:", currentScenario.id);
         updatePayload.updatedAt = Date.now();
     } else {
-        console.log("[Canvas Sync] No content change detected, saving snapshots without updating timestamp for scenario:", currentScenario.id);
     }
     
     // Persist the snapshots. If updatedAt is in updatePayload, it gets updated too.
     db.scenarios.update(currentScenario.id, updatePayload).catch(err => {
-        console.error("Failed to update scenario in Dexie from canvas sync:", err);
     });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -591,8 +608,8 @@ export default function BuildPage() {
       maxY = Math.max(maxY, y + 40);  // Approximate node height
       
       // Store node minutes contribution
-      const nodeType = node.type as any; // Cast to any first to avoid NodeType conflicts
-      const operationType = (node.data as any)?.typeOf;
+      const nodeType = node.type as NodeType; // Cast to NodeType instead of any
+      const operationType = (node.data as unknown as NodeData)?.typeOf;
       const nodeMinutes = calculateNodeTimeSavings(
         nodeType,
         minutesPerRun,
@@ -681,24 +698,6 @@ export default function BuildPage() {
     }
   };
 
-  // Add new edge on connect
-  const handleConnect = React.useCallback((connection: Connection) => {
-    setEdges((eds) => {
-      const next = addEdge({
-        ...connection,
-        // Use custom edge type for better visualization
-        type: 'custom',
-        // Add data to distinguish decision paths
-        data: {
-          ...(connection.sourceHandle === 'true' ? { isTrue: true } : {}),
-          ...(connection.sourceHandle === 'false' ? { isFalse: true } : {}),
-        }
-      }, eds);
-      // Deduplicate by id to avoid React duplicate key errors
-      return Array.from(new Map(next.map((e) => [e.id, e])).values());
-    });
-  }, []);
-
   const snapToGridModifier = createSnapModifier(8);
 
   const handleDragEnd = useCallback(
@@ -715,7 +714,7 @@ export default function BuildPage() {
       if (!rect) return;
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
-      const viewport = (rfInstance as any).getViewport?.() ?? { x: 0, y: 0, zoom: 1 };
+      const viewport = (rfInstance as ReactFlowInstance).getViewport?.() ?? { x: 0, y: 0, zoom: 1 };
       const pos = {
         x: (centerX - wrapperRect.left - viewport.x) / viewport.zoom,
         y: (centerY - wrapperRect.top - viewport.y) / viewport.zoom,
@@ -743,8 +742,7 @@ export default function BuildPage() {
   // Function to save the current canvas state as a new scenario
   const saveCurrentWorkflowAsScenario = useCallback(async (name?: string): Promise<number> => {
     if (!rfInstance) {
-      console.error("ReactFlow instance not available for saving.");
-      throw new Error("ReactFlow instance not available");
+      throw new Error("ReactFlow instance not available for saving.");
     }
     const flowObject = rfInstance.toObject();
 
@@ -770,7 +768,6 @@ export default function BuildPage() {
       viewport: flowObject.viewport,
       originalTemplateId: currentScenario?.originalTemplateId, // Preserve if based on a template
       searchQuery: currentScenario?.searchQuery, // Preserve original query
-      // alternativeTemplatesCache: currentScenario?.alternativeTemplatesCache, // Preserve alternatives if any
     };
     
     // Create a new slug for the new scenario if it's a "Save As" type operation
@@ -781,27 +778,52 @@ export default function BuildPage() {
         ...scenarioToSave
     } as Scenario); // Cast to Scenario to satisfy Dexie's add method requiring all non-optional fields
 
-    console.log("Workflow saved as new scenario ID:", newScenarioId);
-    // TODO: Update the "My Scenarios" list in Toolbox (will require passing a callback or using a global state/event)
     return newScenarioId;
   }, [rfInstance, platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, taskType, complianceEnabled, riskLevel, riskFrequency, errorCost, revenueEnabled, monthlyVolume, conversionRate, valuePerConversion, currentScenario]);
 
   const handleFindNewAlternatives = useCallback(async (queryToSearch: string) => {
     if (!queryToSearch) {
-      console.error("[handleFindNewAlternatives] Query is missing.");
       return;
     }
     if (!currentScenario || !currentScenario.id) {
-        console.error("[handleFindNewAlternatives] Current scenario or ID missing.");
         return;
     }
     setIsLoadingAlternatives(true); // Correct usage
     try {
         const res = await fetch(`/api/templates/search?q=${encodeURIComponent(queryToSearch)}`);
         if (!res.ok) throw new Error(`Alt templates fetch failed: ${res.status}`);
-        const data = await res.json();
+        const data: {
+          templates?: Array<{
+            templateId: string;
+            title?: string;
+            platform?: string;
+            source?: string;
+            nodes?: Array<{
+              reactFlowId?: string;
+              id?: string;
+              type: string;
+              position: { x: number; y: number };
+              data: Record<string, unknown>;
+            }>;
+            edges?: Array<{
+              reactFlowId?: string;
+              id?: string;
+              source?: string;
+              target?: string;
+              label?: string;
+              data?: Record<string, unknown>;
+            }>;
+            description?: string;
+          }>;
+        } = await res.json();
         let newAltsState: Scenario[] = [];
-        let altsCacheForDb: any[] = [];
+        let altsCacheForDb: Array<{
+          templateId?: string;
+          title: string;
+          platform: string;
+          nodesCount: number;
+          description?: string;
+        }> = [];
 
         if (data.templates && Array.isArray(data.templates)) {
             const primaryId = currentScenario.originalTemplateId;
@@ -816,9 +838,11 @@ export default function BuildPage() {
                 complianceEnabled: false, revenueEnabled: false, riskLevel:3, riskFrequency:5, errorCost:500, monthlyVolume:100, conversionRate:5, valuePerConversion:200, 
             } as Scenario));
             altsCacheForDb = newAltsState.map(s => ({ 
-                templateId: s.originalTemplateId, title: s.name, platform: s.platform, 
+                templateId: s.originalTemplateId, 
+                title: s.name, 
+                platform: s.platform || 'zapier', 
                 nodesCount: s.nodesSnapshot?.length || 0, 
-                description: (s as any).description // If original template had description, pass it
+                description: (s as { description?: string }).description
             }));
         }
         setAlternativeTemplates(newAltsState);
@@ -827,8 +851,7 @@ export default function BuildPage() {
             await db.scenarios.update(currentScenario.id, { alternativeTemplatesCache: altsCacheForDb, updatedAt: Date.now(), searchQuery: queryToSearch });
             setCurrentScenario(prev => prev ? ({ ...prev, alternativeTemplatesCache: altsCacheForDb, searchQuery: queryToSearch }) : null);
         }
-    } catch (err) {
-        console.error("Error in handleFindNewAlternatives:", err);
+    } catch {
         setAlternativeTemplates([]);
         if (currentScenario && currentScenario.id) {
             await db.scenarios.update(currentScenario.id, { alternativeTemplatesCache: [], updatedAt: Date.now() });
@@ -843,7 +866,6 @@ export default function BuildPage() {
     const fullAlternativeScenario = alternativeTemplates.find(s => s.originalTemplateId === alternativeData.templateId);
 
     if (!currentScenario || !currentScenario.id || !fullAlternativeScenario || !fullAlternativeScenario.originalTemplateId) {
-        console.error("Cannot select alt: missing current scenario/ID or full alt data/ID.");
         return;
     }
     setIsLoading(true);
@@ -869,15 +891,12 @@ export default function BuildPage() {
   }, [currentScenario, saveCurrentWorkflowAsScenario, router, alternativeTemplates]);
 
   const handleLoadScenario = useCallback(async (idToLoad: number) => {
-    console.log(`[handleLoadScenario] Attempting to load scenario ID: ${idToLoad}`);
     setIsLoading(true);
     const scenarioFromDb = await db.scenarios.get(idToLoad);
     if (scenarioFromDb) {
       setScenarioId(idToLoad); // Update the active scenarioId state
       setCurrentScenario(scenarioFromDb); // This will trigger the useEffect to call loadScenarioDataToState
-      // router.replace(`/build?sid=${idToLoad}`, { scroll: false }); // URL is already updated by Toolbox
     } else {
-      console.error(`[handleLoadScenario] Scenario with ID ${idToLoad} not found.`);
       // Handle error: maybe load a default scenario or clear canvas
       loadScenarioDataToState(null); // Clear canvas
       // Potentially create a new scenario if the loaded one is gone
@@ -889,8 +908,6 @@ export default function BuildPage() {
         setCurrentScenario(newScenario);
       } else {
         // This case should be very rare (failed to create/fetch new scenario)
-        console.error("[handleLoadScenario] Failed to create or fetch a new fallback scenario.");
-        // Fallback to a completely blank state without setting currentScenario
         loadScenarioDataToState(null);
       }
     }
@@ -903,8 +920,6 @@ export default function BuildPage() {
     if (node) {
       const nodeWidth = node.width || (node.type === 'emailPreview' ? 600 : 150); // Adjusted for email node
       const nodeHeight = node.height || (node.type === 'emailPreview' ? 750 : 40); // Adjusted for email node
-      const x = node.position.x + nodeWidth / 2;
-      const y = node.position.y + nodeHeight / 2;
       // rfInstance.setCenter(x, y, { zoom: rfInstance.getZoom(), duration: 600 });
       // A slightly more focused zoom might be better:
       rfInstance.fitBounds(
@@ -919,27 +934,24 @@ export default function BuildPage() {
       .filter(node => node.type === 'emailPreview')
       .map(node => ({ 
         id: node.id, 
-        title: (node.data as EmailPreviewNodeData)?.nodeTitle || `Email: ${node.id}`
+        title: (node.data as unknown as EmailPreviewNodeData)?.nodeTitle || `Email: ${node.id}`
       }));
-    console.log("[BuildPage] emailNodesForToolbox updated:", filtered);
     return filtered;
   }, [nodes]);
 
   // ADD THE HANDLER FUNCTION HERE
   const handleGenerateEmailOnCanvas = useCallback(async () => {
     if (!currentScenario || !currentScenario.id || !rfInstance) {
-      console.error("[BuildPage] Scenario or ReactFlow instance not available for email generation.", { currentScenario, rfInstance });
       alert("Cannot generate email: Scenario data or flow instance is missing.");
       return;
     }
 
     setIsLoading(true);
-    console.log("[BuildPage] Starting email generation on canvas for scenario:", currentScenario.name);
 
     try {
       setIsManipulatingNodesProgrammatically(true);
       const sc = currentScenario;
-      const roiDataPayload = { /* ... (same as before, ensure all fields are correct) ... */
+      const roiDataPayload = {
         scenarioName: sc.name,
         platform: sc.platform,
         timeValue: calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0),
@@ -963,7 +975,6 @@ export default function BuildPage() {
         throw new Error(`Failed to generate full email content: ${response.status} ${errorBody}`);
       }
       const emailTexts = await response.json();
-      console.log("[BuildPage] Received email texts from API:", emailTexts);
 
       // Prepare updated email fields for the scenario
       const updatedEmailFields: Partial<Scenario> = {
@@ -971,10 +982,9 @@ export default function BuildPage() {
         emailHookText: emailTexts.hookText || sc.emailHookText,
         emailCtaText: emailTexts.ctaText || sc.emailCtaText,
         emailOfferText: emailTexts.offerText || sc.emailOfferText,
-        // updatedAt will be set in the comprehensive update below
       };
 
-      let finalNodesList: Node<any>[] = [];
+      let finalNodesList: Node<Record<string, unknown>>[] = [];
 
       // Use functional update for setNodes to ensure atomicity and get the latest state for snapshotting
       setNodes(currentNodesState => {
@@ -1028,7 +1038,6 @@ export default function BuildPage() {
           selectable: true,
         };
         finalNodesList = [...nodesWithoutOldEmail, newEmailNodeToAdd];
-        console.log("[BuildPage] Constructed finalNodesList inside setNodes callback:", finalNodesList.length);
         return finalNodesList; // This updates React Flow's internal state
       });
 
@@ -1042,14 +1051,9 @@ export default function BuildPage() {
 
       await db.scenarios.update(sc.id!, comprehensiveScenarioUpdate);
       setCurrentScenario(prev => prev ? { ...prev, ...comprehensiveScenarioUpdate } : null);
-      console.log("[BuildPage] Scenario updated in DB and local state with new email texts AND new nodesSnapshot.");
-
-      // The canvas sync useEffect will still run when `nodes` or `currentScenario` changes.
-      // The `isManipulatingNodesProgrammatically` flag protects the `loadScenarioDataToState` useEffect.
 
       setTimeout(() => { // Fit view after state updates have likely propagated
         if (rfInstance) {
-          console.log("[BuildPage] Calling fitView on rfInstance after adding email node.");
           rfInstance.fitView({ padding: 0.15, includeHiddenNodes: false, duration: 600 });
           
           // After fitView, the viewport has changed. We should save this new viewport.
@@ -1057,22 +1061,17 @@ export default function BuildPage() {
           const viewportUpdatePayload: Partial<Scenario> = { viewport: newViewport, updatedAt: Date.now() };
           db.scenarios.update(sc.id!, viewportUpdatePayload);
           setCurrentScenario(prev => prev ? { ...prev, ...viewportUpdatePayload } : null);
-          console.log("[BuildPage] Updated scenario with new viewport after fitView.");
 
         } else {
-          console.warn("[BuildPage] rfInstance not available for fitView call after adding email node.");
         }
       }, 250); // Slightly longer timeout to ensure DOM update and rfInstance is ready
 
     } catch (error) {
-      console.error("[BuildPage] Error generating email on canvas:", error);
       alert(`Error generating email on canvas: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
       setIsManipulatingNodesProgrammatically(false);
-      console.log("[BuildPage] Finished email generation attempt.");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentScenario, rfInstance, setNodes, setIsLoading, setCurrentScenario]); // Removed `nodes` from here as direct dep, it's accessed via functional update to setNodes
 
   const handleUpdateEmailNodeData = useCallback((nodeId: string, data: Partial<EmailPreviewNodeData>) => {
@@ -1152,7 +1151,6 @@ export default function BuildPage() {
         handleUpdateEmailNodeData(nodeId, { [fieldToUpdate]: result.generatedText });
 
       } catch (error) {
-        console.error("Error generating AI content for email node:", error);
         alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setIsGeneratingAIContent(false);
@@ -1170,8 +1168,6 @@ export default function BuildPage() {
       </div>
     );
   }
-
-  console.log("[BuildPage Render] Passing to FlowCanvas - Nodes:", nodes.length, "Edges:", edges.length);
 
   return (
     <ReactFlowProvider>
@@ -1330,7 +1326,7 @@ export default function BuildPage() {
               onNodeClick={handleNodeClick}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
-              defaultViewport={currentScenario?.viewport || { x:0, y:0, zoom:1}}
+              defaultViewport={currentScenario?.viewport as Viewport || { x:0, y:0, zoom:1}}
               onMoveEnd={handleMoveEnd}
               onInit={(instance) => setRfInstance(instance as ReactFlowInstance)}
               setWrapperRef={(node) => {

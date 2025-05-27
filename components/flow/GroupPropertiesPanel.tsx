@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { HelpCircle, Lock, Unlock, Calculator } from "lucide-react";
+import { HelpCircle, Lock, Unlock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { pricing } from "@/app/api/data/pricing";
 import { GroupPropertiesPanelProps, GroupData } from "@/lib/types";

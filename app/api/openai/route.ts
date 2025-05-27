@@ -30,8 +30,10 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(completion);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("/api/openai error", error);
-    return NextResponse.json({ error: error?.message || "Unexpected error" }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : "Unexpected error" 
+    }, { status: 500 });
   }
 } 

@@ -3,7 +3,7 @@ import { EmailTemplate, EmailTemplateProps } from './EmailTemplate';
 
 export interface EmailPreviewNodeData extends EmailTemplateProps {
   nodeTitle?: string;
-  [key: string]: any; // Add index signature
+  [key: string]: unknown; // Replace any with unknown
 }
 
 interface EmailPreviewNodeProps {

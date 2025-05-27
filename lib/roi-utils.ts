@@ -74,16 +74,16 @@ export function calculateRevenueValue(
 export function calculatePlatformCost(
   platform: string,
   runsPerMonth: number,
-  pricing: any,
+  pricing: Record<string, unknown>,
   nodeCount: number = 0
 ): number {
-  const data = pricing[platform];
+  const data = pricing[platform] as { tiers: Array<{ name: string; monthlyUSD: number; quota: number }> };
   const tierName: Record<string, string> = {
     zapier: "Professional",
     make: "Core",
     n8n: "Starter",
   };
-  const tier = data.tiers.find((t: any) => t.name === tierName[platform]) || data.tiers[0];
+  const tier = data.tiers.find((t: { name: string; monthlyUSD: number; quota: number }) => t.name === tierName[platform]) || data.tiers[0];
   
   // Get cost per unit
   const costPerUnit = tier.quota ? tier.monthlyUSD / tier.quota : 0;
@@ -214,13 +214,6 @@ export function calculateNodeTimeSavings(
   // Base calculation - distribute time based on node type
   const typeFactor = typeFactors[nodeType] || 1;
   
-  // Count nodes by type for weighting
-  const typeCounts = allNodes.reduce((counts, node) => {
-    const type = node.type as NodeType;
-    counts[type] = (counts[type] || 0) + 1;
-    return counts;
-  }, {} as Record<string, number>);
-  
   // Total weight in the workflow
   const totalWeight = allNodes.reduce((total, node) => {
     const type = node.type as NodeType;
@@ -262,7 +255,7 @@ export function calculateGroupROI(
     taskMultiplier: number;
     platform: string;
   },
-  pricing: any
+  pricing: Record<string, unknown>
 ) {
   const { runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, platform } = baseParams;
   
@@ -274,7 +267,7 @@ export function calculateGroupROI(
   
   groupNodes.forEach(node => {
     const nodeType = node.type as NodeType;
-    const operationType = (node.data as any)?.typeOf;
+    const operationType = (node.data as Record<string, unknown>)?.typeOf as string | undefined;
     
     // Calculate this node's time contribution
     const nodeMinutes = calculateNodeTimeSavings(

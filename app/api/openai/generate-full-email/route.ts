@@ -25,13 +25,13 @@ const openai = new OpenAI({
 });
 
 interface EmailGenerationPayload {
-  roiData: any; // Define a more specific type if possible
+  roiData: Record<string, unknown>; // Replace 'any'
   scenarioName?: string;
   platform?: string;
   // Add any other relevant data from the currentScenario
 }
 
-async function generateSection(prompt: string, roiData: any, textToRefine?: string) {
+async function generateSection(prompt: string, roiData: Record<string, unknown>, textToRefine?: string) {
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     {
       role: "system",
@@ -83,8 +83,10 @@ export async function POST(req: Request) {
       offerText,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("/api/openai/generate-full-email error", error);
-    return NextResponse.json({ error: error?.message || "Unexpected error during full email generation" }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : "Unexpected error during full email generation" 
+    }, { status: 500 });
   }
 } 

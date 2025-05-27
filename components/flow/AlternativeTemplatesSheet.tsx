@@ -5,23 +5,24 @@ import {
   SheetHeader, 
   SheetTitle,
   SheetTrigger,
-  SheetClose,
-  SheetFooter,
-  SheetDescription
+  SheetFooter
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronUp, ChevronDown, XIcon, RefreshCw, Workflow, Zap, CheckSquare, MessageSquare } from 'lucide-react';
+import { ChevronUp, ChevronDown, RefreshCw, Workflow, Zap, CheckSquare, MessageSquare } from 'lucide-react';
 import { type Scenario } from '@/lib/db'; // Assuming Scenario type includes necessary fields for display
 import { cn } from '@/lib/utils';
+import { Node } from '@xyflow/react';
 
-export interface AlternativeTemplateForDisplay extends Partial<Scenario> {
+export interface AlternativeTemplateForDisplay {
   // Explicitly define fields expected from parent for an alternative template
   templateId?: string; // This should be originalTemplateId from Scenario
   title?: string; // This should be name from Scenario
-  platform?: string;
+  platform?: "zapier" | "make" | "n8n"; // Use the same constraint as Scenario
   description?: string;
   nodesCount?: number;
+  nodesSnapshot?: Node[]; // Properly typed nodes
+  edgesSnapshot?: unknown[]; // Keep edges as unknown for now
   // Add any other fields needed for quick stats, like primary app icons etc.
 }
 
@@ -82,7 +83,7 @@ export function AlternativeTemplatesSheet({
           "h-[50vh] max-h-[600px] min-h-[200px] w-full max-w-4xl mx-auto rounded-t-xl flex flex-col p-0 data-[state=closed]:translate-y-0 data-[state=open]:translate-y-0",
           // Custom transition if needed, though Sheet handles its own.
         )}
-        onInteractOutside={(e) => {
+        onInteractOutside={() => {
             // Allow interaction with elements inside the SheetContent without closing it
             // Default behavior is to close on outside click. This might need adjustment if complex interactions are inside.
         }}
@@ -148,20 +149,20 @@ export function AlternativeTemplatesSheet({
                         <div>
                           <h5 className="text-xs font-semibold mb-1">Trigger:</h5>
                           <p className="text-xs text-muted-foreground">
-                            {alt.nodesSnapshot?.find(n => n.type === 'trigger')?.data?.appName || 'N/A'}
+                            {alt.nodesSnapshot?.find(n => n.type === 'trigger')?.data?.appName as string || 'N/A'}
                             {' '}
-                            <span className="italic">({alt.nodesSnapshot?.find(n => n.type === 'trigger')?.data?.label || 'Unknown Trigger'})</span>
+                            <span className="italic">({alt.nodesSnapshot?.find(n => n.type === 'trigger')?.data?.label as string || 'Unknown Trigger'})</span>
                           </p>
                         </div>
                         <div>
                           <h5 className="text-xs font-semibold mb-1">Apps Involved:</h5>
                           <div className="flex flex-wrap gap-1">
-                            {[...new Set(alt.nodesSnapshot?.map(n => n.data?.appName).filter(Boolean) as string[])].slice(0, 5).map(appName => (
+                            {[...new Set(alt.nodesSnapshot?.map(n => (n.data as any)?.appName).filter(Boolean) as string[])].slice(0, 5).map(appName => (
                               <span key={appName} className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-sm">
                                 {appName}
                               </span>
                             ))}
-                            {(alt.nodesSnapshot?.map(n => n.data?.appName).filter(Boolean) as string[]).length > 5 && (
+                            {(alt.nodesSnapshot?.map(n => (n.data as any)?.appName).filter(Boolean) as string[]).length > 5 && (
                                <span className="text-[10px] text-muted-foreground">...and more</span>
                             )}
                           </div>

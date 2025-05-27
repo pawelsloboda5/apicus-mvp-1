@@ -1,4 +1,4 @@
-import { Node, Edge, ReactFlowInstance, Connection, NodeChange, EdgeChange, Viewport } from "@xyflow/react";
+import { Node, Edge, ReactFlowInstance, NodeChange, EdgeChange, Viewport, NodeTypes, EdgeTypes } from "@xyflow/react";
 
 export type NodeType = "trigger" | "action" | "decision" | "group";
 export type PlatformType = "zapier" | "make" | "n8n";
@@ -18,7 +18,7 @@ export interface NodeData {
 export interface GroupData {
   label: string;
   nodes: string[];
-  nodeMap?: Record<string, any>;
+  nodeMap?: Record<string, unknown>;
   width?: number;
   height?: number;
   runsPerMonth?: number;
@@ -64,7 +64,7 @@ export interface StatsBarProps {
   onUpdateRuns: (runs: number) => void;
   onUpdateMinutes: (minutes: number) => void;
   nodes?: Node[];
-  currentScenario?: any;
+  currentScenario?: unknown;
 }
 
 export interface PlatformSwitcherProps {
@@ -80,8 +80,8 @@ export interface FlowCanvasProps {
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
   onMoveEnd?: (event: MouseEvent | TouchEvent | null, viewport: Viewport) => void;
   onInit?: (instance: ReactFlowInstance) => void;
-  nodeTypes?: Record<string, React.ComponentType<any>>;
-  edgeTypes?: Record<string, React.ComponentType<any>>;
+  nodeTypes?: NodeTypes;
+  edgeTypes?: EdgeTypes;
   defaultViewport?: Viewport;
   setWrapperRef?: (ref: HTMLDivElement | null) => void;
 

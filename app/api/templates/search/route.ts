@@ -31,10 +31,18 @@ export async function GET(req: Request) {
     defaultQuery: { "api-version": apiVersion },
   });
 
+  interface EmbeddingResponse {
+    data: Array<{ embedding: number[] }>;
+  }
+
   let embedding: number[];
   try {
-    const resp = await openai.embeddings.create({ input: q, dimensions: 1536 } as any);
-    embedding = (resp.data[0] as any).embedding;
+    const resp = await openai.embeddings.create({ 
+      model: "text-embedding-3-small",
+      input: q, 
+      dimensions: 1536 
+    });
+    embedding = (resp as EmbeddingResponse).data[0].embedding;
   } catch (err) {
     console.error("Embedding error", err);
     return NextResponse.json({ error: "Embedding failed" }, { status: 500 });
@@ -66,12 +74,29 @@ export async function GET(req: Request) {
     { $project: { templateId: 1, title: 1, nodes: 1, edges: 1, source: 1, platform: 1, description: 1, _id: 0 } },
   ];
 
-  let results: any[];
+  let results: Array<{
+    templateId: string;
+    title: string;
+    nodes: unknown;
+    edges: unknown;
+    source: string;
+    platform: string;
+    description: string;
+  }>;
   try {
-    results = await collection.aggregate(cosmosPipeline).toArray();
-  } catch (err: any) {
+    const rawResults = await collection.aggregate(cosmosPipeline).toArray();
+    results = rawResults as Array<{
+      templateId: string;
+      title: string;
+      nodes: unknown;
+      edges: unknown;
+      source: string;
+      platform: string;
+      description: string;
+    }>;
+  } catch (err: unknown) {
     // If Cosmos operator not found, fall back to Atlas $vectorSearch
-    if (err.message?.includes("cosmosSearch")) {
+    if (err instanceof Error && err.message?.includes("cosmosSearch")) {
       const atlasPipeline = [
         {
           $vectorSearch: {
@@ -85,14 +110,23 @@ export async function GET(req: Request) {
         { $project: { templateId: 1, title: 1, nodes: 1, edges: 1, source: 1, platform: 1, description: 1, _id: 0 } },
       ];
       try {
-        results = await collection.aggregate(atlasPipeline).toArray();
+        const rawResults = await collection.aggregate(atlasPipeline).toArray();
+        results = rawResults as Array<{
+          templateId: string;
+          title: string;
+          nodes: unknown;
+          edges: unknown;
+          source: string;
+          platform: string;
+          description: string;
+        }>;
       } catch (err2) {
         console.error("Vector search error", err2);
         return NextResponse.json({ error: "Vector search failed", detail: err2 instanceof Error ? err2.message : String(err2) }, { status: 500 });
       }
     } else {
       console.error("Aggregation error", err);
-      return NextResponse.json({ error: "Search aggregation failed", detail: err.message }, { status: 500 });
+      return NextResponse.json({ error: "Search aggregation failed", detail: err instanceof Error ? err.message : String(err) }, { status: 500 });
     }
   }
 

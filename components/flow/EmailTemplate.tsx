@@ -24,9 +24,6 @@ export interface EmailTemplateProps {
     payback?: string;   // e.g. "< 1 day"
     runs?: number;      // e.g. 290
   };
-  // Placeholder for AI editing functions
-  onEditHook?: () => void;
-  onEditCTA?: () => void;
 }
 
 export const EmailTemplate: React.FC<EmailTemplateProps> = ({
@@ -41,8 +38,6 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
   subjectLine = "Automate Your [Task] & See ROI", // New default
   offerText = "If you'd like, I can spin up a <strong>2-week pilot</strong> in your Zapier workspace—no code, no disruption—to prove the savings on live data.", // New default
   stats = { roiX: 0, payback: "N/A", runs: 0 },
-  onEditHook,
-  onEditCTA,
 }) => {
   // Build the raw HTML only once per prop‑set
   const rawHtml = useMemo(() => {

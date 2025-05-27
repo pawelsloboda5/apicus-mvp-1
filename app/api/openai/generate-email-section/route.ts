@@ -55,8 +55,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ generatedText });
 
-  } catch (error: any) {
-    console.error("/api/openai/generate-email-section error", error.status, error.message, error.headers, error.error);
-    return NextResponse.json({ error: error?.message || "Unexpected error during email section generation", detail: error?.error }, { status: error?.status || 500 });
+  } catch (error: unknown) {
+    console.error("/api/openai/generate-email-section error", error);
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : "Unexpected error during email section generation" 
+    }, { status: 500 });
   }
 } 

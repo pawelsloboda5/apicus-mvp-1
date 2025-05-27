@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmailPreviewNodeData } from './EmailPreviewNode';
 import { Node } from '@xyflow/react';
-import { Loader2, Wand2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Wand2, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,

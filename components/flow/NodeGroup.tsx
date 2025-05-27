@@ -16,7 +16,6 @@ export function NodeGroup({ data, selected }: NodeProps) {
     height,
     nodes = [] as string[],
     runsPerMonth = 1000,
-    minutesPerRun = 5,
     hourlyRate = 30,
     taskMultiplier = 1.5,
     platform = "zapier",
@@ -40,7 +39,6 @@ export function NodeGroup({ data, selected }: NodeProps) {
   const timeValue = calculateTimeValue(runsPerMonth, totalMinutesSaved, hourlyRate, taskMultiplier);
   const platformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodeCount);
   const netROI = timeValue - platformCost;
-  const roiRatio = platformCost ? timeValue / platformCost : 0;
 
   return (
     <div

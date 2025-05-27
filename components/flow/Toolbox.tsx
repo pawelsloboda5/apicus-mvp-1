@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import { Sparkles, PlayCircle, GitBranch, Calculator, ListChecks, Save, PlusCircle, Trash2, Edit3, Check, X, MailOpen } from "lucide-react";
+import { Sparkles, GitBranch, PlayCircle, Zap, PlusCircle, Trash2, Edit3, Check, X, MailOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NodeType, PlatformType } from "@/lib/types";
 import { db, Scenario, createScenario } from "@/lib/db";
@@ -32,7 +32,7 @@ const typeIcon = {
   trigger: PlayCircle,
   action: Sparkles,
   decision: GitBranch,
-  group: Calculator, // Kept for potential future use or if group nodes are directly addable
+  group: Zap, // Kept for potential future use or if group nodes are directly addable
 };
 
 interface ToolboxProps {
@@ -193,7 +193,7 @@ export function Toolbox({ onLoadScenario, activeScenarioId, emailNodes, onFocusN
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the scenario "{scenario.name}".
+                            This action cannot be undone. This will permanently delete the scenario &quot;{scenario.name}&quot;.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -210,7 +210,7 @@ export function Toolbox({ onLoadScenario, activeScenarioId, emailNodes, onFocusN
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-muted-foreground px-1 italic mt-2">No saved scenarios yet. Click '+' to add one.</p>
+          <p className="text-xs text-muted-foreground px-1 italic mt-2">No saved scenarios yet. Click &apos;+&apos; to add one.</p>
         )}
       </div>
 
