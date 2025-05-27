@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from 'react';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -85,9 +86,10 @@ const edgeTypes = {
   custom: CustomEdge,
 };
 
-export default function BuildPage() {
+// Move the main component logic into a separate component
+function BuildPageContent() {
   const router = useRouter();
-  const params = useSearchParams();
+  const params = useSearchParams(); // This is now inside Suspense
   const scenarioIdParam = params.get("sid");
   const templateIdParam = params.get("tid");
   const queryParam = params.get("q");
@@ -1429,4 +1431,18 @@ export default function BuildPage() {
       </DndContext>
     </ReactFlowProvider>
   );
-} 
+}
+
+// Main component with Suspense wrapper
+export default function BuildPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="ml-4 text-lg">Loading automation canvas...</p>
+      </div>
+    }>
+      <BuildPageContent />
+    </Suspense>
+  );
+}
