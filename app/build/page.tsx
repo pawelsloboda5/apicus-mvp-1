@@ -215,8 +215,11 @@ function BuildPageContent() {
   const saveScenarioName = async () => {
     if (currentScenario && currentScenario.id && editingScenarioName.trim() !== "") {
       const newName = editingScenarioName.trim();
-      await db.scenarios.update(currentScenario.id, { name: newName, updatedAt: Date.now() });
-      setCurrentScenario(prev => prev ? { ...prev, name: newName, updatedAt: Date.now() } : null);
+      // Add type guard here
+      if (currentScenario.id) {
+        await db.scenarios.update(currentScenario.id, { name: newName, updatedAt: Date.now() });
+        setCurrentScenario(prev => prev ? { ...prev, name: newName, updatedAt: Date.now() } : null);
+      }
     }
     setIsEditingTitle(false);
   };
@@ -287,7 +290,10 @@ function BuildPageContent() {
       if (!currentScenario || !currentScenario.id) return;
       const updatedFields = { ...partial, updatedAt: Date.now() };
       setCurrentScenario(prev => prev ? { ...prev, ...updatedFields } : null);
-      db.scenarios.update(currentScenario.id, updatedFields);
+      // Add type guard here too
+      if (currentScenario.id) {
+        db.scenarios.update(currentScenario.id, updatedFields);
+      }
     },
     [currentScenario]
   );
@@ -349,7 +355,7 @@ function BuildPageContent() {
           if (!res.ok) throw new Error("Primary template fetch failed");
           primaryTemplateData = await res.json();
 
-          if (primaryTemplateData && primaryTemplateData.nodes && primaryTemplateData.edges) {
+          if (primaryTemplateData && primaryTemplateData.nodes && primaryTemplateData.edges && activeScenarioIdToLoad) {
             const updatedScenarioData: Partial<Scenario> = {
               name: primaryTemplateData.title || scenarioToLoad.name,
               nodesSnapshot: primaryTemplateData.nodes.map((n) => ({
@@ -363,12 +369,12 @@ function BuildPageContent() {
               searchQuery: queryParam || scenarioToLoad.searchQuery,
               updatedAt: Date.now(),
             };
-            await db.scenarios.update(activeScenarioIdToLoad!, updatedScenarioData);
+            await db.scenarios.update(activeScenarioIdToLoad, updatedScenarioData);
             scenarioToLoad = { ...scenarioToLoad, ...updatedScenarioData } as Scenario;
           }
         } catch {
-          // Potentially update scenario name to indicate error or use default
-          if (activeScenarioIdToLoad) { // Ensure activeScenarioId is not null
+          // Fix this too
+          if (activeScenarioIdToLoad) {
             await db.scenarios.update(activeScenarioIdToLoad, { name: scenarioToLoad?.name || "Error Loading Template" });
           }
         }
@@ -490,19 +496,16 @@ function BuildPageContent() {
   // Load scenario data once rfInstance is available AND currentScenario is set
   useEffect(() => {
     if (rfInstance && currentScenario) {
+      // Don't reload if we're in the middle of programmatic node manipulation
+      if (isManipulatingNodesProgrammatically) return;
       loadScenarioDataToState(currentScenario);
     } else if (rfInstance && !currentScenario && scenarioId) {
-      // This case handles when scenarioId is set (e.g. by handleLoadScenario)
-      // but currentScenario hasn't been fetched and set yet in the main useEffect.
-      // Or if currentScenario was cleared.
       if (isManipulatingNodesProgrammatically) return; // Guard against re-loading while programmatically changing nodes
       db.scenarios.get(scenarioId).then(fetchedScenario => {
         if (fetchedScenario) {
           setCurrentScenario(fetchedScenario); // This will re-trigger this effect
         } else {
           // Handle case where scenarioId is invalid or scenario deleted elsewhere
-          // Potentially create a new one or load a default.
-          // For now, let's clear the canvas.
           loadScenarioDataToState(null); 
           router.replace('/build'); // Navigate to a clean build page
         }
@@ -516,33 +519,36 @@ function BuildPageContent() {
     // Avoid saving an empty canvas over a loaded scenario during the initial loading phase
     if (isLoading && (nodes.length === 0 && edges.length === 0 && !currentScenario.nodesSnapshot?.length)) return;
 
-    const flowObject = rfInstance.toObject();
-    
-    // Determine if there has been a meaningful change to content or viewport
-    const nodesChanged = JSON.stringify(flowObject.nodes) !== JSON.stringify(currentScenario.nodesSnapshot || []);
-    const edgesChanged = JSON.stringify(flowObject.edges) !== JSON.stringify(currentScenario.edgesSnapshot || []);
-    const viewportChanged = JSON.stringify(flowObject.viewport) !== JSON.stringify(currentScenario.viewport);
+    // Debounce the save operation to prevent rapid saves during node manipulation
+    const saveTimeout = setTimeout(() => {
+      const flowObject = rfInstance.toObject();
+      
+      // Determine if there has been a meaningful change to content or viewport
+      const nodesChanged = JSON.stringify(flowObject.nodes) !== JSON.stringify(currentScenario.nodesSnapshot || []);
+      const edgesChanged = JSON.stringify(flowObject.edges) !== JSON.stringify(currentScenario.edgesSnapshot || []);
+      const viewportChanged = JSON.stringify(flowObject.viewport) !== JSON.stringify(currentScenario.viewport);
 
-    const hasContentChanged = nodesChanged || edgesChanged || viewportChanged;
+      const hasContentChanged = nodesChanged || edgesChanged || viewportChanged;
 
-    const updatePayload: Partial<Scenario> = {
-        nodesSnapshot: flowObject.nodes,
-        edgesSnapshot: flowObject.edges,
-        viewport: flowObject.viewport,
-    };
+      if (hasContentChanged && currentScenario.id) { // Add type guard here
+        const updatePayload: Partial<Scenario> = {
+          nodesSnapshot: flowObject.nodes,
+          edgesSnapshot: flowObject.edges,
+          viewport: flowObject.viewport,
+          updatedAt: Date.now(),
+        };
 
-    // Only update the timestamp if there was an actual change to the flow content or viewport.
-    // Other updates to `updatedAt` (e.g., renaming, ROI param changes) are handled by their specific functions.
-    if (hasContentChanged) {
-        updatePayload.updatedAt = Date.now();
-    } else {
-    }
-    
-    // Persist the snapshots. If updatedAt is in updatePayload, it gets updated too.
-    db.scenarios.update(currentScenario.id, updatePayload).catch(() => {
-      // Silently handle database update errors
-    });
+        // Update local state immediately to prevent stale data issues
+        setCurrentScenario(prev => prev ? { ...prev, ...updatePayload } : null);
+        
+        // Persist to database
+        db.scenarios.update(currentScenario.id, updatePayload).catch(() => {
+          console.warn("Failed to save scenario state");
+        });
+      }
+    }, 300); // 300ms debounce
 
+    return () => clearTimeout(saveTimeout);
   }, [nodes, edges, rfInstance, currentScenario, isLoading]); // currentScenario is the key addition for comparison
 
   // Update selected node convenience to handle both nodes and groups
@@ -699,7 +705,10 @@ function BuildPageContent() {
     if (JSON.stringify(currentScenario.viewport) !== JSON.stringify(viewport)) {
       const updatedFields = { viewport, updatedAt: Date.now() };
       setCurrentScenario(prev => prev ? { ...prev, ...updatedFields } : null);
-      db.scenarios.update(currentScenario.id, updatedFields);
+      // Add type guard here
+      if (currentScenario.id) {
+        db.scenarios.update(currentScenario.id, updatedFields);
+      }
     }
   };
 
@@ -712,6 +721,9 @@ function BuildPageContent() {
       if (over && over.id !== "canvas") return;
       const type = active.data.current?.nodeType as "trigger" | "action" | "decision" | undefined;
       if (!type || !reactFlowWrapper.current || !rfInstance) return;
+
+      // Set manipulation flag to prevent state conflicts
+      setIsManipulatingNodesProgrammatically(true);
 
       // Calculate drop position
       const wrapperRect = reactFlowWrapper.current.getBoundingClientRect();
@@ -737,6 +749,11 @@ function BuildPageContent() {
           data: { label: `${type.charAt(0).toUpperCase() + type.slice(1)} ${nds.length + 1}` },
         },
       ]);
+
+      // Clear manipulation flag after a short delay
+      setTimeout(() => {
+        setIsManipulatingNodesProgrammatically(false);
+      }, 100);
     },
     [rfInstance, setNodes]
   );
@@ -1050,12 +1067,14 @@ function BuildPageContent() {
       // with BOTH email text AND the new nodesSnapshot.
       const comprehensiveScenarioUpdate: Partial<Scenario> = {
         ...updatedEmailFields,
-        nodesSnapshot: finalNodesList, // Use the definitive list of nodes captured from setNodes' functional update
-        updatedAt: Date.now(), // Single update timestamp for this operation
+        nodesSnapshot: finalNodesList,
+        updatedAt: Date.now(),
       };
 
-      await db.scenarios.update(sc.id!, comprehensiveScenarioUpdate);
-      setCurrentScenario(prev => prev ? { ...prev, ...comprehensiveScenarioUpdate } : null);
+      if (sc.id) { // Add type guard
+        await db.scenarios.update(sc.id, comprehensiveScenarioUpdate);
+        setCurrentScenario(prev => prev ? { ...prev, ...comprehensiveScenarioUpdate } : null);
+      }
 
       setTimeout(() => { // Fit view after state updates have likely propagated
         if (rfInstance) {
@@ -1063,11 +1082,13 @@ function BuildPageContent() {
           
           // After fitView, the viewport has changed. We should save this new viewport.
           const newViewport = rfInstance.getViewport();
-          const viewportUpdatePayload: Partial<Scenario> = { viewport: newViewport, updatedAt: Date.now() };
-          db.scenarios.update(sc.id!, viewportUpdatePayload);
-          setCurrentScenario(prev => prev ? { ...prev, ...viewportUpdatePayload } : null);
-
+          if (sc.id) { // Add type guard here
+            const viewportUpdatePayload: Partial<Scenario> = { viewport: newViewport, updatedAt: Date.now() };
+            db.scenarios.update(sc.id, viewportUpdatePayload);
+            setCurrentScenario(prev => prev ? { ...prev, ...viewportUpdatePayload } : null);
+          }
         } else {
+          // This else block is empty in your code
         }
       }, 250); // Slightly longer timeout to ensure DOM update and rfInstance is ready
 
@@ -1128,7 +1149,7 @@ function BuildPageContent() {
           nodeCount: sc.nodesSnapshot?.length || 0,
         };
 
-        // Map promptType (e.g., 'time_cost_hook') to a more general system prompt for the API
+        // Map promptType (e.g., 'subject') to a more general system prompt for the API
         let systemPrompt = "Rewrite the following email section."; // Default
         if (promptType.includes('subject')) systemPrompt = `Rewrite this email subject line. Style: ${promptType.split('_')[0]}.`;
         else if (promptType.includes('hook')) systemPrompt = `Rewrite this email hook section. Style: ${promptType.split('_')[0]}.`;

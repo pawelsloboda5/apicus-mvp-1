@@ -429,155 +429,160 @@ export function ROISettingsPanel({
           {/* Advanced Factors Accordion */}
           <Accordion type="multiple" className="w-full">
             <AccordionItem value="risk-compliance">
-              <AccordionTrigger>
-                <div className="flex items-center justify-between w-full pr-2">
-                  <div className="flex flex-col items-start">
-                     <span className="font-medium">Risk & Compliance</span>
-                     <span className="text-xs text-muted-foreground font-normal">Error reduction & regulatory adherence</span>
+              <div className="border rounded-lg">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex flex-col items-start flex-1">
+                    <span className="font-medium">Risk & Compliance</span>
+                    <span className="text-xs text-muted-foreground font-normal">Error reduction & regulatory adherence</span>
                   </div>
-                  <Switch 
-                    id="compliance" 
-                    checked={complianceEnabled}
-                    onCheckedChange={(checked) => {
-                      setComplianceEnabled(checked);
-                      updateScenarioROI({ complianceEnabled: checked });
-                    }}
-                    onClick={(e) => e.stopPropagation()} // Prevent accordion toggle when clicking switch
-                  />
+                  <div className="flex items-center gap-2">
+                    <Switch 
+                      id="compliance" 
+                      checked={complianceEnabled}
+                      onCheckedChange={(checked) => {
+                        setComplianceEnabled(checked);
+                        updateScenarioROI({ complianceEnabled: checked });
+                      }}
+                    />
+                    <AccordionTrigger className="border-0 p-0 hover:no-underline">
+                      {/* Remove the div content from here since it's now outside */}
+                    </AccordionTrigger>
+                  </div>
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="pt-4 space-y-6">
-                {/* Risk Level (1-5) */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="risk-level" className="text-sm">Risk Level (1-5)</Label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium tabular-nums">{riskLevel}</span>
-                       <Tooltip>
-                        <TooltipTrigger>
-                          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                <AccordionContent className="pt-0 px-4 pb-4 space-y-6">
+                  {/* Risk Level (1-5) */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="risk-level" className="text-sm">Risk Level (1-5)</Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium tabular-nums">{riskLevel}</span>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[280px]">
+                            <p>Rate the severity of the risk being mitigated:</p>
+                            <ul className="list-disc pl-4 mt-1">
+                              <li>1 = Minor inconvenience</li>
+                              <li>3 = Sig. operational impact</li>
+                              <li>5 = Major compliance/business risk</li>
+                            </ul>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+                    <Slider
+                      id="risk-level-slider"
+                      min={1}
+                      max={5}
+                      step={1}
+                      value={[riskLevel]}
+                      onValueChange={(values) => {
+                        const v = values[0];
+                        setRiskLevel(v);
+                        updateScenarioROI({ riskLevel: v });
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Low</span>
+                      <span>Medium</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+                  
+                  {/* Risk Frequency (%) */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="risk-freq" className="text-sm">Error Frequency (%)</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Input
+                            id="risk-freq"
+                            type="number"
+                            min={0}
+                            max={100}
+                            className="w-20 text-right tabular-nums"
+                            value={riskFrequency}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setRiskFrequency(v);
+                              updateScenarioROI({ riskFrequency: v });
+                            }}
+                          />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-[280px]">
-                          <p>Rate the severity of the risk being mitigated:</p>
-                          <ul className="list-disc pl-4 mt-1">
-                            <li>1 = Minor inconvenience</li>
-                            <li>3 = Sig. operational impact</li>
-                            <li>5 = Major compliance/business risk</li>
-                          </ul>
+                          <p>How often errors occur without automation (percentage of runs).</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
+                    <Slider
+                      id="risk-freq-slider"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={[riskFrequency]}
+                      onValueChange={(values) => {
+                          const v = values[0];
+                          setRiskFrequency(v);
+                          updateScenarioROI({ riskFrequency: v });
+                      }}
+                    />
                   </div>
-                  <Slider
-                    id="risk-level-slider"
-                    min={1}
-                    max={5}
-                    step={1}
-                    value={[riskLevel]}
-                    onValueChange={(values) => {
-                      const v = values[0];
-                      setRiskLevel(v);
-                      updateScenarioROI({ riskLevel: v });
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Low</span>
-                    <span>Medium</span>
-                    <span>High</span>
+                  
+                  {/* Error Cost Estimate */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="error-cost" className="text-sm">Cost per Error ($)</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Input
+                            id="error-cost"
+                            type="number"
+                            min={0}
+                            className="w-24 text-right tabular-nums"
+                            value={errorCost}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setErrorCost(v);
+                              updateScenarioROI({ errorCost: v });
+                            }}
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[280px]">
+                          <p>Estimated financial impact of each error (direct costs, rework, reputation damage, etc.)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Slider
+                      id="error-cost-slider"
+                      min={0}
+                      max={2000}
+                      step={100}
+                      value={[errorCost]}
+                      onValueChange={(values) => {
+                          const v = values[0];
+                          setErrorCost(v);
+                          updateScenarioROI({ errorCost: v });
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Minor ($100)</span>
+                      <span>Mod ($500)</span>
+                      <span>Severe ($1k+)</span>
+                    </div>
                   </div>
-                </div>
-                
-                {/* Risk Frequency (%) */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="risk-freq" className="text-sm">Error Frequency (%)</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Input
-                          id="risk-freq"
-                          type="number"
-                          min={0}
-                          max={100}
-                          className="w-20 text-right tabular-nums"
-                          value={riskFrequency}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setRiskFrequency(v);
-                            updateScenarioROI({ riskFrequency: v });
-                          }}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-[280px]">
-                        <p>How often errors occur without automation (percentage of runs).</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Slider
-                    id="risk-freq-slider"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={[riskFrequency]}
-                    onValueChange={(values) => {
-                        const v = values[0];
-                        setRiskFrequency(v);
-                        updateScenarioROI({ riskFrequency: v });
-                    }}
-                  />
-                </div>
-                
-                {/* Error Cost Estimate */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="error-cost" className="text-sm">Cost per Error ($)</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Input
-                          id="error-cost"
-                          type="number"
-                          min={0}
-                          className="w-24 text-right tabular-nums"
-                          value={errorCost}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setErrorCost(v);
-                            updateScenarioROI({ errorCost: v });
-                          }}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-[280px]">
-                        <p>Estimated financial impact of each error (direct costs, rework, reputation damage, etc.)</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Slider
-                    id="error-cost-slider"
-                    min={0}
-                    max={2000}
-                    step={100}
-                    value={[errorCost]}
-                    onValueChange={(values) => {
-                        const v = values[0];
-                        setErrorCost(v);
-                        updateScenarioROI({ errorCost: v });
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Minor ($100)</span>
-                    <span>Mod ($500)</span>
-                    <span>Severe ($1k+)</span>
-                  </div>
-                </div>
-              </AccordionContent>
+                </AccordionContent>
+              </div>
             </AccordionItem>
 
             <AccordionItem value="revenue-uplift">
-              <AccordionTrigger>
-                 <div className="flex items-center justify-between w-full pr-2">
-                    <div className="flex flex-col items-start">
-                        <span className="font-medium">Revenue Uplift</span>
-                        <span className="text-xs text-muted-foreground font-normal">Lead generation & sales conversion</span>
-                    </div>
+              <div className="border rounded-lg">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex flex-col items-start flex-1">
+                    <span className="font-medium">Revenue Uplift</span>
+                    <span className="text-xs text-muted-foreground font-normal">Lead generation & sales conversion</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Switch 
                       id="revenue" 
                       checked={revenueEnabled}
@@ -585,141 +590,144 @@ export function ROISettingsPanel({
                         setRevenueEnabled(checked);
                         updateScenarioROI({ revenueEnabled: checked });
                       }}
-                      onClick={(e) => e.stopPropagation()} // Prevent accordion toggle
                     />
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="pt-4 space-y-6">
-                {/* Monthly Volume */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="monthly-volume" className="text-sm">Monthly Volume</Label>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Input
-                              id="monthly-volume"
-                              type="number"
-                              min={0}
-                              className="w-24 text-right tabular-nums"
-                              value={monthlyVolume}
-                              onChange={(e) => {
-                                const v = Number(e.target.value);
-                                setMonthlyVolume(v);
-                                updateScenarioROI({ monthlyVolume: v });
-                              }}
-                            />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-[280px]">
-                            <p>Number of opportunities, leads, or potential conversions this automation generates monthly.</p>
-                        </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Slider
-                    id="volume-slider"
-                    min={0}
-                    max={500}
-                    step={10}
-                    value={[monthlyVolume]}
-                    onValueChange={(values) => {
-                        const v = values[0];
-                        setMonthlyVolume(v);
-                        updateScenarioROI({ monthlyVolume: v });
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Low (10-50)</span>
-                    <span>Med (100-200)</span>
-                    <span>High (300+)</span>
+                    <AccordionTrigger className="border-0 p-0 hover:no-underline">
+                      {/* Remove the div content from here since it's now outside */}
+                    </AccordionTrigger>
                   </div>
                 </div>
-                
-                {/* Conversion Rate */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="conversion-rate" className="text-sm">Conversion Rate (%)</Label>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Input
-                              id="conversion-rate"
-                              type="number"
-                              min={0}
-                              max={100}
-                              className="w-20 text-right tabular-nums"
-                              value={conversionRate}
-                              onChange={(e) => {
-                                const v = Number(e.target.value);
-                                setConversionRate(v);
-                                updateScenarioROI({ conversionRate: v });
-                              }}
-                            />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-[280px]">
-                            <p>Percentage of leads/opportunities that convert to actual revenue.</p>
-                        </TooltipContent>
-                    </Tooltip>
+                <AccordionContent className="pt-0 px-4 pb-4 space-y-6">
+                  {/* Monthly Volume */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="monthly-volume" className="text-sm">Monthly Volume</Label>
+                      <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Input
+                                id="monthly-volume"
+                                type="number"
+                                min={0}
+                                className="w-24 text-right tabular-nums"
+                                value={monthlyVolume}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  setMonthlyVolume(v);
+                                  updateScenarioROI({ monthlyVolume: v });
+                                }}
+                              />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[280px]">
+                              <p>Number of opportunities, leads, or potential conversions this automation generates monthly.</p>
+                          </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Slider
+                      id="volume-slider"
+                      min={0}
+                      max={500}
+                      step={10}
+                      value={[monthlyVolume]}
+                      onValueChange={(values) => {
+                          const v = values[0];
+                          setMonthlyVolume(v);
+                          updateScenarioROI({ monthlyVolume: v });
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Low (10-50)</span>
+                      <span>Med (100-200)</span>
+                      <span>High (300+)</span>
+                    </div>
                   </div>
-                  <Slider
-                    id="conversion-slider"
-                    min={0}
-                    max={20} // Max 20% seems reasonable for a slider
-                    step={0.5}
-                    value={[conversionRate]}
-                    onValueChange={(values) => {
-                        const v = values[0];
-                        setConversionRate(v);
-                        updateScenarioROI({ conversionRate: v });
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Low (1-2%)</span>
-                    <span>Avg (5-7%)</span>
-                    <span>High (10%+)</span>
+                  
+                  {/* Conversion Rate */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="conversion-rate" className="text-sm">Conversion Rate (%)</Label>
+                      <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Input
+                                id="conversion-rate"
+                                type="number"
+                                min={0}
+                                max={100}
+                                className="w-20 text-right tabular-nums"
+                                value={conversionRate}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  setConversionRate(v);
+                                  updateScenarioROI({ conversionRate: v });
+                                }}
+                              />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[280px]">
+                              <p>Percentage of leads/opportunities that convert to actual revenue.</p>
+                          </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Slider
+                      id="conversion-slider"
+                      min={0}
+                      max={20} // Max 20% seems reasonable for a slider
+                      step={0.5}
+                      value={[conversionRate]}
+                      onValueChange={(values) => {
+                          const v = values[0];
+                          setConversionRate(v);
+                          updateScenarioROI({ conversionRate: v });
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Low (1-2%)</span>
+                      <span>Avg (5-7%)</span>
+                      <span>High (10%+)</span>
+                    </div>
                   </div>
-                </div>
-                
-                {/* Value per Conversion */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="value-per" className="text-sm">Value per Conversion ($)</Label>
-                     <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Input
-                              id="value-per"
-                              type="number"
-                              min={0}
-                              className="w-24 text-right tabular-nums"
-                              value={valuePerConversion}
-                              onChange={(e) => {
-                                const v = Number(e.target.value);
-                                setValuePerConversion(v);
-                                updateScenarioROI({ valuePerConversion: v });
-                              }}
-                            />
-                        </TooltipTrigger>
-                         <TooltipContent className="max-w-[280px]">
-                            <p>Average revenue value of each successful conversion.</p>
-                        </TooltipContent>
-                    </Tooltip>
+                  
+                  {/* Value per Conversion */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="value-per" className="text-sm">Value per Conversion ($)</Label>
+                       <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Input
+                                id="value-per"
+                                type="number"
+                                min={0}
+                                className="w-24 text-right tabular-nums"
+                                value={valuePerConversion}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  setValuePerConversion(v);
+                                  updateScenarioROI({ valuePerConversion: v });
+                                }}
+                              />
+                          </TooltipTrigger>
+                           <TooltipContent className="max-w-[280px]">
+                              <p>Average revenue value of each successful conversion.</p>
+                          </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Slider
+                      id="value-slider"
+                      min={0}
+                      max={1000}
+                      step={50}
+                      value={[valuePerConversion]}
+                      onValueChange={(values) => {
+                          const v = values[0];
+                          setValuePerConversion(v);
+                          updateScenarioROI({ valuePerConversion: v });
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Low ($50)</span>
+                      <span>Med ($200)</span>
+                      <span>High ($500+)</span>
+                    </div>
                   </div>
-                  <Slider
-                    id="value-slider"
-                    min={0}
-                    max={1000}
-                    step={50}
-                    value={[valuePerConversion]}
-                    onValueChange={(values) => {
-                        const v = values[0];
-                        setValuePerConversion(v);
-                        updateScenarioROI({ valuePerConversion: v });
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Low ($50)</span>
-                    <span>Med ($200)</span>
-                    <span>High ($500+)</span>
-                  </div>
-                </div>
-              </AccordionContent>
+                </AccordionContent>
+              </div>
             </AccordionItem>
           </Accordion>
 
@@ -736,4 +744,4 @@ export function ROISettingsPanel({
       </SheetContent>
     </Sheet>
   );
-} 
+}
