@@ -27,7 +27,7 @@ export function NodeGroup({ data, selected }: NodeProps) {
   // Calculate aggregate ROI for the group
   const totalMinutesSaved = nodes.reduce((total: number, nodeId: string) => {
     const nodeMap = safeData?.nodeMap || {};
-    const node = nodeMap[nodeId];
+    const node = nodeMap[nodeId] as { minuteContribution?: number } | undefined;
     if (!node) return total;
     
     // Get the node's time contribution
