@@ -21,7 +21,7 @@ function Badge({
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
         {
           "border-transparent bg-primary text-primary-foreground hover:bg-primary/80": variant === "default",
           "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80": variant === "secondary",
@@ -90,7 +90,7 @@ export default function Home() {
           <Badge 
             variant="secondary" 
             className={cn(
-              "mb-6 font-pixel text-xs tracking-wide animate-pixel-shimmer",
+              "mb-6 font-mono text-xs tracking-wider animate-pixel-shimmer",
               mounted && "animate-fade-in"
             )}
           >
@@ -101,32 +101,32 @@ export default function Home() {
           {/* Main Headline */}
           <h1
             className={cn(
-              "mx-auto max-w-4xl text-4xl font-bold leading-tight tracking-tight md:text-6xl lg:text-7xl",
+              "mx-auto max-w-4xl text-4xl font-black leading-[1.1] tracking-tight md:text-6xl lg:text-7xl",
               mounted && "animate-fade-in"
             )}
           >
             Prove Automation ROI{" "}
-            <span className="text-gradient font-pixel">in Minutes</span>
+            <span className="text-gradient font-mono font-bold">in Minutes</span>
           </h1>
 
           {/* ROI Examples */}
           <div className={cn(
-            "mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-4 text-sm",
+            "mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-4 text-sm font-medium",
             mounted && "animate-fade-in"
           )} style={{ animationDelay: '200ms' }}>
             <div className="rounded-lg bg-success/10 border border-success/20 px-3 py-2">
-              <span className="font-pixel text-success">6,700× ROI</span> <span className="text-success/80">in 30 days</span>
+              <span className="font-mono font-bold text-success">6,700× ROI</span> <span className="text-success/80">in 30 days</span>
             </div>
             <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2">
-              <span className="text-foreground">Save </span><span className="font-pixel text-primary">33 hrs/month</span>
+              <span className="text-foreground">Save </span><span className="font-mono font-bold text-primary">33 hrs/month</span>
             </div>
             <div className="rounded-lg bg-warning/10 border border-warning/20 px-3 py-2">
-              <span className="font-pixel text-warning">$2,100</span> <span className="text-warning/80">monthly value</span>
+              <span className="font-mono font-bold text-warning">$2,100</span> <span className="text-warning/80">monthly value</span>
             </div>
           </div>
 
           <p className={cn(
-            "mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl",
+            "mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl",
             mounted && "animate-fade-in"
           )} style={{ animationDelay: '400ms' }}>
             Build visual workflows, calculate precise ROI, and justify automation projects with AI-powered insights. No spreadsheets, no guesswork.
@@ -146,7 +146,7 @@ export default function Home() {
                 ref={inputRef}
                 type="text"
                 placeholder="Describe your automation (e.g., Invoice processing from email to QuickBooks)"
-                className="w-full rounded-lg border-2 border-input bg-background px-4 py-4 text-base shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-40"
+                className="w-full rounded-lg border-2 border-input bg-background px-4 py-4 text-base font-medium shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-40"
                 disabled={searching}
               />
             </div>
@@ -175,7 +175,7 @@ export default function Home() {
             mounted && "animate-fade-in"
           )} style={{ animationDelay: '800ms' }}>
             <Button variant="ghost" asChild>
-              <Link href="/build" className="text-muted-foreground hover:text-foreground">
+              <Link href="/build" className="text-muted-foreground hover:text-foreground font-medium">
                 Or start with a blank canvas <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
@@ -212,13 +212,13 @@ export default function Home() {
       {/* Platform Logos */}
       <section className="relative z-10 py-12">
         <div className="mx-auto max-w-4xl px-4 text-center">
-          <p className="mb-8 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="mb-8 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Built for the tools you already use
           </p>
           <div className="flex items-center justify-center gap-12 opacity-60 grayscale transition-all hover:opacity-100 hover:grayscale-0">
-            <div className="text-2xl font-bold font-pixel">ZAPIER</div>
-            <div className="text-2xl font-bold font-pixel">MAKE</div>
-            <div className="text-2xl font-bold font-pixel">N8N</div>
+            <div className="text-2xl font-bold font-mono tracking-wider">ZAPIER</div>
+            <div className="text-2xl font-bold font-mono tracking-wider">MAKE</div>
+            <div className="text-2xl font-bold font-mono tracking-wider">N8N</div>
           </div>
         </div>
       </section>
@@ -230,7 +230,7 @@ export default function Home() {
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
               Real ROI Results
             </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
+            <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
               See how automation projects deliver measurable value
             </p>
           </div>
@@ -304,7 +304,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold tracking-tight md:text-4xl mb-4">
             How It Works
           </h2>
-          <p className="text-lg text-muted-foreground mb-16">
+          <p className="text-lg text-muted-foreground leading-relaxed mb-16">
             From idea to ROI report in three simple steps
           </p>
 
@@ -337,7 +337,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold tracking-tight md:text-4xl mb-4">
             Ready to prove your automation ROI?
           </h2>
-          <p className="text-lg text-muted-foreground mb-8">
+          <p className="text-lg text-muted-foreground leading-relaxed mb-8">
             Join thousands of automation experts who use Apicus to justify their projects
           </p>
           <Button size="lg" asChild className="animate-pulse-glow px-8 py-4 text-lg font-semibold">
@@ -379,9 +379,9 @@ function StatCard({ icon, number, label, description }: {
         <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
           {icon}
         </div>
-        <div className="text-3xl font-bold font-pixel text-foreground">{number}</div>
-        <div className="text-sm font-medium text-muted-foreground">{label}</div>
-        <p className="mt-2 text-xs text-muted-foreground">{description}</p>
+        <div className="text-3xl font-bold font-mono text-foreground">{number}</div>
+        <div className="text-sm font-semibold text-muted-foreground">{label}</div>
+        <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{description}</p>
       </CardContent>
     </Card>
   );
@@ -400,21 +400,21 @@ function ROICard({ title, time, cost, roi, description, platform }: {
       <CardContent className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-semibold">{title}</h3>
-          <Badge variant="outline" className="font-pixel text-xs">{platform}</Badge>
+          <Badge variant="outline" className="font-mono text-xs">{platform}</Badge>
         </div>
-        <p className="text-sm text-muted-foreground mb-4">{description}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed mb-4">{description}</p>
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Time Saved:</span>
-            <span className="font-medium text-success">{time}</span>
+            <span className="font-semibold text-success">{time}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Monthly Cost:</span>
-            <span className="font-medium">{cost}</span>
+            <span className="font-semibold">{cost}</span>
           </div>
           <div className="flex justify-between text-sm border-t pt-2">
             <span className="text-muted-foreground">ROI:</span>
-            <span className="font-bold font-pixel text-success">{roi}</span>
+            <span className="font-bold font-mono text-success">{roi}</span>
           </div>
         </div>
       </CardContent>
@@ -448,7 +448,7 @@ function StepCard({ step, title, description, icon }: {
 }) {
   return (
     <div className="relative">
-      <div className="mb-4 mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground font-pixel text-xl font-bold">
+      <div className="mb-4 mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground font-mono text-xl font-bold">
         {step}
       </div>
       <div className="mb-4 mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">

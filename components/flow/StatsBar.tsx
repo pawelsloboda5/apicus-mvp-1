@@ -260,7 +260,7 @@ export function StatsBar({
             </Popover>
           ) : (
             <span className={cn(
-              "font-pixel text-lg font-semibold tabular-nums", 
+              "font-mono text-lg font-semibold tabular-nums", 
               color,
               (label === "Time Value" || label === "Platform Cost" || label === "Net ROI" || label === "ROI Ratio") && "text-xl md:text-2xl"
             )}>{displayValue}</span>
