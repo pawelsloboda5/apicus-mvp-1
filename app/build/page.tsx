@@ -13,7 +13,6 @@ import {
   ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Button } from "@/components/ui/button";
 import { db, createScenario, type Scenario } from "@/lib/db";
 import { PixelNode } from "@/components/flow/PixelNode";
 import {
@@ -30,20 +29,12 @@ import {
 import { createSnapModifier } from "@dnd-kit/modifiers";
 import dynamic from "next/dynamic";
 import { pricing } from "../api/data/pricing";
-import { Coins, Calculator, Loader2, MoreHorizontal, Mail, PlayCircle, Sparkles, GitBranch } from "lucide-react";
+import { Loader2, PlayCircle, Sparkles, GitBranch } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useDroppable } from "@dnd-kit/core";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 // Import custom components
 import { StatsBar } from "@/components/flow/StatsBar";
-import { PlatformSwitcher } from "@/components/flow/PlatformSwitcher";
 import { NodePropertiesPanel } from "@/components/flow/NodePropertiesPanel";
 import { ROISettingsPanel } from "@/components/roi/ROISettingsPanel";
 import { FlowCanvas } from "@/components/flow/FlowCanvas";
@@ -55,7 +46,7 @@ import { EmailPreviewNode, type EmailPreviewNodeData } from "@/components/flow/E
 import { EmailNodePropertiesPanel } from "@/components/flow/EmailNodePropertiesPanel";
 
 // Import utility functions
-import { handleAddNode, snapToGrid } from "@/lib/flow-utils";
+import { snapToGrid } from "@/lib/flow-utils";
 import {
   calculateNodeTimeSavings,
   calculateTimeValue,
@@ -70,6 +61,7 @@ import {
 } from "@/lib/roi-utils";
 import { PlatformType as LibPlatformType, NodeType, NodeData } from "@/lib/types";
 
+
 // Disable SSR for Toolbox because dnd-kit generates ids non-deterministically, which causes hydration mismatch warnings.
 const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.Toolbox), {
   ssr: false,
@@ -77,6 +69,11 @@ const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mo
 
 // Import the mobile toolbox trigger
 const MobileToolboxTrigger = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.MobileToolboxTrigger), {
+  ssr: false,
+});
+
+// Import the mobile alternative templates button
+const MobileAlternativeTemplatesButton = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.MobileAlternativeTemplatesButton), {
   ssr: false,
 });
 
@@ -206,22 +203,10 @@ function BuildPageContent() {
 
   // State for drag and drop
   const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: string } | null>(null);
-
   // State for screen size detection for responsive header
-  const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingScenarioName, setEditingScenarioName] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobileOrTablet(window.innerWidth < 1024); // lg breakpoint for shadcn
-    };
-    checkScreenSize();
-    window.addEventListener("resize", checkScreenSize);
-    return () => window.removeEventListener("resize", checkScreenSize);
-  }, []);
-
   useEffect(() => {
     if (currentScenario) {
       setEditingScenarioName(currentScenario.name);
@@ -897,14 +882,14 @@ function BuildPageContent() {
             platform?: string;
             source?: string;
             nodes?: Array<{
-              reactFlowId?: string;
+              reactFlowId: string;
               id?: string;
               type: string;
               position: { x: number; y: number };
               data: Record<string, unknown>;
             }>;
             edges?: Array<{
-              reactFlowId?: string;
+              reactFlowId: string;
               id?: string;
               source?: string;
               target?: string;
@@ -1388,175 +1373,117 @@ function BuildPageContent() {
         collisionDetection={pointerWithin}
       >
         <div className="flex h-screen w-full flex-col overflow-hidden" data-page="build">
-          {/* Header */}
-          <header className="flex items-center justify-between border-b bg-background/60 px-4 py-2 backdrop-blur">
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">Apicus.io</h1>
-              {!isMobileOrTablet && (
-                <StatsBar 
-                  platform={platform}
-                  runsPerMonth={runsPerMonth}
-                  minutesPerRun={minutesPerRun}
-                  hourlyRate={hourlyRate}
-                  taskMultiplier={taskMultiplier}
-                  onUpdateMinutes={(minutes) => {
-                    setMinutesPerRun(minutes);
-                    updateCurrentScenarioROI({ minutesPerRun: minutes });
-                  }}
-                  onUpdateRuns={(runs) => {
-                    setRunsPerMonth(runs);
-                    updateCurrentScenarioROI({ runsPerMonth: runs });
-                  }}
-                  nodes={nodes} // Pass nodes for platform cost calculation
-                  currentScenario={currentScenario} // Pass currentScenario for risk/revenue values
-                />
-              )}
-            </div>
-            {isMobileOrTablet ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="icon" variant="ghost">
-                    <MoreHorizontal className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <PlatformSwitcher value={platform} onChange={(newPlatform) => {
-                        setPlatform(newPlatform);
-                        updateCurrentScenarioROI({ platform: newPlatform });
-                    }} />
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setRoiOpen(true)}>
-                    <Coins className="mr-2 h-4 w-4" />
-                    ROI Settings
-                  </DropdownMenuItem>
-                  {isMultiSelectionActive && selectedIds.length > 0 && (
-                    <DropdownMenuItem onClick={createGroupFromSelection}>
-                      <Calculator className="mr-2 h-4 w-4" />
-                      Group ({selectedIds.length})
-                    </DropdownMenuItem>
-                  )}
-                  {selectedGroupId && (
-                    <DropdownMenuItem onClick={ungroupSelection}>
-                      Ungroup
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleAddNode(setNodes, nodes)}>
-                    + Add Node
-                  </DropdownMenuItem>
-                  {/* SINGLE Generate Email button for mobile */}
-                  <DropdownMenuItem onClick={handleGenerateEmailOnCanvas} disabled={isGeneratingEmail}>
-                    {isGeneratingEmail ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="mr-2 h-4 w-4" />
-                        Generate Email
-                      </>
-                    )}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <div className="flex items-center gap-2">
-                <PlatformSwitcher value={platform} onChange={(newPlatform) => {
-                    setPlatform(newPlatform);
-                    updateCurrentScenarioROI({ platform: newPlatform });
-                }} />
-                <Button size="icon" variant="ghost" onClick={() => setRoiOpen(true)} title="ROI Settings">
-                  <Coins className="h-4 w-4" />
-                </Button>
-                
-                {isMultiSelectionActive && selectedIds.length > 0 && (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="flex items-center gap-1"
-                    onClick={createGroupFromSelection}
-                  >
-                    <Calculator className="h-3 w-3" />
-                    Group ({selectedIds.length})
-                  </Button>
-                )}
-                
-                {selectedGroupId && (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="flex items-center gap-1"
-                    onClick={ungroupSelection}
-                  >
-                    Ungroup
-                  </Button>
-                )}
-                
-                <Button size="sm" onClick={() => handleAddNode(setNodes, nodes)}>
-                  + Node
-                </Button>
-                {/* SINGLE Generate Email button for desktop */}
-                <Button size="sm" variant="outline" onClick={handleGenerateEmailOnCanvas} disabled={isGeneratingEmail}>
-                  {isGeneratingEmail ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Generate Email
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-          </header>
+          {/* Remove the header completely - StatsBar now contains app name */}
+          
+          {/* Integrated Stats Bar with all controls */}
+          <StatsBar 
+            platform={platform}
+            runsPerMonth={runsPerMonth}
+            minutesPerRun={minutesPerRun}
+            hourlyRate={hourlyRate}
+            taskMultiplier={taskMultiplier}
+            onUpdateMinutes={(minutes) => {
+              setMinutesPerRun(minutes);
+              updateCurrentScenarioROI({ minutesPerRun: minutes });
+            }}
+            onUpdateRuns={(runs) => {
+              setRunsPerMonth(runs);
+              updateCurrentScenarioROI({ runsPerMonth: runs });
+            }}
+            nodes={nodes}
+            currentScenario={currentScenario}
+            
+            // Integrated control handlers
+            onPlatformChange={(newPlatform) => {
+              setPlatform(newPlatform);
+              updateCurrentScenarioROI({ platform: newPlatform });
+            }}
+            onOpenROISettings={() => setRoiOpen(true)}
+            onAddNode={() => {
+              console.log("Add Node button clicked"); // Debug log
+              setIsManipulatingNodesProgrammatically(true);
+              
+              if (!rfInstance) {
+                console.error("ReactFlow instance not available");
+                setIsManipulatingNodesProgrammatically(false);
+                return;
+              }
 
-          {/* Mobile/Tablet StatsBar (below header) */}
-          {isMobileOrTablet && (
-            <div className="px-4 py-2 border-b bg-background/60 backdrop-blur">
-              <StatsBar 
-                platform={platform}
-                runsPerMonth={runsPerMonth}
-                minutesPerRun={minutesPerRun}
-                hourlyRate={hourlyRate}
-                taskMultiplier={taskMultiplier}
-                onUpdateMinutes={(minutes) => {
-                  setMinutesPerRun(minutes);
-                  updateCurrentScenarioROI({ minutesPerRun: minutes });
-                }}
-                onUpdateRuns={(runs) => {
-                  setRunsPerMonth(runs);
-                  updateCurrentScenarioROI({ runsPerMonth: runs });
-                }}
-                nodes={nodes}
-                currentScenario={currentScenario}
-              />
-            </div>
-          )}
+              try {
+                // Create a new node with proper positioning
+                const newId = nanoid(6);
+                const viewport = rfInstance.getViewport();
+                
+                // Position new node in the center of the current view
+                const centerX = (window.innerWidth / 2 - viewport.x) / viewport.zoom;
+                const centerY = (window.innerHeight / 2 - viewport.y) / viewport.zoom;
+                
+                const snapped = snapToGrid(centerX, centerY);
+                
+                const newNode = {
+                  id: newId,
+                  type: 'action' as const, // Default to action type
+                  position: snapped,
+                  data: { 
+                    label: `Action ${nodes.length + 1}`,
+                    typeOf: 'data_processing' // Default operation type
+                  },
+                };
+                
+                console.log("Adding new node:", newNode); // Debug log
+                
+                setNodes((nds) => {
+                  const updatedNodes = [...nds, newNode];
+                  console.log("Updated nodes array:", updatedNodes); // Debug log
+                  
+                  // Immediately update currentScenario to prevent conflicts
+                  if (currentScenario && currentScenario.id) {
+                    const updatedScenario = {
+                      ...currentScenario,
+                      nodesSnapshot: updatedNodes,
+                      updatedAt: Date.now(),
+                    };
+                    setCurrentScenario(updatedScenario);
+                    // Also update the database
+                    db.scenarios.update(currentScenario.id, {
+                      nodesSnapshot: updatedNodes,
+                      updatedAt: Date.now(),
+                    }).catch(console.error);
+                  }
+                  
+                  return updatedNodes;
+                });
+              } catch (error) {
+                console.error("Error adding node:", error);
+              }
+              
+              // Clear manipulation flag after a short delay
+              setTimeout(() => {
+                setIsManipulatingNodesProgrammatically(false);
+              }, 500);
+            }}
+            onGenerateEmail={handleGenerateEmailOnCanvas}
+            isGeneratingEmail={isGeneratingEmail}
+            
+            // Group controls
+            onCreateGroup={createGroupFromSelection}
+            onUngroup={ungroupSelection}
+            selectedIds={selectedIds}
+            selectedGroupId={selectedGroupId}
+            isMultiSelectionActive={isMultiSelectionActive}
+          />
 
           {/* Main content row */}
           <div className={`flex flex-grow relative ${isOver ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}>
-            {/* Desktop Toolbox - Hidden on mobile */}
+            {/* Desktop Toolbox */}
             <div className="hidden lg:block">
               <Toolbox 
                 onLoadScenario={handleLoadScenario} 
                 activeScenarioId={scenarioId} 
-                emailNodes={emailNodesForToolbox} // Pass email nodes
-                onFocusNode={focusOnNode} // Pass focus callback
+                emailNodes={emailNodesForToolbox}
+                onFocusNode={focusOnNode}
               />
             </div>
-            
-            {/* Mobile Toolbox Trigger */}
-            <MobileToolboxTrigger
-              onLoadScenario={handleLoadScenario} 
-              activeScenarioId={scenarioId} 
-              emailNodes={emailNodesForToolbox}
-              onFocusNode={focusOnNode}
-            />
             
             <FlowCanvas
               nodes={nodes}
@@ -1574,7 +1501,6 @@ function BuildPageContent() {
               }}
               setDroppableRef={setDroppableRef}
               isOver={isOver}
-              // Title editing props
               currentScenarioName={currentScenario?.name}
               isEditingTitle={isEditingTitle}
               editingScenarioName={editingScenarioName}
@@ -1584,6 +1510,8 @@ function BuildPageContent() {
               onScenarioNameKeyDown={handleScenarioNameKeyDown}
               titleInputRef={titleInputRef}
             />
+
+            {/* Property Panels - existing code... */}
             <NodePropertiesPanel
               selectedNode={selectedNode}
               onClose={() => setSelectedId(null)}
@@ -1614,56 +1542,130 @@ function BuildPageContent() {
               isGeneratingAIContent={isGeneratingAIContent}
             />
           </div>
+
+          {/* Mobile Bottom Toolbox */}
+          <div className="lg:hidden">
+            <MobileToolboxTrigger
+              onLoadScenario={handleLoadScenario} 
+              activeScenarioId={scenarioId} 
+              emailNodes={emailNodesForToolbox}
+              onFocusNode={focusOnNode}
+            />
+          </div>
+
+          {/* Mobile Alternative Templates Button */}
+          <div className="lg:hidden">
+            <MobileAlternativeTemplatesButton
+              alternatives={alternativeTemplates.map(altScenario => ({
+                  templateId: altScenario.originalTemplateId,
+                  title: altScenario.name,
+                  platform: altScenario.platform as string,
+                  description: (altScenario as { description?: string }).description,
+                  nodesCount: altScenario.nodesSnapshot?.length || 0,
+                  ...altScenario 
+              } as AlternativeTemplateForDisplay))}
+              currentSearchQuery={currentScenario?.searchQuery}
+              onSelectAlternative={handleSelectAlternative}
+              onFindNewAlternatives={handleFindNewAlternatives}
+              isLoadingAlternatives={isLoadingAlternatives}
+            />
+          </div>
         </div>
 
+        {/* Desktop Alternative Templates Sheet */}
+        <div className="hidden lg:block">
+          <AlternativeTemplatesSheet 
+            alternatives={alternativeTemplates.map(altScenario => ({
+                templateId: altScenario.originalTemplateId,
+                title: altScenario.name,
+                platform: altScenario.platform as string,
+                description: (altScenario as { description?: string }).description,
+                nodesCount: altScenario.nodesSnapshot?.length || 0,
+                ...altScenario 
+            } as AlternativeTemplateForDisplay))}
+            currentSearchQuery={currentScenario?.searchQuery}
+            onSelectAlternative={handleSelectAlternative}
+            onFindNewAlternatives={handleFindNewAlternatives}
+            isLoadingAlternatives={isLoadingAlternatives}
+          />
+        </div>
+
+        {/* Modals and other components... */}
         <ROISettingsPanel
           open={roiOpen}
           onOpenChange={setRoiOpen}
           platform={platform}
           runsPerMonth={runsPerMonth}
-          setRunsPerMonth={(value) => { setRunsPerMonth(value); updateCurrentScenarioROI({ runsPerMonth: value }); }}
+          setRunsPerMonth={(value) => {
+            setRunsPerMonth(value);
+            updateCurrentScenarioROI({ runsPerMonth: value });
+          }}
           minutesPerRun={minutesPerRun}
-          setMinutesPerRun={(value) => { setMinutesPerRun(value); updateCurrentScenarioROI({ minutesPerRun: value }); }}
+          setMinutesPerRun={(value) => {
+            setMinutesPerRun(value);
+            updateCurrentScenarioROI({ minutesPerRun: value });
+          }}
           hourlyRate={hourlyRate}
-          setHourlyRate={(value) => { setHourlyRate(value); updateCurrentScenarioROI({ hourlyRate: value }); }}
+          setHourlyRate={(value) => {
+            setHourlyRate(value);
+            updateCurrentScenarioROI({ hourlyRate: value });
+          }}
           taskMultiplier={taskMultiplier}
-          setTaskMultiplier={(value) => { setTaskMultiplier(value); updateCurrentScenarioROI({ taskMultiplier: value }); }}
+          setTaskMultiplier={(value) => {
+            setTaskMultiplier(value);
+            updateCurrentScenarioROI({ taskMultiplier: value });
+          }}
           taskType={taskType}
-          setTaskType={(value) => { setTaskType(value); updateCurrentScenarioROI({ taskMultiplier: taskTypeMultipliers[value as keyof typeof taskTypeMultipliers] }); }}
+          setTaskType={(value) => {
+            setTaskType(value);
+            updateCurrentScenarioROI({ taskMultiplier: taskTypeMultipliers[value as keyof typeof taskTypeMultipliers] });
+          }}
           complianceEnabled={complianceEnabled}
-          setComplianceEnabled={(value) => { setComplianceEnabled(value); updateCurrentScenarioROI({ complianceEnabled: value }); }}
+          setComplianceEnabled={(value) => {
+            setComplianceEnabled(value);
+            updateCurrentScenarioROI({ complianceEnabled: value });
+          }}
           revenueEnabled={revenueEnabled}
-          setRevenueEnabled={(value) => { setRevenueEnabled(value); updateCurrentScenarioROI({ revenueEnabled: value }); }}
+          setRevenueEnabled={(value) => {
+            setRevenueEnabled(value);
+            updateCurrentScenarioROI({ revenueEnabled: value });
+          }}
           riskLevel={riskLevel}
-          setRiskLevel={(value) => { setRiskLevel(value); updateCurrentScenarioROI({ riskLevel: value }); }}
+          setRiskLevel={(value) => {
+            setRiskLevel(value);
+            updateCurrentScenarioROI({ riskLevel: value });
+          }}
           riskFrequency={riskFrequency}
-          setRiskFrequency={(value) => { setRiskFrequency(value); updateCurrentScenarioROI({ riskFrequency: value }); }}
+          setRiskFrequency={(value) => {
+            setRiskFrequency(value);
+            updateCurrentScenarioROI({ riskFrequency: value });
+          }}
           errorCost={errorCost}
-          setErrorCost={(value) => { setErrorCost(value); updateCurrentScenarioROI({ errorCost: value }); }}
+          setErrorCost={(value) => {
+            setErrorCost(value);
+            updateCurrentScenarioROI({ errorCost: value });
+          }}
           monthlyVolume={monthlyVolume}
-          setMonthlyVolume={(value) => { setMonthlyVolume(value); updateCurrentScenarioROI({ monthlyVolume: value }); }}
+          setMonthlyVolume={(value) => {
+            setMonthlyVolume(value);
+            updateCurrentScenarioROI({ monthlyVolume: value });
+          }}
           conversionRate={conversionRate}
-          setConversionRate={(value) => { setConversionRate(value); updateCurrentScenarioROI({ conversionRate: value }); }}
+          setConversionRate={(value) => {
+            setConversionRate(value);
+            updateCurrentScenarioROI({ conversionRate: value });
+          }}
           valuePerConversion={valuePerConversion}
-          setValuePerConversion={(value) => { setValuePerConversion(value); updateCurrentScenarioROI({ valuePerConversion: value }); }}
+          setValuePerConversion={(value) => {
+            setValuePerConversion(value);
+            updateCurrentScenarioROI({ valuePerConversion: value });
+          }}
           taskTypeMultipliers={taskTypeMultipliers}
           benchmarks={benchmarks}
           updateScenarioROI={updateCurrentScenarioROI}
         />
-        <AlternativeTemplatesSheet 
-          alternatives={alternativeTemplates.map(altScenario => ({
-              templateId: altScenario.originalTemplateId,
-              title: altScenario.name,
-              platform: altScenario.platform as string,
-              description: (altScenario as { description?: string }).description,
-              nodesCount: altScenario.nodesSnapshot?.length || 0,
-              ...altScenario 
-          } as AlternativeTemplateForDisplay))}
-          currentSearchQuery={currentScenario?.searchQuery}
-          onSelectAlternative={handleSelectAlternative}
-          onFindNewAlternatives={handleFindNewAlternatives}
-          isLoadingAlternatives={isLoadingAlternatives}
-        />
+
+        {/* Drag overlay */}
         <DragOverlay>
           {activeDragItem ? (
             <div className="bg-gray-800 text-white text-xs font-mono rounded px-2 py-1 shadow-lg opacity-80">

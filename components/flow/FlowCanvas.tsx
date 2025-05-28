@@ -215,25 +215,27 @@ export function FlowCanvas({
         onInit={onInit}
         isValidConnection={isValidConnection}
         selectionMode={selectionMode}
-        multiSelectionKeyCode={isMobile ? null : "Shift"} // Disable multi-select key on mobile
-        className="bg-[linear-gradient(to_right,transparent_49%,theme(colors.border)_50%),linear-gradient(to_bottom,transparent_49%,theme(colors.border)_50%)] bg-[size:1rem_1rem]"
-        // Mobile-specific props
-        panOnDrag={isMobile ? [1, 2] : true} // Allow panning with 1 or 2 fingers on mobile
-        zoomOnScroll={!isMobile} // Disable zoom on scroll for mobile (use pinch instead)
-        zoomOnPinch={isMobile} // Enable pinch zoom on mobile
-        panOnScroll={isMobile} // Enable pan on scroll for mobile
-        zoomOnDoubleClick={false} // Disable double-click zoom to prevent accidental zooming
-        preventScrolling={isMobile} // Prevent page scrolling when interacting with flow on mobile
+        multiSelectionKeyCode={isMobile ? null : "Shift"}
+        className="bg-[linear-gradient(to_right,transparent_49%,theme(colors.border)_50%),linear-gradient(to_bottom,transparent_49%,theme(colors.border)_50%)] bg-[size:1rem_1rem]"        // Fixed zoom and pan settings
+        panOnDrag={isMobile ? [1, 2] : true}
+        zoomOnScroll={true} // ✅ Enable zoom on scroll (mouse wheel)
+        zoomOnPinch={isMobile} // Enable pinch zoom on mobile only
+        panOnScroll={false} // ✅ Disable pan on scroll to prevent conflicts
+        zoomOnDoubleClick={false} // Disable double-click zoom
+        preventScrolling={true} // ✅ Prevent page scroll when over flow (required for zoom)
+        // Add zoom limits for better UX
+        minZoom={0.1}
+        maxZoom={4}
       >
         <Background gap={16} color="var(--border)" />
         <Controls 
           position="bottom-right" 
-          className={isMobile ? "scale-110" : ""} // Make controls larger on mobile
-          showZoom={true}
+          className={isMobile ? "scale-110" : ""}
+          showZoom={false} // ✅ Hide zoom buttons (plus/minus)
           showFitView={true}
-          showInteractive={false} // Hide interactive toggle on mobile
+          showInteractive={false}
         />
       </ReactFlow>
     </div>
   );
-} 
+}

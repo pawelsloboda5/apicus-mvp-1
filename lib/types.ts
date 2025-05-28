@@ -94,4 +94,42 @@ export interface FlowCanvasProps {
   onSaveScenarioName?: () => void;
   onScenarioNameKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   titleInputRef?: React.RefObject<HTMLInputElement | null>;
-} 
+}
+
+export interface Scenario {
+  id?: number;
+  slug: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  platform?: PlatformType;
+  runsPerMonth?: number;
+  minutesPerRun?: number;
+  hourlyRate?: number;
+  taskMultiplier?: number;
+  taskType?: string;
+  complianceEnabled?: boolean;
+  riskLevel?: number;
+  riskFrequency?: number;
+  errorCost?: number;
+  revenueEnabled?: boolean;
+  monthlyVolume?: number;
+  conversionRate?: number;
+  valuePerConversion?: number;
+  nodesSnapshot?: unknown[];
+  edgesSnapshot?: unknown[];
+  viewport?: unknown;
+  originalTemplateId?: string;
+  searchQuery?: string;
+  alternativeTemplatesCache?: unknown[];
+  emailFirstName?: string;
+  emailYourName?: string;
+  emailYourCompany?: string;
+  emailYourEmail?: string;
+  emailCalendlyLink?: string;
+  emailPdfLink?: string;
+  emailHookText?: string;
+  emailCtaText?: string;
+  emailSubjectLine?: string;
+  emailOfferText?: string;
+}
