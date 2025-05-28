@@ -44,64 +44,64 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
     return `<!-- === Begin cold‑outreach email === -->
 <table width="100%" cellpadding="0" cellspacing="0" style="font-family:Arial,Helvetica,sans-serif;background:#f6f7fb;padding:0;margin:0;">
   <tr>
-    <td align="center" style="padding:40px 0;">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e1e1e1;">
+    <td align="center" style="padding:20px 0;">
+      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e1e1e1;">
         <tr>
-          <td style="background:#3B82F6;color:#ffffff;padding:18px 24px;border-top-left-radius:8px;border-top-right-radius:8px;">
-            <h2 style="margin:0;font-size:20px;font-weight:bold;">${subjectLine}</h2>
+          <td style="background:#3B82F6;color:#ffffff;padding:16px 20px;border-top-left-radius:8px;border-top-right-radius:8px;">
+            <h2 style="margin:0;font-size:18px;font-weight:bold;">${subjectLine}</h2>
           </td>
         </tr>
         <tr>
-          <td style="padding:24px 24px 4px 24px;">
+          <td style="padding:20px 20px 4px 20px;">
             <p style="margin:0;font-size:14px;color:#333333;">Hi ${firstName},</p>
           </td>
         </tr>
         <tr>
-          <td style="padding:4px 24px 16px 24px;">
-            <p style="margin:0;font-size:14px;color:#333333;line-height:1.5;">
+          <td style="padding:4px 20px 14px 20px;">
+            <p style="margin:0;font-size:14px;color:#333333;line-height:1.4;">
               ${hookText}
             </p>
           </td>
         </tr>
         <tr>
-          <td align="center" style="padding:8px 24px;">
+          <td align="center" style="padding:6px 20px;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                <td align="center" style="background:#f1f5ff;border-radius:6px;padding:12px;">
-                  <span style="font-size:18px;font-weight:bold;color:#3B82F6;">${stats.roiX && stats.roiX > 0 ? `${stats.roiX}×` : 'N/A'}</span><br>
-                  <span style="font-size:12px;color:#555555;">Projected ROI</span>
+                <td align="center" style="background:#f1f5ff;border-radius:6px;padding:10px;">
+                  <span style="font-size:16px;font-weight:bold;color:#3B82F6;">${stats.roiX && stats.roiX > 0 ? `${stats.roiX}×` : 'N/A'}</span><br>
+                  <span style="font-size:11px;color:#555555;">Projected ROI</span>
                 </td>
-                <td width="12"></td>
-                <td align="center" style="background:#f1f5ff;border-radius:6px;padding:12px;">
-                  <span style="font-size:18px;font-weight:bold;color:#3B82F6;">${stats.payback || 'N/A'}</span><br>
-                  <span style="font-size:12px;color:#555555;">Payback period</span>
+                <td width="8"></td>
+                <td align="center" style="background:#f1f5ff;border-radius:6px;padding:10px;">
+                  <span style="font-size:16px;font-weight:bold;color:#3B82F6;">${stats.payback || 'N/A'}</span><br>
+                  <span style="font-size:11px;color:#555555;">Payback period</span>
                 </td>
-                <td width="12"></td>
-                <td align="center" style="background:#f1f5ff;border-radius:6px;padding:12px;">
-                  <span style="font-size:18px;font-weight:bold;color:#3B82F6;">${stats.runs || 0}</span><br>
-                  <span style="font-size:12px;color:#555555;">Runs / month</span>
+                <td width="8"></td>
+                <td align="center" style="background:#f1f5ff;border-radius:6px;padding:10px;">
+                  <span style="font-size:16px;font-weight:bold;color:#3B82F6;">${stats.runs || 0}</span><br>
+                  <span style="font-size:11px;color:#555555;">Runs / month</span>
                 </td>
               </tr>
             </table>
           </td>
         </tr>
         <tr>
-          <td style="padding:16px 24px;">
-            <p style="margin:0;font-size:14px;color:#333333;line-height:1.5;">
+          <td style="padding:14px 20px;">
+            <p style="margin:0;font-size:14px;color:#333333;line-height:1.4;">
               ${ctaText}<br>
               <a href="${pdfLink}" style="color:#3B82F6;text-decoration:none;font-weight:bold;">Download the ROI snapshot →</a>
             </p>
           </td>
         </tr>
         <tr>
-          <td style="padding:4px 24px 16px 24px;">
-            <p style="margin:0;font-size:14px;color:#333333;line-height:1.5;">
+          <td style="padding:4px 20px 14px 20px;">
+            <p style="margin:0;font-size:14px;color:#333333;line-height:1.4;">
               ${offerText}
             </p>
           </td>
         </tr>
         <tr>
-          <td style="padding:8px 24px 24px 24px;">
+          <td style="padding:6px 20px 20px 20px;">
             <p style="margin:0;font-size:14px;color:#333333;">
               Best,<br><br>
               <strong>${yourName}</strong><br>
@@ -111,8 +111,8 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
           </td>
         </tr>
         <tr>
-          <td style="background:#f6f7fb;border-bottom-left-radius:8px;border-bottom-right-radius:8px;padding:12px 24px;font-size:11px;color:#888888;text-align:center;">
-            Generated with Apicus • May 2025
+          <td style="background:#f6f7fb;border-bottom-left-radius:8px;border-bottom-right-radius:8px;padding:10px 20px;font-size:10px;color:#888888;text-align:center;">
+            Generated with Apicus • ${new Date().toLocaleDateString()}
           </td>
         </tr>
       </table>
@@ -130,26 +130,27 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
   };
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="space-y-4 w-full h-full flex flex-col">
       {/* Interactive buttons */}
-      <div className="flex gap-2 sticky top-0 bg-background py-2 z-10 border-b mb-2">
-        <Button onClick={copyToClipboard} size="sm">Copy HTML</Button>
+      <div className="flex gap-2 bg-background py-2 z-10 border-b mb-2 flex-shrink-0">
+        <Button onClick={copyToClipboard} size="sm" className="text-xs">Copy HTML</Button>
         <a
           href={`data:text/html;charset=utf-8,${encodeURIComponent(rawHtml)}`}
           download="Apicus_ROI_Email.html"
-          className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-3"
+          className="inline-flex items-center justify-center rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 px-3"
         >
-          Download HTML
+          Download
         </a>
       </div>
 
-      {/* Live preview via iframe */}
-      <div className="w-full aspect-[600/1000] ">
+      {/* Live preview via iframe - optimized for canvas display */}
+      <div className="flex-grow min-h-0">
         <iframe
             title="Email preview"
             srcDoc={rawHtml}
-            className="w-full h-full border rounded-lg shadow-sm"
-            sandbox="allow-same-origin" // Added sandbox for security, allow-same-origin for potential scripts if any (none in this template)
+            className="w-full h-full border rounded-lg shadow-sm bg-white"
+            sandbox="allow-same-origin"
+            style={{ minHeight: '600px' }}
         />
       </div>
     </div>

@@ -197,6 +197,7 @@ function BuildPageContent() {
   const [selectedEmailNodeId, setSelectedEmailNodeId] = useState<string | null>(null);
   const [isManipulatingNodesProgrammatically, setIsManipulatingNodesProgrammatically] = useState(false);
   const [isGeneratingAIContent, setIsGeneratingAIContent] = useState(false);
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
 
   // State for drag and drop
   const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: string } | null>(null);
@@ -1038,11 +1039,127 @@ function BuildPageContent() {
       return;
     }
 
-    setIsLoading(true);
+    setIsGeneratingEmail(true);
 
     try {
       setIsManipulatingNodesProgrammatically(true);
       const sc = currentScenario;
+
+      // Find optimal position for email node to avoid overlaps
+      const findOptimalEmailPosition = (existingNodes: Node<Record<string, unknown>>[]) => {
+        const emailNodeWidth = 700; // Increased width for better display
+        const emailNodeHeight = 900; // Increased height for better display
+        const padding = 50;
+
+        // Filter out existing email nodes for positioning calculation
+        const nonEmailNodes = existingNodes.filter(n => n.type !== 'emailPreview');
+        
+        if (nonEmailNodes.length === 0) {
+          // No nodes exist, place at origin with some offset
+          return snapToGrid(100, 100);
+        }
+
+        // Calculate bounding box of existing nodes
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        nonEmailNodes.forEach(node => {
+          const nodeWidth = node.width || 150;
+          const nodeHeight = node.height || 40;
+          minX = Math.min(minX, node.position.x);
+          minY = Math.min(minY, node.position.y);
+          maxX = Math.max(maxX, node.position.x + nodeWidth);
+          maxY = Math.max(maxY, node.position.y + nodeHeight);
+        });
+
+        // Try positions: above, left, right, below
+        const candidatePositions = [
+          // Above the workflow
+          { x: minX, y: minY - emailNodeHeight - padding },
+          // Left of the workflow
+          { x: minX - emailNodeWidth - padding, y: minY },
+          // Right of the workflow
+          { x: maxX + padding, y: minY },
+          // Below the workflow
+          { x: minX, y: maxY + padding }
+        ];
+
+        // Check for overlaps and return first non-overlapping position
+        for (const pos of candidatePositions) {
+          const hasOverlap = nonEmailNodes.some(node => {
+            const nodeWidth = node.width || 150;
+            const nodeHeight = node.height || 40;
+            return !(
+              pos.x + emailNodeWidth < node.position.x ||
+              pos.x > node.position.x + nodeWidth ||
+              pos.y + emailNodeHeight < node.position.y ||
+              pos.y > node.position.y + nodeHeight
+            );
+          });
+          
+          if (!hasOverlap) {
+            return snapToGrid(pos.x, pos.y);
+          }
+        }
+
+        // Fallback: place above with extra spacing
+        return snapToGrid(minX, minY - emailNodeHeight - padding * 2);
+      };
+
+      // Create immediate loading email node
+      const loadingEmailNodeId = `email-preview-${nanoid(6)}`;
+      let loadingEmailNode: Node<EmailPreviewNodeData, 'emailPreview'>;
+
+      setNodes(currentNodesState => {
+        // Remove any existing email preview nodes
+        const nodesWithoutOldEmail = currentNodesState.filter(n => n.type !== 'emailPreview');
+        
+        const optimalPosition = findOptimalEmailPosition(nodesWithoutOldEmail);
+
+        loadingEmailNode = {
+          id: loadingEmailNodeId,
+          type: 'emailPreview',
+          position: optimalPosition,
+          data: {
+            nodeTitle: `Generating Email for: ${sc.name || 'Scenario'}...`,
+            firstName: sc.emailFirstName || '[FIRST NAME]',
+            yourName: sc.emailYourName || '[YOUR NAME]',
+            yourCompany: sc.emailYourCompany || '[YOUR COMPANY]',
+            yourEmail: sc.emailYourEmail || '[YOUR_EMAIL]',
+            calendlyLink: sc.emailCalendlyLink || 'https://calendly.com/your-link',
+            pdfLink: sc.emailPdfLink || 'https://example.com/roi.pdf',
+            subjectLine: 'Generating subject line...',
+            hookText: 'AI is crafting your personalized hook text...',
+            ctaText: 'Generating compelling call-to-action...',
+            offerText: 'Creating your value proposition...',
+            stats: { 
+              roiX: 0,
+              payback: 'Calculating...',
+              runs: sc.runsPerMonth || 0,
+            },
+            isLoading: true // Add loading flag
+          },
+          draggable: true,
+          selectable: true,
+        };
+
+        return [...nodesWithoutOldEmail, loadingEmailNode];
+      });
+
+      // Focus on the loading email node
+      setTimeout(() => {
+        if (rfInstance && loadingEmailNode) {
+          rfInstance.fitBounds(
+            { 
+              x: loadingEmailNode.position.x, 
+              y: loadingEmailNode.position.y, 
+              width: 700, 
+              height: 900 
+            },
+            { padding: 0.1, duration: 600 }
+          );
+        }
+      }, 100);
+
+      // Now generate the actual email content
       const roiDataPayload = {
         scenarioName: sc.name,
         platform: sc.platform,
@@ -1068,107 +1185,98 @@ function BuildPageContent() {
       }
       const emailTexts = await response.json();
 
-      // Prepare updated email fields for the scenario
-      const updatedEmailFields: Partial<Scenario> = {
-        emailSubjectLine: emailTexts.subjectLine || sc.emailSubjectLine,
-        emailHookText: emailTexts.hookText || sc.emailHookText,
-        emailCtaText: emailTexts.ctaText || sc.emailCtaText,
-        emailOfferText: emailTexts.offerText || sc.emailOfferText,
-      };
-
-      let finalNodesList: Node<Record<string, unknown>>[] = [];
-
-      // Use functional update for setNodes to ensure atomicity and get the latest state for snapshotting
+      // Update the loading node with generated content
       setNodes(currentNodesState => {
-        // Filter out any existing email preview nodes
-        const nodesWithoutOldEmail = currentNodesState.filter(n => n.type !== 'emailPreview');
-
-        // Determine position for the new email node based on the filtered list
-        let emailNodeX = 50;
-        let emailNodeY = -800;
-        const baseNodesForPositioning = nodesWithoutOldEmail;
-
-        if (baseNodesForPositioning.length > 0) {
-          const firstNode = baseNodesForPositioning.find(n => n.type === 'trigger') || baseNodesForPositioning[0];
-          if (firstNode) {
-            emailNodeX = firstNode.position.x;
-            emailNodeY = firstNode.position.y - 800; // Position above the first node
-          } else {
-            // Fallback if no trigger/first node, though less likely with actual scenarios
-            const avgX = baseNodesForPositioning.reduce((sum, node) => sum + node.position.x, 0) / baseNodesForPositioning.length;
-            const avgY = baseNodesForPositioning.reduce((sum, node) => sum + node.position.y, 0) / baseNodesForPositioning.length;
-            emailNodeX = avgX;
-            emailNodeY = avgY - 800;
+        return currentNodesState.map(node => {
+          if (node.id === loadingEmailNodeId && node.type === 'emailPreview') {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                nodeTitle: `Email for: ${sc.name || 'Scenario'}`,
+                subjectLine: emailTexts.subjectLine || sc.emailSubjectLine || 'Streamline Your Workflow & See Immediate ROI',
+                hookText: emailTexts.hookText || sc.emailHookText || 'Default hook text...',
+                ctaText: emailTexts.ctaText || sc.emailCtaText || 'Default CTA text...',
+                offerText: emailTexts.offerText || sc.emailOfferText || 'Default offer text...',
+                stats: { 
+                  roiX: Math.round((roiDataPayload.roiRatio || 0) * 100),
+                  payback: roiDataPayload.paybackPeriod,
+                  runs: roiDataPayload.runsPerMonth || 0,
+                },
+                isLoading: false // Remove loading flag
+              }
+            };
           }
-        }       
-        const snappedPos = snapToGrid(emailNodeX, emailNodeY);
-
-        const newEmailNodeId = `email-preview-${nanoid(6)}`;
-        const newEmailNodeToAdd: Node<EmailPreviewNodeData, 'emailPreview'> = {
-          id: newEmailNodeId,
-          type: 'emailPreview',
-          position: snappedPos,
-          data: {
-            nodeTitle: `Email for: ${sc.name || 'Scenario'}`, // Updated title
-            firstName: sc.emailFirstName || '[FIRST NAME]',
-            yourName: sc.emailYourName || '[YOUR NAME]',
-            yourCompany: sc.emailYourCompany || '[YOUR COMPANY]',
-            yourEmail: sc.emailYourEmail || '[YOUR_EMAIL]',
-            calendlyLink: sc.emailCalendlyLink || 'https://calendly.com/your-link',
-            pdfLink: sc.emailPdfLink || 'https://example.com/roi.pdf',
-            subjectLine: emailTexts.subjectLine || sc.emailSubjectLine || 'Streamline Your Workflow & See Immediate ROI',
-            hookText: emailTexts.hookText || sc.emailHookText || 'Default hook text...',
-            ctaText: emailTexts.ctaText || sc.emailCtaText || 'Default CTA text...',
-            offerText: emailTexts.offerText || sc.emailOfferText || 'Default offer text...',
-            stats: { 
-              roiX: Math.round((roiDataPayload.roiRatio || 0) * 100),
-              payback: roiDataPayload.paybackPeriod,
-              runs: roiDataPayload.runsPerMonth || 0,
-            }
-          },
-          draggable: true,
-          selectable: true,
-        };
-        finalNodesList = [...nodesWithoutOldEmail, newEmailNodeToAdd];
-        return finalNodesList; // This updates React Flow's internal state
+          return node;
+        });
       });
 
-      // Now, explicitly update the currentScenario state and Dexie 
-      // with BOTH email text AND the new nodesSnapshot.
-      const comprehensiveScenarioUpdate: Partial<Scenario> = {
-        ...updatedEmailFields,
-        nodesSnapshot: finalNodesList,
-        updatedAt: Date.now(),
-      };
+      // Wait a moment for the nodes state to update, then save everything together
+      setTimeout(async () => {
+        if (!rfInstance || !sc.id) return;
+        
+        // Get the current flow state including our updated email node
+        const flowObject = rfInstance.toObject();
+        
+        // Update scenario with BOTH email fields AND the current nodes snapshot
+        const comprehensiveUpdate: Partial<Scenario> = {
+          emailSubjectLine: emailTexts.subjectLine || sc.emailSubjectLine,
+          emailHookText: emailTexts.hookText || sc.emailHookText,
+          emailCtaText: emailTexts.ctaText || sc.emailCtaText,
+          emailOfferText: emailTexts.offerText || sc.emailOfferText,
+          nodesSnapshot: flowObject.nodes, // Include the updated nodes with email node
+          edgesSnapshot: flowObject.edges, // Include current edges
+          viewport: flowObject.viewport, // Include current viewport
+          updatedAt: Date.now(),
+        };
 
-      if (sc.id) { // Add type guard
-        await db.scenarios.update(sc.id, comprehensiveScenarioUpdate);
-        setCurrentScenario(prev => prev ? { ...prev, ...comprehensiveScenarioUpdate } : null);
-      }
-
-      setTimeout(() => { // Fit view after state updates have likely propagated
-        if (rfInstance) {
-          rfInstance.fitView({ padding: 0.15, includeHiddenNodes: false, duration: 600 });
-          
-          // After fitView, the viewport has changed. We should save this new viewport.
-          const newViewport = rfInstance.getViewport();
-          if (sc.id) { // Add type guard here
-            const viewportUpdatePayload: Partial<Scenario> = { viewport: newViewport, updatedAt: Date.now() };
-            db.scenarios.update(sc.id, viewportUpdatePayload);
-            setCurrentScenario(prev => prev ? { ...prev, ...viewportUpdatePayload } : null);
-          }
-        } else {
-          // This else block is empty in your code
-        }
-      }, 250); // Slightly longer timeout to ensure DOM update and rfInstance is ready
+        await db.scenarios.update(sc.id, comprehensiveUpdate);
+        setCurrentScenario(prev => prev ? { ...prev, ...comprehensiveUpdate } : null);
+      }, 100); // Small delay to ensure nodes state has updated
 
     } catch (error) {
-      alert(`Error generating email on canvas: ${error instanceof Error ? error.message : String(error)}`);
+      // Update the loading node to show error state
+      setNodes(currentNodesState => {
+        return currentNodesState.map(node => {
+          if (node.type === 'emailPreview' && node.data.isLoading) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                nodeTitle: 'Error generating email',
+                subjectLine: 'Error occurred',
+                hookText: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                ctaText: 'Please try again',
+                offerText: 'Click the Generate Email button to retry',
+                isLoading: false
+              }
+            };
+          }
+          return node;
+        });
+      });
+
+      // Also save the error state to prevent node disappearing
+      setTimeout(async () => {
+        if (!rfInstance || !currentScenario?.id) return;
+        const flowObject = rfInstance.toObject();
+        const errorUpdate: Partial<Scenario> = {
+          nodesSnapshot: flowObject.nodes,
+          edgesSnapshot: flowObject.edges,
+          viewport: flowObject.viewport,
+          updatedAt: Date.now(),
+        };
+        await db.scenarios.update(currentScenario.id, errorUpdate);
+        setCurrentScenario(prev => prev ? { ...prev, ...errorUpdate } : null);
+      }, 100);
     } finally {
-      setIsLoading(false);
-      setIsManipulatingNodesProgrammatically(false);
+      setIsGeneratingEmail(false);
+      // Keep the manipulation flag active a bit longer to ensure our save completes
+      setTimeout(() => {
+        setIsManipulatingNodesProgrammatically(false);
+      }, 500);
     }
-  }, [currentScenario, rfInstance, setNodes, setIsLoading, setCurrentScenario]); // Removed `nodes` from here as direct dep, it's accessed via functional update to setNodes
+  }, [currentScenario, rfInstance, setNodes, setCurrentScenario]);
 
   const handleUpdateEmailNodeData = useCallback((nodeId: string, data: Partial<EmailPreviewNodeData>) => {
     setNodes((nds) =>
@@ -1333,9 +1441,18 @@ function BuildPageContent() {
                     + Add Node
                   </DropdownMenuItem>
                   {/* SINGLE Generate Email button for mobile */}
-                  <DropdownMenuItem onClick={handleGenerateEmailOnCanvas}>
-                    <Mail className="mr-2 h-4 w-4" />
-                    Generate Email
+                  <DropdownMenuItem onClick={handleGenerateEmailOnCanvas} disabled={isGeneratingEmail}>
+                    {isGeneratingEmail ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Generate Email
+                      </>
+                    )}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1376,9 +1493,18 @@ function BuildPageContent() {
                   + Node
                 </Button>
                 {/* SINGLE Generate Email button for desktop */}
-                <Button size="sm" variant="outline" onClick={handleGenerateEmailOnCanvas}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Generate Email
+                <Button size="sm" variant="outline" onClick={handleGenerateEmailOnCanvas} disabled={isGeneratingEmail}>
+                  {isGeneratingEmail ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Generate Email
+                    </>
+                  )}
                 </Button>
               </div>
             )}
