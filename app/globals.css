@@ -152,6 +152,48 @@
     overflow: hidden;
     height: 100vh;
   }
+
+  /* Mobile touch optimizations */
+  @media (max-width: 1023px) {
+    /* Improve touch targets on mobile */
+    button, [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    /* Optimize ReactFlow for mobile */
+    .react-flow__node {
+      cursor: pointer;
+    }
+    
+    .react-flow__handle {
+      width: 12px !important;
+      height: 12px !important;
+      border-width: 2px !important;
+    }
+    
+    /* Make controls more touch-friendly */
+    .react-flow__controls button {
+      width: 40px !important;
+      height: 40px !important;
+      font-size: 18px !important;
+    }
+    
+    /* Improve node selection on mobile */
+    .react-flow__node.selected {
+      box-shadow: 0 0 0 2px oklch(0.47 0.15 262) !important;
+    }
+    
+    /* Better edge visibility on mobile */
+    .react-flow__edge-path {
+      stroke-width: 2px !important;
+    }
+    
+    /* Optimize sheet content for mobile */
+    [data-slot="sheet-content"] {
+      max-height: 90vh;
+    }
+  }
 }
 
 @keyframes fade-in {

@@ -75,6 +75,11 @@ const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mo
   ssr: false,
 });
 
+// Import the mobile toolbox trigger
+const MobileToolboxTrigger = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.MobileToolboxTrigger), {
+  ssr: false,
+});
+
 // Define nodeTypes and edgeTypes outside the component function for stability
 const nodeTypes = {
   trigger: PixelNode,
@@ -1535,11 +1540,22 @@ function BuildPageContent() {
 
           {/* Main content row */}
           <div className={`flex flex-grow relative ${isOver ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}>
-            <Toolbox 
+            {/* Desktop Toolbox - Hidden on mobile */}
+            <div className="hidden lg:block">
+              <Toolbox 
+                onLoadScenario={handleLoadScenario} 
+                activeScenarioId={scenarioId} 
+                emailNodes={emailNodesForToolbox} // Pass email nodes
+                onFocusNode={focusOnNode} // Pass focus callback
+              />
+            </div>
+            
+            {/* Mobile Toolbox Trigger */}
+            <MobileToolboxTrigger
               onLoadScenario={handleLoadScenario} 
               activeScenarioId={scenarioId} 
-              emailNodes={emailNodesForToolbox} // Pass email nodes
-              onFocusNode={focusOnNode} // Pass focus callback
+              emailNodes={emailNodesForToolbox}
+              onFocusNode={focusOnNode}
             />
             
             <FlowCanvas
