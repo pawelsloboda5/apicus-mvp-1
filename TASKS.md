@@ -54,6 +54,7 @@ This document outlines the tasks required to complete the Apicus MVP project. Ta
 - [x] Refactor handleAddNode function to a utility file
 - [x] Move ROI calculation logic to separate utility functions
 - [x] Enhanced "My Scenarios" in Toolbox: Implemented editable titles, add/delete functionality, robust loading, and filtering for untitled scenarios.
+- [x] Clean up debugging code and console.log statements from drag-and-drop implementation
 - [ ] Create comprehensive end-to-end test suite
 - [ ] Add error handling for edge cases (missing data, etc.)
 

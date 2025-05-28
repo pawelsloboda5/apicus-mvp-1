@@ -270,6 +270,7 @@ function ToolboxItem({ type, label }: ToolboxItemProps) {
         "flex cursor-grab items-center gap-1 rounded-sm border bg-background p-1 text-xs shadow-sm",
         isDragging && "opacity-50"
       )}
+      data-testid={`toolbox-item-${type}`}
     >
       <Icon className="h-4 w-4" />
       <span>{label}</span>

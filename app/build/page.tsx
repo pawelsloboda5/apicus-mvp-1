@@ -23,12 +23,14 @@ import {
   PointerSensor,
   KeyboardSensor,
   DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  pointerWithin,
 } from "@dnd-kit/core";
 import { createSnapModifier } from "@dnd-kit/modifiers";
-import { pointerWithin } from "@dnd-kit/core";
 import dynamic from "next/dynamic";
 import { pricing } from "../api/data/pricing";
-import { Coins, Calculator, Loader2, MoreHorizontal, Mail } from "lucide-react";
+import { Coins, Calculator, Loader2, MoreHorizontal, Mail, PlayCircle, Sparkles, GitBranch } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useDroppable } from "@dnd-kit/core";
 import {
@@ -107,10 +109,22 @@ function BuildPageContent() {
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
 
   // dnd-kit sensors
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
-
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
+  
   // droppable for canvas
-  const { setNodeRef: setDroppableRef } = useDroppable({ id: "canvas" });
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({ 
+    id: "canvas",
+    data: {
+      accepts: ['tool-trigger', 'tool-action', 'tool-decision']
+    }
+  });
 
   // ROI input state (will be loaded from currentScenario)
   const [runsPerMonth, setRunsPerMonth] = useState(250);
@@ -183,6 +197,9 @@ function BuildPageContent() {
   const [selectedEmailNodeId, setSelectedEmailNodeId] = useState<string | null>(null);
   const [isManipulatingNodesProgrammatically, setIsManipulatingNodesProgrammatically] = useState(false);
   const [isGeneratingAIContent, setIsGeneratingAIContent] = useState(false);
+
+  // State for drag and drop
+  const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: string } | null>(null);
 
   // State for screen size detection for responsive header
   const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
@@ -497,10 +514,14 @@ function BuildPageContent() {
   useEffect(() => {
     if (rfInstance && currentScenario) {
       // Don't reload if we're in the middle of programmatic node manipulation
-      if (isManipulatingNodesProgrammatically) return;
+      if (isManipulatingNodesProgrammatically) {
+        return;
+      }
       loadScenarioDataToState(currentScenario);
     } else if (rfInstance && !currentScenario && scenarioId) {
-      if (isManipulatingNodesProgrammatically) return; // Guard against re-loading while programmatically changing nodes
+      if (isManipulatingNodesProgrammatically) {
+        return; // Guard against re-loading while programmatically changing nodes
+      }
       db.scenarios.get(scenarioId).then(fetchedScenario => {
         if (fetchedScenario) {
           setCurrentScenario(fetchedScenario); // This will re-trigger this effect
@@ -511,16 +532,25 @@ function BuildPageContent() {
         }
       });
     }
-  }, [rfInstance, currentScenario, scenarioId, loadScenarioDataToState, router, isManipulatingNodesProgrammatically]); // loadScenarioDataToState and router were already here
+  }, [rfInstance, currentScenario, scenarioId, loadScenarioDataToState, router, isManipulatingNodesProgrammatically]);
 
   // Canvas State Sync Effect (Saving nodes/edges/viewport to Dexie for the currentScenario.id)
   useEffect(() => {
     if (!currentScenario || !currentScenario.id || !rfInstance) return;
     // Avoid saving an empty canvas over a loaded scenario during the initial loading phase
     if (isLoading && (nodes.length === 0 && edges.length === 0 && !currentScenario.nodesSnapshot?.length)) return;
+    // Don't save if we're manipulating nodes programmatically
+    if (isManipulatingNodesProgrammatically) {
+      return;
+    }
 
     // Debounce the save operation to prevent rapid saves during node manipulation
     const saveTimeout = setTimeout(() => {
+      // Double-check the manipulation flag after timeout
+      if (isManipulatingNodesProgrammatically) {
+        return;
+      }
+      
       const flowObject = rfInstance.toObject();
       
       // Determine if there has been a meaningful change to content or viewport
@@ -530,7 +560,7 @@ function BuildPageContent() {
 
       const hasContentChanged = nodesChanged || edgesChanged || viewportChanged;
 
-      if (hasContentChanged && currentScenario.id) { // Add type guard here
+      if (hasContentChanged && currentScenario.id) {
         const updatePayload: Partial<Scenario> = {
           nodesSnapshot: flowObject.nodes,
           edgesSnapshot: flowObject.edges,
@@ -546,10 +576,10 @@ function BuildPageContent() {
           console.warn("Failed to save scenario state");
         });
       }
-    }, 300); // 300ms debounce
+    }, 300);
 
     return () => clearTimeout(saveTimeout);
-  }, [nodes, edges, rfInstance, currentScenario, isLoading]); // currentScenario is the key addition for comparison
+  }, [nodes, edges, rfInstance, currentScenario, isLoading, isManipulatingNodesProgrammatically]);
 
   // Update selected node convenience to handle both nodes and groups
   const selectedNode = nodes.find((n) => n.id === selectedId) || null;
@@ -714,13 +744,31 @@ function BuildPageContent() {
 
   const snapToGridModifier = createSnapModifier(8);
 
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+    const nodeType = active.data.current?.nodeType;
+    
+    if (nodeType) {
+      setActiveDragItem({ id: String(active.id), type: nodeType });
+    }
+  }, []);
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
+      
+      // Clear the active drag item
+      setActiveDragItem(null);
+      
       // Accept drop if pointer is within canvas even if collision calc fails
-      if (over && over.id !== "canvas") return;
+      if (over && over.id !== "canvas") {
+        return;
+      }
+      
       const type = active.data.current?.nodeType as "trigger" | "action" | "decision" | undefined;
-      if (!type || !reactFlowWrapper.current || !rfInstance) return;
+      if (!type || !reactFlowWrapper.current || !rfInstance) {
+        return;
+      }
 
       // Set manipulation flag to prevent state conflicts
       setIsManipulatingNodesProgrammatically(true);
@@ -728,10 +776,14 @@ function BuildPageContent() {
       // Calculate drop position
       const wrapperRect = reactFlowWrapper.current.getBoundingClientRect();
       const rect = active.rect.current.translated ?? active.rect.current.initial;
-      if (!rect) return;
+      if (!rect) {
+        setIsManipulatingNodesProgrammatically(false);
+        return;
+      }
+      
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
-      const viewport = (rfInstance as ReactFlowInstance).getViewport?.() ?? { x: 0, y: 0, zoom: 1 };
+      const viewport = rfInstance.getViewport();
       const pos = {
         x: (centerX - wrapperRect.left - viewport.x) / viewport.zoom,
         y: (centerY - wrapperRect.top - viewport.y) / viewport.zoom,
@@ -740,22 +792,40 @@ function BuildPageContent() {
       const snapped = snapToGrid(pos.x, pos.y);
 
       const newId = nanoid(6);
-      setNodes((nds) => [
-        ...nds,
-        {
-          id: newId,
-          type,
-          position: snapped,
-          data: { label: `${type.charAt(0).toUpperCase() + type.slice(1)} ${nds.length + 1}` },
-        },
-      ]);
+      const newNode = {
+        id: newId,
+        type,
+        position: snapped,
+        data: { label: `${type.charAt(0).toUpperCase() + type.slice(1)} ${nodes.length + 1}` },
+      };
+      
+      setNodes((nds) => {
+        const updatedNodes = [...nds, newNode];
+        
+        // Immediately update currentScenario to prevent it from being overwritten
+        if (currentScenario && currentScenario.id) {
+          const updatedScenario = {
+            ...currentScenario,
+            nodesSnapshot: updatedNodes,
+            updatedAt: Date.now(),
+          };
+          setCurrentScenario(updatedScenario);
+          // Also update the database
+          db.scenarios.update(currentScenario.id, {
+            nodesSnapshot: updatedNodes,
+            updatedAt: Date.now(),
+          });
+        }
+        
+        return updatedNodes;
+      });
 
       // Clear manipulation flag after a short delay
       setTimeout(() => {
         setIsManipulatingNodesProgrammatically(false);
-      }, 100);
+      }, 500);
     },
-    [rfInstance, setNodes]
+    [rfInstance, setNodes, currentScenario, setCurrentScenario, nodes.length]
   );
 
   /* ---------- ROI Sheet open state ---------- */
@@ -1201,6 +1271,7 @@ function BuildPageContent() {
         sensors={sensors}
         modifiers={[snapToGridModifier]}
         onDragEnd={handleDragEnd}
+        onDragStart={handleDragStart}
         collisionDetection={pointerWithin}
       >
         <div className="flex h-screen w-full flex-col overflow-hidden" data-page="build">
@@ -1337,7 +1408,7 @@ function BuildPageContent() {
           )}
 
           {/* Main content row */}
-          <div className="flex flex-grow relative">
+          <div className={`flex flex-grow relative ${isOver ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}>
             <Toolbox 
               onLoadScenario={handleLoadScenario} 
               activeScenarioId={scenarioId} 
@@ -1358,8 +1429,9 @@ function BuildPageContent() {
               onInit={(instance) => setRfInstance(instance as ReactFlowInstance)}
               setWrapperRef={(node) => {
                 reactFlowWrapper.current = node;
-                setDroppableRef(node);
               }}
+              setDroppableRef={setDroppableRef}
+              isOver={isOver}
               // Title editing props
               currentScenarioName={currentScenario?.name}
               isEditingTitle={isEditingTitle}
@@ -1450,6 +1522,18 @@ function BuildPageContent() {
           onFindNewAlternatives={handleFindNewAlternatives}
           isLoadingAlternatives={isLoadingAlternatives}
         />
+        <DragOverlay>
+          {activeDragItem ? (
+            <div className="bg-gray-800 text-white text-xs font-mono rounded px-2 py-1 shadow-lg opacity-80">
+              <div className="flex items-center gap-1">
+                {activeDragItem.type === 'trigger' && <PlayCircle className="h-4 w-4" />}
+                {activeDragItem.type === 'action' && <Sparkles className="h-4 w-4" />}
+                {activeDragItem.type === 'decision' && <GitBranch className="h-4 w-4" />}
+                <span>{activeDragItem.type.charAt(0).toUpperCase() + activeDragItem.type.slice(1)}</span>
+              </div>
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </ReactFlowProvider>
   );

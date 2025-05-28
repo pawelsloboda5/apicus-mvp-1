@@ -35,7 +35,12 @@ export function FlowCanvas({
   onSaveScenarioName,
   onScenarioNameKeyDown,
   titleInputRef,
-}: FlowCanvasProps) {
+  isOver,
+  setDroppableRef,
+}: FlowCanvasProps & { 
+  isOver?: boolean; 
+  setDroppableRef?: (ref: HTMLDivElement | null) => void;
+}) {
   // Local state to track selection mode
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(SelectionMode.Partial);
   
@@ -131,8 +136,11 @@ export function FlowCanvas({
 
   return (
     <div
-      ref={setWrapperRef}
-      className="flex-grow relative"
+      ref={(node) => {
+        setWrapperRef?.(node);
+        setDroppableRef?.(node);
+      }}
+      className={`flex-grow relative ${isOver ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
     >
       {/* Scenario Title Display/Edit */}
       {onToggleEditTitle && onScenarioNameChange && onSaveScenarioName && onScenarioNameKeyDown && titleInputRef && (
