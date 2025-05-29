@@ -51,11 +51,20 @@ interface ToolboxProps {
   emailNodes?: Array<{ id: string; title: string; }>;
   onFocusNode?: (nodeId: string) => void;
   isMobile?: boolean;
+  selectedNodeType?: NodeType;
+  onNodeTypeSelect?: (type: NodeType) => void;
 }
 
 // Mobile Toolbox Trigger Button Component
 // Mobile Toolbox Trigger - Bottom positioned with fixed height
-export function MobileToolboxTrigger({ onLoadScenario, activeScenarioId, emailNodes, onFocusNode }: Omit<ToolboxProps, 'isMobile'>) {
+export function MobileToolboxTrigger({ 
+  onLoadScenario, 
+  activeScenarioId, 
+  emailNodes, 
+  onFocusNode,
+  selectedNodeType,
+  onNodeTypeSelect 
+}: Omit<ToolboxProps, 'isMobile'>) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -79,6 +88,8 @@ export function MobileToolboxTrigger({ onLoadScenario, activeScenarioId, emailNo
           onFocusNode={onFocusNode}
           isMobile={true}
           onClose={() => setIsOpen(false)}
+          selectedNodeType={selectedNodeType}
+          onNodeTypeSelect={onNodeTypeSelect}
         />
       </SheetContent>
     </Sheet>
@@ -86,7 +97,14 @@ export function MobileToolboxTrigger({ onLoadScenario, activeScenarioId, emailNo
 }
 
 // Desktop Toolbox with Resizable and Collapsible functionality
-export function Toolbox({ onLoadScenario, activeScenarioId, emailNodes, onFocusNode }: ToolboxProps) {
+export function Toolbox({ 
+  onLoadScenario, 
+  activeScenarioId, 
+  emailNodes, 
+  onFocusNode,
+  selectedNodeType,
+  onNodeTypeSelect 
+}: ToolboxProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [width, setWidth] = useState(280); // Default width - increased from 240
   const [isResizing, setIsResizing] = useState(false);
@@ -152,21 +170,34 @@ export function Toolbox({ onLoadScenario, activeScenarioId, emailNodes, onFocusN
           emailNodes={emailNodes}
           onFocusNode={onFocusNode}
           isMobile={false}
+          selectedNodeType={selectedNodeType}
+          onNodeTypeSelect={onNodeTypeSelect}
         />
       </div>
 
       {/* Collapsed Icons */}
       {isCollapsed && (
         <div className="flex flex-col items-center py-4 gap-4">
-          <div className="p-2 rounded-md bg-background border">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div className="p-2 rounded-md bg-background border">
-            <PlayCircle className="h-5 w-5" />
-          </div>
-          <div className="p-2 rounded-md bg-background border">
-            <GitBranch className="h-5 w-5" />
-          </div>
+          {ITEMS.map((item) => {
+            const Icon = typeIcon[item.type];
+            const isSelected = selectedNodeType === item.type;
+            
+            return (
+              <div 
+                key={item.type}
+                className={cn(
+                  "p-2 rounded-md border cursor-pointer transition-colors",
+                  isSelected 
+                    ? "bg-primary border-primary text-primary-foreground" 
+                    : "bg-background hover:bg-muted"
+                )}
+                onClick={() => onNodeTypeSelect?.(item.type)}
+                title={item.label}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+            );
+          })}
         </div>
       )}
     </aside>
@@ -180,7 +211,9 @@ function ToolboxContent({
   emailNodes, 
   onFocusNode, 
   isMobile = false,
-  onClose 
+  onClose,
+  selectedNodeType,
+  onNodeTypeSelect 
 }: ToolboxProps & { onClose?: () => void }) {
   const savedScenarios = useLiveQuery(() => db.scenarios.orderBy('updatedAt').reverse().toArray(), []);
   const router = useRouter();
@@ -294,7 +327,13 @@ function ToolboxContent({
         {!isMobile && <h2 className="mb-3 text-base font-semibold tracking-tight px-1">Node Types</h2>}
         <ul className={cn("space-y-2", isMobile && "grid grid-cols-3 gap-3")}>
           {ITEMS.map((item) => (
-            <ToolboxItem key={item.type} {...item} isMobile={isMobile} />
+            <ToolboxItem 
+              key={item.type} 
+              {...item} 
+              isMobile={isMobile}
+              isSelected={selectedNodeType === item.type}
+              onSelect={onNodeTypeSelect}
+            />
           ))}
         </ul>
       </div>
@@ -466,10 +505,12 @@ interface ToolboxItemProps {
   type: NodeType;
   label: string;
   isMobile?: boolean;
+  isSelected?: boolean;
+  onSelect?: (type: NodeType) => void;
 }
 
 // Update ToolboxItem for larger desktop size
-function ToolboxItem({ type, label, isMobile = false }: ToolboxItemProps) {
+function ToolboxItem({ type, label, isMobile = false, isSelected = false, onSelect }: ToolboxItemProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `tool-${type}`,
     data: { nodeType: type },
@@ -477,20 +518,70 @@ function ToolboxItem({ type, label, isMobile = false }: ToolboxItemProps) {
 
   const Icon = typeIcon[type];
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Don't trigger click if we're in the middle of dragging
+    if (isDragging) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect?.(type);
+  };
+
+  // Create enhanced listeners that also trigger selection
+  const enhancedListeners = React.useMemo(() => {
+    if (!listeners) return {};
+    
+    return {
+      ...listeners,
+      onMouseDown: (e: React.MouseEvent) => {
+        // Select the node type when drag starts
+        onSelect?.(type);
+        // Call the original onMouseDown from dnd-kit
+        if (listeners.onMouseDown) {
+          listeners.onMouseDown(e as unknown as MouseEvent);
+        }
+      },
+      onTouchStart: (e: React.TouchEvent) => {
+        // Select the node type when touch drag starts  
+        onSelect?.(type);
+        // Call the original onTouchStart from dnd-kit
+        if (listeners.onTouchStart) {
+          listeners.onTouchStart(e as unknown as TouchEvent);
+        }
+      }
+    };
+  }, [listeners, onSelect, type]);
+
   return (
     <li
       ref={setNodeRef}
       {...attributes}
-      {...listeners}
+      {...enhancedListeners}
       className={cn(
-        "flex cursor-grab items-center gap-2 rounded-md border bg-background shadow-sm hover:shadow-md transition-shadow",
+        "flex cursor-grab items-center gap-2 rounded-md border shadow-sm hover:shadow-md transition-all duration-200 relative",
         isMobile ? "p-3 text-base justify-center flex-col" : "p-3 text-sm",
-        isDragging && "opacity-50"
+        isDragging && "opacity-50",
+        isSelected 
+          ? "bg-primary/10 border-primary text-primary shadow-md" 
+          : "bg-background hover:bg-muted"
       )}
       data-testid={`toolbox-item-${type}`}
+      onClick={handleClick}
     >
-      <Icon className={cn(isMobile ? "h-6 w-6" : "h-5 w-5")} />
-      <span className={cn(isMobile && "text-center mt-1")}>{label}</span>
+      <Icon className={cn(
+        isMobile ? "h-6 w-6" : "h-5 w-5",
+        isSelected && "text-primary"
+      )} />
+      <span className={cn(
+        isMobile && "text-center mt-1",
+        isSelected && "text-primary font-medium"
+      )}>
+        {label}
+      </span>
+      
+      {isSelected && !isDragging && (
+        <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+      )}
     </li>
   );
 }

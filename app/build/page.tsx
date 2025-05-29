@@ -201,6 +201,9 @@ function BuildPageContent() {
   const [isGeneratingAIContent, setIsGeneratingAIContent] = useState(false);
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
 
+  // Add state for selected node type
+  const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('action');
+
   // State for drag and drop
   const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: string } | null>(null);
   // State for screen size detection for responsive header
@@ -787,7 +790,19 @@ function BuildPageContent() {
         id: newId,
         type,
         position: snapped,
-        data: { label: `${type.charAt(0).toUpperCase() + type.slice(1)} ${nodes.length + 1}` },
+        data: { 
+          label: `${type.charAt(0).toUpperCase() + type.slice(1)} ${nodes.filter(n => n.type === type).length + 1}`,
+          ...(type === 'trigger' && { typeOf: 'webhook' }),
+          ...(type === 'action' && { 
+            appName: 'New Action',
+            action: 'configure',
+            typeOf: 'data_processing' 
+          }),
+          ...(type === 'decision' && { 
+            conditionType: 'value',
+            operator: 'equals' 
+          }),
+        },
       };
       
       setNodes((nds) => {
@@ -816,7 +831,7 @@ function BuildPageContent() {
         setIsManipulatingNodesProgrammatically(false);
       }, 500);
     },
-    [rfInstance, setNodes, currentScenario, setCurrentScenario, nodes.length]
+    [rfInstance, setNodes, currentScenario, setCurrentScenario, nodes]
   );
 
   /* ---------- ROI Sheet open state ---------- */
@@ -1422,11 +1437,20 @@ function BuildPageContent() {
                 
                 const newNode = {
                   id: newId,
-                  type: 'action' as const, // Default to action type
+                  type: selectedNodeType,
                   position: snapped,
                   data: { 
-                    label: `Action ${nodes.length + 1}`,
-                    typeOf: 'data_processing' // Default operation type
+                    label: `${selectedNodeType.charAt(0).toUpperCase() + selectedNodeType.slice(1)} ${nodes.filter(n => n.type === selectedNodeType).length + 1}`,
+                    ...(selectedNodeType === 'trigger' && { typeOf: 'webhook' }),
+                    ...(selectedNodeType === 'action' && { 
+                      appName: 'New Action',
+                      action: 'configure',
+                      typeOf: 'data_processing' 
+                    }),
+                    ...(selectedNodeType === 'decision' && { 
+                      conditionType: 'value',
+                      operator: 'equals' 
+                    }),
                   },
                 };
                 
@@ -1482,6 +1506,8 @@ function BuildPageContent() {
                 activeScenarioId={scenarioId} 
                 emailNodes={emailNodesForToolbox}
                 onFocusNode={focusOnNode}
+                selectedNodeType={selectedNodeType}
+                onNodeTypeSelect={setSelectedNodeType}
               />
             </div>
             
@@ -1509,6 +1535,8 @@ function BuildPageContent() {
               onSaveScenarioName={saveScenarioName}
               onScenarioNameKeyDown={handleScenarioNameKeyDown}
               titleInputRef={titleInputRef}
+              selectedNodeType={selectedNodeType}
+              onNodeTypeChange={setSelectedNodeType}
             />
 
             {/* Property Panels - existing code... */}
@@ -1550,6 +1578,8 @@ function BuildPageContent() {
               activeScenarioId={scenarioId} 
               emailNodes={emailNodesForToolbox}
               onFocusNode={focusOnNode}
+              selectedNodeType={selectedNodeType}
+              onNodeTypeSelect={setSelectedNodeType}
             />
           </div>
 

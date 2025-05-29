@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useState, useEffect, useOptimistic, startTransition, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -8,12 +8,17 @@ import {
   Connection,
   IsValidConnection,
   SelectionMode,
+  Node,
+  Edge,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { FlowCanvasProps } from "@/lib/types";
+import { FlowCanvasProps, NodeType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Edit2Icon } from "lucide-react";
+import { nanoid } from "nanoid";
+import { FloatingNodeSelector } from "./FloatingNodeSelector";
 
 export function FlowCanvas({
   nodes,
@@ -37,13 +42,35 @@ export function FlowCanvas({
   titleInputRef,
   isOver,
   setDroppableRef,
+  selectedNodeType = 'action',
+  onNodeTypeChange,
 }: FlowCanvasProps & { 
   isOver?: boolean; 
   setDroppableRef?: (ref: HTMLDivElement | null) => void;
+  selectedNodeType?: NodeType;
+  onNodeTypeChange?: (type: NodeType) => void;
 }) {
   // Local state to track selection mode
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(SelectionMode.Partial);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Get React Flow instance for coordinate conversion
+  const { screenToFlowPosition } = useReactFlow();
+  
+  // State for floating node selector
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const [isOverCanvas, setIsOverCanvas] = useState(false);
+  
+  // Optimistic state for instant UI feedback
+  const [optimisticNodes, addOptimisticNode] = useOptimistic(
+    nodes,
+    (state, newNode: Node) => [...state, newNode]
+  );
+  
+  const [optimisticEdges, addOptimisticEdge] = useOptimistic(
+    edges,
+    (state, newEdge: Edge) => [...state, newEdge]
+  );
   
   // Detect mobile device
   useEffect(() => {
@@ -54,6 +81,26 @@ export function FlowCanvas({
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+  
+  // Track cursor position globally when canvas is active
+  useEffect(() => {
+    if (isMobile || !isOverCanvas) return;
+    
+    const handleGlobalPointerMove = (event: PointerEvent) => {
+      // Update cursor position even during pan operations
+      setCursorPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+    };
+    
+    // Use pointer events for better compatibility
+    window.addEventListener('pointermove', handleGlobalPointerMove);
+    
+    return () => {
+      window.removeEventListener('pointermove', handleGlobalPointerMove);
+    };
+  }, [isMobile, isOverCanvas]);
   
   // Listen for key presses to toggle selection mode (desktop only)
   useEffect(() => {
@@ -81,8 +128,8 @@ export function FlowCanvas({
     };
   }, [isMobile]);
   
-  // Function to validate connections
-  const isValidConnection: IsValidConnection = useCallback((connection) => {
+  // Function to validate connections - no longer wrapped in useCallback
+  const isValidConnection: IsValidConnection = (connection) => {
     // Don't allow connections to self
     if (connection.source === connection.target) {
       return false;
@@ -121,31 +168,124 @@ export function FlowCanvas({
     
     // Allow connection if validation passes
     return true;
-  }, [nodes, edges]);
+  };
 
-  // Add new edge on connect
-  const handleConnect = useCallback((connection: Connection) => {
+  // Handle mouse movement for cursor tracking
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (!isMobile) {
+      setCursorPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+    }
+  };
+
+  // Handle mouse enter/leave canvas
+  const handleMouseEnter = () => {
+    if (!isMobile) {
+      setIsOverCanvas(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsOverCanvas(false);
+  };
+
+  // Get appropriate data for the selected node type
+  const getNodeData = (type: NodeType, count: number) => {
+    switch (type) {
+      case 'trigger':
+        return {
+          label: `Trigger ${count}`,
+          typeOf: 'webhook',
+        };
+      case 'action':
+        return {
+          label: `Action ${count}`,
+          appName: 'New Action',
+          action: 'configure',
+        };
+      case 'decision':
+        return {
+          label: `Decision ${count}`,
+          conditionType: 'value',
+          operator: 'equals',
+        };
+      default:
+        return {
+          label: `Node ${count}`,
+        };
+    }
+  };
+
+  // Handle double-click to add a new node (uses selected type from Toolbox)
+  const handlePaneClick = (event: React.MouseEvent) => {
+    // Only handle double-clicks
+    if (event.detail !== 2) return;
+    
+    // Prevent default double-click behavior
+    event.preventDefault();
+    
+    // Convert screen coordinates to flow coordinates (accounts for zoom/pan)
+    const position = screenToFlowPosition({
+      x: event.clientX - 5, // 5px to the left of cursor
+      y: event.clientY,
+    });
+    
+    // Create a new node with the selected type from Toolbox
+    const newNode: Node = {
+      id: `node-${nanoid(6)}`,
+      type: selectedNodeType,
+      position,
+      data: getNodeData(selectedNodeType, nodes.length + 1),
+    };
+    
+    // Wrap optimistic update in startTransition for React 19 compatibility
+    startTransition(() => {
+      // Optimistically add the node for instant UI feedback
+      addOptimisticNode(newNode);
+      
+      // Actually add the node through onNodesChange
+      onNodesChange([
+        {
+          type: 'add',
+          item: newNode,
+        },
+      ]);
+    });
+  };
+
+  // Add new edge on connect - also wrap in startTransition
+  const handleConnect = (connection: Connection) => {
     // Validate connection
     if (!isValidConnection(connection)) {
       return;
     }
     
-    // Add new edge through onEdgesChange
-    onEdgesChange([
-      {
-        type: 'add',
-        item: {
-          ...connection,
-          id: `e-${connection.source}-${connection.target}${connection.sourceHandle ? `-${connection.sourceHandle}` : ''}`,
-          // Add additional data for rendering decision edges differently if needed
-          data: {
-            ...(connection.sourceHandle === 'true' ? { isTrue: true } : {}),
-            ...(connection.sourceHandle === 'false' ? { isFalse: true } : {}),
-          }
+    const newEdge = {
+      ...connection,
+      id: `e-${connection.source}-${connection.target}${connection.sourceHandle ? `-${connection.sourceHandle}` : ''}`,
+      // Add additional data for rendering decision edges differently if needed
+      data: {
+        ...(connection.sourceHandle === 'true' ? { isTrue: true } : {}),
+        ...(connection.sourceHandle === 'false' ? { isFalse: true } : {}),
+      }
+    };
+    
+    // Wrap optimistic update in startTransition for React 19 compatibility
+    startTransition(() => {
+      // Optimistically add the edge for instant UI feedback
+      addOptimisticEdge(newEdge);
+      
+      // Add new edge through onEdgesChange
+      onEdgesChange([
+        {
+          type: 'add',
+          item: newEdge,
         },
-      },
-    ]);
-  }, [onEdgesChange, isValidConnection]);
+      ]);
+    });
+  };
 
   return (
     <div
@@ -154,6 +294,9 @@ export function FlowCanvas({
         setDroppableRef?.(node);
       }}
       className={`flex-grow relative ${isOver ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Scenario Title Display/Edit */}
       {onToggleEditTitle && onScenarioNameChange && onSaveScenarioName && onScenarioNameKeyDown && titleInputRef && (
@@ -199,12 +342,13 @@ export function FlowCanvas({
       )}
 
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={optimisticNodes}
+        edges={optimisticEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
         onNodeClick={onNodeClick}
+        onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
@@ -216,14 +360,13 @@ export function FlowCanvas({
         isValidConnection={isValidConnection}
         selectionMode={selectionMode}
         multiSelectionKeyCode={isMobile ? null : "Shift"}
-        className="bg-[linear-gradient(to_right,transparent_49%,theme(colors.border)_50%),linear-gradient(to_bottom,transparent_49%,theme(colors.border)_50%)] bg-[size:1rem_1rem]"        // Fixed zoom and pan settings
+        className="bg-[linear-gradient(to_right,transparent_49%,theme(colors.border)_50%),linear-gradient(to_bottom,transparent_49%,theme(colors.border)_50%)] bg-[size:1rem_1rem]"
         panOnDrag={isMobile ? [1, 2] : true}
-        zoomOnScroll={true} // ✅ Enable zoom on scroll (mouse wheel)
-        zoomOnPinch={isMobile} // Enable pinch zoom on mobile only
-        panOnScroll={false} // ✅ Disable pan on scroll to prevent conflicts
-        zoomOnDoubleClick={false} // Disable double-click zoom
-        preventScrolling={true} // ✅ Prevent page scroll when over flow (required for zoom)
-        // Add zoom limits for better UX
+        zoomOnScroll={true}
+        zoomOnPinch={isMobile}
+        panOnScroll={false}
+        zoomOnDoubleClick={false}
+        preventScrolling={true}
         minZoom={0.1}
         maxZoom={4}
       >
@@ -231,11 +374,19 @@ export function FlowCanvas({
         <Controls 
           position="bottom-right" 
           className={isMobile ? "scale-110" : ""}
-          showZoom={false} // ✅ Hide zoom buttons (plus/minus)
+          showZoom={false}
           showFitView={true}
           showInteractive={false}
         />
       </ReactFlow>
+
+      {/* Floating Node Selector - shows current selection from Toolbox */}
+      <FloatingNodeSelector
+        selectedType={selectedNodeType}
+        onTypeChange={onNodeTypeChange || (() => {})}
+        cursorPosition={cursorPosition}
+        isVisible={isOverCanvas && !isMobile}
+      />
     </div>
   );
 }

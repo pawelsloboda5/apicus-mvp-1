@@ -34,17 +34,27 @@ Apicus MVP is a web application designed to help operations managers, automation
 - `/api/templates/search` endpoint embeds user query on the fly and returns the best matching `templateId` along with alternatives.
 - Landing-page form now shows a loading spinner and redirects directly to `/build?tid=…&q=...` where the template and alternatives are processed.
 
+### 5. Performance Optimizations (React 19 & Next.js 15)
+- **React Compiler**: Automatic optimizations eliminate the need for manual `useMemo` and `useCallback`
+- **Concurrent Rendering**: Enhanced UI responsiveness with React 19's improved concurrent features
+- **Streaming SSR**: Faster initial page loads with React 19's streaming capabilities
+- **Partial Prerendering (PPR)**: Combines static and dynamic rendering for optimal performance
+- **Smart Caching**: Optimized caching defaults with fine-grained control
+- **Automatic Batching**: Improved state update performance with React 19
+
 ## Tech Stack
 
-- **Framework:** Next.js 15 (App Router)
+- **Framework:** Next.js 15 (App Router) with Turbopack support
 - **Language:** TypeScript
-- **Styling:** Tailwind CSS, shadcn/ui (Radix UI components)
+- **React:** React 19 with React Compiler (Experimental)
+- **Styling:** Tailwind CSS v4, shadcn/ui (Radix UI components)
 - **Workflow Canvas:** React Flow v12 (`@xyflow/react`)
 - **Drag-and-Drop:** dnd-kit (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/modifiers`)
 - **Local Storage:** Dexie.js (IndexedDB)
 - **Database:** Azure Cosmos DB for MongoDB (collection: `apicus-templates`)
 - **AI Integration:** Azure OpenAI API
-- **State Management:** React hooks (primarily `useState`, `useEffect`, `useCallback`, `useRef`)
+- **State Management:** React hooks with React 19 performance optimizations
+- **Performance:** React Compiler, Partial Prerendering, Streaming SSR
 
 ## Backend Scripts (`/backend`)
 
@@ -67,8 +77,33 @@ npm install
 
 ## Development
 
-Run the development server:
+Run the development server with Turbopack for enhanced performance:
 
 ```bash
-npm run dev
+npm run dev --turbo
 ```
+
+Or configure it in package.json:
+
+```json
+{
+  "scripts": {
+    "dev": "next dev --turbo"
+  }
+}
+```
+
+## Performance Features
+
+### React 19 Optimizations
+- **React Compiler**: Automatically optimizes components without manual memoization
+- **use() Hook**: Efficient data fetching with built-in Suspense support
+- **useOptimistic**: Instant UI updates for better perceived performance
+- **Enhanced Streaming**: Improved SSR with better streaming capabilities
+
+### Next.js 15 Enhancements
+- **Turbopack**: Rust-based bundler for lightning-fast development
+- **Partial Prerendering**: Mix static and dynamic content intelligently
+- **Static Route Indicator**: Visual feedback for optimization opportunities
+- **unstable_after API**: Execute non-critical tasks after response streaming
+- **Optimized Bundling**: Better tree-shaking and external package handling

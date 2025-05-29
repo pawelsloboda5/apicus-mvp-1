@@ -102,4 +102,20 @@ This document enumerates every sub-task required to ship the first-pass Visual W
 - Export workflow as image or PDF.
 
 ---
-*Est. total ⏲️ ≈ 10-12 dev hours.* 
+## 12 Performance Optimizations (React 19 & Next.js 15) (3-4 hrs)
+- [ ] Enable React Compiler in `next.config.ts` with `experimental.reactCompiler`
+- [ ] Remove unnecessary `useMemo`/`useCallback` hooks (handled by React Compiler)
+- [ ] Implement Partial Prerendering (PPR) for hybrid static/dynamic rendering
+- [ ] Add `use()` hook for efficient data fetching in workflow templates
+- [ ] Implement `useOptimistic` for instant UI feedback on node operations
+- [ ] Configure `unstable_after` API for non-critical logging/analytics
+- [ ] Update caching strategy with new Next.js 15 defaults
+- [ ] Add Static Route Indicator for optimization insights
+- [ ] Optimize bundle size with `serverExternalPackages` configuration
+- [ ] Implement streaming SSR for faster initial canvas loads
+- [ ] Add React 19 hydration error improvements for better debugging
+- [ ] Configure automatic batching for multiple state updates
+- [ ] Test performance with Lighthouse and Web Vitals
+
+---
+*Est. total ⏲️ ≈ 14-16 dev hours (including performance optimizations).* 

@@ -94,6 +94,10 @@ export interface FlowCanvasProps {
   onSaveScenarioName?: () => void;
   onScenarioNameKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   titleInputRef?: React.RefObject<HTMLInputElement | null>;
+  
+  // Props for floating node selector
+  selectedNodeType?: NodeType;
+  onNodeTypeChange?: (type: NodeType) => void;
 }
 
 export interface Scenario {
