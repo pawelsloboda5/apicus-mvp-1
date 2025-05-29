@@ -109,6 +109,17 @@ interface EmailGenerationPayload {
   // Generation options
   lengthOption?: 'concise' | 'standard' | 'detailed';
   toneOption?: string;
+  
+  // Section enablement flags
+  enabledSections?: {
+    subject?: boolean;
+    hook?: boolean;
+    cta?: boolean;
+    offer?: boolean;
+    ps?: boolean;
+    testimonial?: boolean;
+    urgency?: boolean;
+  };
 }
 
 function getLengthInstructions(lengthOption: string) {
@@ -123,7 +134,7 @@ function getLengthInstructions(lengthOption: string) {
 }
 
 async function generateSection(
-  sectionType: 'subject' | 'hook' | 'cta' | 'offer',
+  sectionType: 'subject' | 'hook' | 'cta' | 'offer' | 'ps' | 'testimonial' | 'urgency',
   context: Record<string, unknown>,
   previousSections: Record<string, string>,
   lengthOption: string = 'standard',
@@ -180,7 +191,7 @@ async function generateSection(
   let systemPrompt = '';
   switch(sectionType) {
     case 'subject':
-      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. Keep it very short - just 2-4 words or 1 sentence unless ${lengthInstructions} is anything other than concise that capture the core value proposition. Focus on the most impressive metric or benefit. Context includes workflow automation details and ROI calculations. Make it punchy and benefit-focused, not feature-focused. Avoid generic words like 'Automate' if possible - be specific about the outcome. ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. CRITICAL: Keep it SHORT - maximum 6-8 words. Focus on ONE key benefit or metric. Make it specific and outcome-focused. Examples of good length: "Cut data entry 80% this month" or "Save 15 hours weekly guaranteed". Avoid generic words like 'Automate' or 'Transform'. ${toneGuidance}${contextInstructions}`;
       break;
     case 'hook':
       systemPrompt = `Generate an engaging hook for a cold outreach email about an automation solution. ${lengthInstructions} Write in a conversational, human tone - as if talking to a colleague. Start with their pain point or current situation, not with the solution. Use natural language, contractions, and avoid corporate jargon. Reference a specific struggle they face. Don't repeat the subject line verbatim. ${toneGuidance}${contextInstructions}`;
@@ -190,6 +201,15 @@ async function generateSection(
       break;
     case 'offer':
       systemPrompt = `Generate a soft offer paragraph suggesting a pilot, demo, or consultation. ${lengthInstructions} Make it feel like a helpful suggestion from a peer, not a sales pitch. Avoid repeating ROI numbers or benefits already mentioned. Focus on the next step and make it low-pressure. Use phrases like 'happy to show you' or 'walk through together' instead of formal business language. ${toneGuidance}${contextInstructions}`;
+      break;
+    case 'ps':
+      systemPrompt = `Generate a compelling PS line for the email. Keep it to ONE sentence. Add a surprising fact, additional benefit, or create urgency. Make it feel like an afterthought that's actually important. Examples: "PS - Your competitor just automated this last month" or "PS - The setup takes less than 30 minutes". ${toneGuidance}${contextInstructions}`;
+      break;
+    case 'testimonial':
+      systemPrompt = `Generate a brief testimonial quote from a similar customer. Keep it to 1-2 sentences max. Make it specific with real metrics and relatable to the target persona. Format as a quote with attribution. Example: "We cut our reporting time by 85% in the first week" - Sarah Chen, Ops Manager at TechCo. ${toneGuidance}${contextInstructions}`;
+      break;
+    case 'urgency':
+      systemPrompt = `Generate a subtle urgency line that creates FOMO without being pushy. One sentence only. Reference timing, competitive advantage, or limited availability. Examples: "Three of your competitors started using this last quarter" or "Our calendar fills up fast in Q4". ${toneGuidance}${contextInstructions}`;
       break;
   }
   
@@ -232,7 +252,7 @@ async function generateSection(
     model: chatDeploymentName,
     messages,
     temperature: sectionType === 'subject' ? 0.8 : 0.75, // Slightly higher for more natural variation
-    max_tokens: sectionType === 'subject' ? 100 : 300,
+    max_tokens: sectionType === 'subject' ? 50 : (sectionType === 'ps' || sectionType === 'urgency' ? 100 : 300),
   });
   
   return completion.choices[0]?.message?.content?.trim() || "";
@@ -247,6 +267,15 @@ export async function POST(req: Request) {
     const payload = await req.json() as EmailGenerationPayload;
     const lengthOption = payload.lengthOption || 'standard';
     const toneOption = payload.toneOption || 'professional_warm';
+    const enabledSections = payload.enabledSections || {
+      subject: true,
+      hook: true,
+      cta: true,
+      offer: true,
+      ps: true,
+      testimonial: false,
+      urgency: false,
+    };
     
     // Build comprehensive context object
     const fullContext: Record<string, unknown> = {
@@ -311,30 +340,57 @@ export async function POST(req: Request) {
     const generatedSections: Record<string, string> = {};
     
     // 1. Generate Subject Line with 70% of fields
-    const subjectContext = selectFieldsForContext(fullContext);
-    generatedSections.subjectLine = await generateSection('subject', subjectContext, {}, lengthOption, toneOption);
+    if (enabledSections.subject !== false) {
+      const subjectContext = selectFieldsForContext(fullContext);
+      generatedSections.subjectLine = await generateSection('subject', subjectContext, {}, lengthOption, toneOption);
+    }
     
     // 2. Generate Hook with subject + 70% of fields
-    const hookContext = selectFieldsForContext(fullContext);
-    generatedSections.hookText = await generateSection('hook', hookContext, 
-      { subjectLine: generatedSections.subjectLine }, lengthOption, toneOption);
+    if (enabledSections.hook !== false) {
+      const hookContext = selectFieldsForContext(fullContext);
+      generatedSections.hookText = await generateSection('hook', hookContext, 
+        generatedSections.subjectLine ? { subjectLine: generatedSections.subjectLine } : {}, 
+        lengthOption, toneOption);
+    }
     
     // 3. Generate CTA with subject + hook + 70% of fields
-    const ctaContext = selectFieldsForContext(fullContext);
-    generatedSections.ctaText = await generateSection('cta', ctaContext, 
-      { 
-        subjectLine: generatedSections.subjectLine,
-        hookText: generatedSections.hookText 
-      }, lengthOption, toneOption);
+    if (enabledSections.cta !== false) {
+      const ctaContext = selectFieldsForContext(fullContext);
+      generatedSections.ctaText = await generateSection('cta', ctaContext, 
+        { 
+          ...(generatedSections.subjectLine && { subjectLine: generatedSections.subjectLine }),
+          ...(generatedSections.hookText && { hookText: generatedSections.hookText })
+        }, lengthOption, toneOption);
+    }
     
     // 4. Generate Offer with all previous + 70% of fields
-    const offerContext = selectFieldsForContext(fullContext);
-    generatedSections.offerText = await generateSection('offer', offerContext, 
-      { 
-        subjectLine: generatedSections.subjectLine,
-        hookText: generatedSections.hookText,
-        ctaText: generatedSections.ctaText
-      }, lengthOption, toneOption);
+    if (enabledSections.offer !== false) {
+      const offerContext = selectFieldsForContext(fullContext);
+      generatedSections.offerText = await generateSection('offer', offerContext, 
+        { 
+          ...(generatedSections.subjectLine && { subjectLine: generatedSections.subjectLine }),
+          ...(generatedSections.hookText && { hookText: generatedSections.hookText }),
+          ...(generatedSections.ctaText && { ctaText: generatedSections.ctaText })
+        }, lengthOption, toneOption);
+    }
+    
+    // 5. Generate PS line if enabled
+    if (enabledSections.ps) {
+      const psContext = selectFieldsForContext(fullContext);
+      generatedSections.psText = await generateSection('ps', psContext, generatedSections, lengthOption, toneOption);
+    }
+    
+    // 6. Generate testimonial if enabled
+    if (enabledSections.testimonial) {
+      const testimonialContext = selectFieldsForContext(fullContext);
+      generatedSections.testimonialText = await generateSection('testimonial', testimonialContext, generatedSections, lengthOption, toneOption);
+    }
+    
+    // 7. Generate urgency line if enabled
+    if (enabledSections.urgency) {
+      const urgencyContext = selectFieldsForContext(fullContext);
+      generatedSections.urgencyText = await generateSection('urgency', urgencyContext, generatedSections, lengthOption, toneOption);
+    }
     
     return NextResponse.json({
       ...generatedSections,
@@ -343,7 +399,8 @@ export async function POST(req: Request) {
         toneOption,
         contextFieldsUsed: Object.keys(fullContext).length,
         workflowStepsIncluded: payload.workflowSteps?.length || 0,
-        emailContextProvided: !!payload.emailContext && Object.values(payload.emailContext).some(arr => arr && arr.length > 0)
+        emailContextProvided: !!payload.emailContext && Object.values(payload.emailContext).some(arr => arr && arr.length > 0),
+        enabledSections
       }
     });
 

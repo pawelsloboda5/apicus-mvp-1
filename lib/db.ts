@@ -63,6 +63,9 @@ export interface Scenario {
   emailCtaText?: string;
   emailSubjectLine?: string;
   emailOfferText?: string;
+  emailPsText?: string;
+  emailTestimonialText?: string;
+  emailUrgencyText?: string;
 }
 
 export interface FlowNode {
@@ -182,6 +185,9 @@ class ApicusDB extends Dexie {
           if (!sc.emailCtaText) sc.emailCtaText = "I packaged the numbers and a quick how it works diagram into a one-page PDF here:";
           if (!sc.emailSubjectLine) sc.emailSubjectLine = "Streamline Your Workflow & See Immediate ROI";
           if (!sc.emailOfferText) sc.emailOfferText = "If you'd like, I can spin up a <strong>2-week pilot</strong> in your Zapier workspace—no code, no disruption—to prove the savings on live data.";
+          if (!sc.emailPsText) sc.emailPsText = "PS - Most teams see results within the first 48 hours of setup.";
+          if (!sc.emailTestimonialText) sc.emailTestimonialText = "";
+          if (!sc.emailUrgencyText) sc.emailUrgencyText = "";
         });
       });
   }
@@ -226,6 +232,9 @@ export async function createScenario(name: string): Promise<number> {
     emailCtaText: "I packaged the numbers and a quick how it works diagram into a one-page PDF here:",
     emailSubjectLine: "Streamline Your Workflow & See Immediate ROI",
     emailOfferText: "If you'd like, I can spin up a <strong>2-week pilot</strong> in your Zapier workspace—no code, no disruption—to prove the savings on live data.",
+    emailPsText: "PS - Most teams see results within the first 48 hours of setup.",
+    emailTestimonialText: "",
+    emailUrgencyText: "",
   });
 }
 

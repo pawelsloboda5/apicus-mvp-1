@@ -45,7 +45,6 @@ export async function POST(req: Request) {
       textToRewrite, 
       systemPrompt, 
       lengthOption = 'standard',
-      section,
       previousSections = {}
     } = await req.json();
 

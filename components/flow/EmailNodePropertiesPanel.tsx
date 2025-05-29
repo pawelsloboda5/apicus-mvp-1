@@ -13,9 +13,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { EmailPreviewNodeData } from './EmailPreviewNode';
 import { Node } from '@xyflow/react';
-import { Loader2, Wand2, ChevronDown, Check } from 'lucide-react';
+import { Loader2, Wand2, ChevronDown, Check, Info } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,17 +26,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 
+interface EmailContextNode {
+  id: string;
+  type: string;
+  label: string;
+  value: string | string[];
+}
+
 interface EmailNodePropertiesPanelProps {
   selectedNode: Node<EmailPreviewNodeData> | null;
   onClose: () => void;
   onUpdateNodeData: (nodeId: string, data: Partial<EmailPreviewNodeData>) => void;
   onGenerateSection: (
     nodeId: string,
-    section: 'hook' | 'cta' | 'offer' | 'subject',
+    section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
     promptType: string,
-    currentText: string
+    currentText: string,
+    selectedContextNodes?: string[]
   ) => Promise<void>;
   isGeneratingAIContent: boolean;
+  emailContextNodes?: EmailContextNode[];
 }
 
 const AI_PROMPT_OPTIONS = {
@@ -58,6 +69,21 @@ const AI_PROMPT_OPTIONS = {
     { label: 'Expert Guide', value: 'expert_offer' },
     { label: 'Partnership Approach', value: 'partner_offer' },
   ],
+  ps: [
+    { label: 'Additional Benefit', value: 'benefit_ps' },
+    { label: 'Create Urgency', value: 'urgency_ps' },
+    { label: 'Social Proof', value: 'social_ps' },
+  ],
+  testimonial: [
+    { label: 'Similar Company', value: 'peer_testimonial' },
+    { label: 'Impressive Metrics', value: 'metrics_testimonial' },
+    { label: 'Quick Win Story', value: 'quick_testimonial' },
+  ],
+  urgency: [
+    { label: 'Limited Time', value: 'time_urgency' },
+    { label: 'Competitive Edge', value: 'competitive_urgency' },
+    { label: 'Capacity Scarcity', value: 'scarcity_urgency' },
+  ],
   length: [
     { label: 'Concise', value: 'concise' },
     { label: 'Standard', value: 'standard' },
@@ -77,10 +103,28 @@ export function EmailNodePropertiesPanel({
   onUpdateNodeData,
   onGenerateSection,
   isGeneratingAIContent,
+  emailContextNodes,
 }: EmailNodePropertiesPanelProps) {
   const [formData, setFormData] = useState<Partial<EmailPreviewNodeData>>({});
   const [selectedLength, setSelectedLength] = useState<'concise' | 'standard' | 'detailed'>('standard');
   const [selectedTone, setSelectedTone] = useState<string>('professional_warm');
+  const [selectedContextNodes, setSelectedContextNodes] = useState<Set<string>>(new Set());
+
+  // Initialize selected context nodes with smart defaults
+  useEffect(() => {
+    if (emailContextNodes && emailContextNodes.length > 0 && selectedContextNodes.size === 0) {
+      const smartDefaults = new Set<string>();
+      
+      // Add one of each type by default (if available)
+      const typePriority = ['persona', 'painpoint', 'value', 'urgency'];
+      typePriority.forEach(type => {
+        const node = emailContextNodes.find(n => n.type === type);
+        if (node) smartDefaults.add(node.id);
+      });
+      
+      setSelectedContextNodes(smartDefaults);
+    }
+  }, [emailContextNodes, selectedContextNodes.size]);
 
   useEffect(() => {
     if (selectedNode) {
@@ -100,7 +144,7 @@ export function EmailNodePropertiesPanel({
 
   const handleInputChange = (
     field: keyof EmailPreviewNodeData,
-    value: string
+    value: string | boolean
   ) => {
     const newFormData = { ...formData, [field]: value };
     setFormData(newFormData);
@@ -112,16 +156,29 @@ export function EmailNodePropertiesPanel({
   };
 
   const renderAISection = (
-    sectionName: 'Subject Line' | 'Hook Text' | 'CTA Text' | 'Offer Text',
-    fieldKey: 'subjectLine' | 'hookText' | 'ctaText' | 'offerText',
-    promptKey: 'subject' | 'hook' | 'cta' | 'offer'
+    sectionName: 'Subject Line' | 'Hook Text' | 'CTA Text' | 'Offer Text' | 'PS Line' | 'Testimonial' | 'Urgency Line',
+    fieldKey: 'subjectLine' | 'hookText' | 'ctaText' | 'offerText' | 'psText' | 'testimonialText' | 'urgencyText',
+    promptKey: 'subject' | 'hook' | 'cta' | 'offer' | 'ps' | 'testimonial' | 'urgency',
+    showToggle: boolean = false,
+    toggleKey?: 'showPS' | 'showTestimonial' | 'showUrgency'
   ) => {
+    const isEnabled = !toggleKey || formData[toggleKey] !== false;
+    
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor={fieldKey} className="text-base font-medium">
-            {sectionName}
-          </Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor={fieldKey} className="text-base font-medium">
+              {sectionName}
+            </Label>
+            {showToggle && toggleKey && (
+              <Checkbox
+                checked={isEnabled}
+                onCheckedChange={(checked) => handleInputChange(toggleKey, !!checked)}
+                aria-label={`Enable ${sectionName}`}
+              />
+            )}
+          </div>
           <div className="flex gap-2">
             {/* Length selector */}
             <DropdownMenu>
@@ -130,7 +187,7 @@ export function EmailNodePropertiesPanel({
                   variant="outline" 
                   size="sm" 
                   className="px-2 py-1 h-auto text-xs" 
-                  disabled={isGeneratingAIContent}
+                  disabled={isGeneratingAIContent || !isEnabled}
                 >
                   {AI_PROMPT_OPTIONS.length.find(opt => opt.value === selectedLength)?.label || 'Standard'}
                   <ChevronDown className="h-3 w-3 ml-1" />
@@ -164,7 +221,7 @@ export function EmailNodePropertiesPanel({
                   variant="outline" 
                   size="sm" 
                   className="px-2 py-1 h-auto text-xs" 
-                  disabled={isGeneratingAIContent}
+                  disabled={isGeneratingAIContent || !isEnabled}
                 >
                   {isGeneratingAIContent ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -186,7 +243,8 @@ export function EmailNodePropertiesPanel({
                           selectedNode.id,
                           promptKey,
                           opt.value + '_' + selectedLength + '_' + selectedTone, // Include tone
-                          formData[fieldKey] || ''
+                          formData[fieldKey] || '',
+                          Array.from(selectedContextNodes)
                         );
                       }
                     }}
@@ -204,7 +262,8 @@ export function EmailNodePropertiesPanel({
              value={formData[fieldKey] || ''}
              onChange={(e) => handleInputChange(fieldKey, e.target.value)}
              placeholder={`Enter ${sectionName}`}
-             disabled={isGeneratingAIContent}
+             disabled={isGeneratingAIContent || !isEnabled}
+             className={cn(!isEnabled && "opacity-50")}
            />
         ) : (
           <Textarea
@@ -212,9 +271,14 @@ export function EmailNodePropertiesPanel({
             value={formData[fieldKey] || ''}
             onChange={(e) => handleInputChange(fieldKey, e.target.value)}
             placeholder={`Enter ${sectionName}`}
-            rows={fieldKey === 'hookText' ? 5 : (fieldKey === 'offerText' ? 4 : 3)}
-            className="min-h-[80px] resize-none"
-            disabled={isGeneratingAIContent}
+            rows={
+              fieldKey === 'hookText' ? 5 : 
+              fieldKey === 'offerText' ? 4 : 
+              (fieldKey === 'psText' || fieldKey === 'urgencyText') ? 2 : 
+              3
+            }
+            className={cn("min-h-[60px] resize-none", !isEnabled && "opacity-50")}
+            disabled={isGeneratingAIContent || !isEnabled}
           />
         )}
       </div>
@@ -383,11 +447,135 @@ export function EmailNodePropertiesPanel({
                   </p>
                 </div>
                 
+                {/* Email Context Nodes Selection */}
+                {emailContextNodes && emailContextNodes.length > 0 && (
+                  <Card className="bg-muted/20">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">
+                          Email Context to Include
+                        </Label>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Info className="h-3 w-3" />
+                          <span>{selectedContextNodes.size} selected</span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-muted-foreground">
+                        Select which context elements to use when generating email content
+                      </p>
+                      
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                        {emailContextNodes.map((node) => {
+                          const isSelected = selectedContextNodes.has(node.id);
+                          const nodeTypeColors: Record<string, string> = {
+                            persona: 'text-purple-600 dark:text-purple-400',
+                            industry: 'text-blue-600 dark:text-blue-400',
+                            painpoint: 'text-red-600 dark:text-red-400',
+                            metric: 'text-green-600 dark:text-green-400',
+                            urgency: 'text-orange-600 dark:text-orange-400',
+                            socialproof: 'text-cyan-600 dark:text-cyan-400',
+                            objection: 'text-amber-600 dark:text-amber-400',
+                            value: 'text-emerald-600 dark:text-emerald-400',
+                          };
+                          
+                          return (
+                            <label
+                              key={node.id}
+                              className="flex items-start space-x-2 cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-colors"
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  const newSelection = new Set(selectedContextNodes);
+                                  if (checked) {
+                                    newSelection.add(node.id);
+                                  } else {
+                                    newSelection.delete(node.id);
+                                  }
+                                  setSelectedContextNodes(newSelection);
+                                }}
+                                className="mt-0.5"
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className={cn(
+                                    "text-xs font-medium capitalize",
+                                    nodeTypeColors[node.type] || 'text-foreground'
+                                  )}>
+                                    {node.type}
+                                  </span>
+                                  <span className="text-sm">{node.label}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                  {Array.isArray(node.value) 
+                                    ? node.value.join(', ').substring(0, 60) + (node.value.join(', ').length > 60 ? '...' : '')
+                                    : String(node.value).substring(0, 60) + (String(node.value).length > 60 ? '...' : '')
+                                  }
+                                </div>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            const allIds = new Set(emailContextNodes.map(n => n.id));
+                            setSelectedContextNodes(allIds);
+                          }}
+                        >
+                          Select All
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => setSelectedContextNodes(new Set())}
+                        >
+                          Clear All
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            const smartDefaults = new Set<string>();
+                            const typePriority = ['persona', 'painpoint', 'value', 'urgency'];
+                            typePriority.forEach(type => {
+                              const node = emailContextNodes.find(n => n.type === type);
+                              if (node) smartDefaults.add(node.id);
+                            });
+                            setSelectedContextNodes(smartDefaults);
+                          }}
+                        >
+                          Smart Selection
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
                 <div className="space-y-6">
+                  {/* Core sections */}
                   {renderAISection('Subject Line', 'subjectLine', 'subject')}
                   {renderAISection('Hook Text', 'hookText', 'hook')}
                   {renderAISection('CTA Text', 'ctaText', 'cta')}
                   {renderAISection('Offer Text', 'offerText', 'offer')}
+                  
+                  {/* Optional sections with toggles */}
+                  <div className="pt-4 border-t">
+                    <h5 className="text-sm font-medium mb-4 text-muted-foreground">Optional Sections</h5>
+                    <div className="space-y-6">
+                      {renderAISection('PS Line', 'psText', 'ps', true, 'showPS')}
+                      {renderAISection('Testimonial', 'testimonialText', 'testimonial', true, 'showTestimonial')}
+                      {renderAISection('Urgency Line', 'urgencyText', 'urgency', true, 'showUrgency')}
+                    </div>
+                  </div>
                 </div>
               </div>
 

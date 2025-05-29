@@ -5,6 +5,7 @@
 
 import { Node } from "@xyflow/react";
 import { NodeType, PlatformType } from "@/lib/types";
+import type { PlatformPricing } from "@/app/api/data/pricing";
 
 /**
  * Calculate the total time value of automation
@@ -74,7 +75,7 @@ export function calculateRevenueValue(
 export function calculatePlatformCost(
   platform: PlatformType,
   runsPerMonth: number,
-  pricing: any,
+  pricing: Record<"zapier" | "make" | "n8n", PlatformPricing>,
   stepsPerRun: number = 5
 ): number {
   if (!pricing[platform]) return 0;
@@ -254,7 +255,7 @@ export function calculateGroupROI(
     taskMultiplier: number;
     platform: string;
   },
-  pricing: Record<string, unknown>
+  pricing: Record<"zapier" | "make" | "n8n", PlatformPricing>
 ) {
   const { runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, platform } = baseParams;
   

@@ -19,6 +19,15 @@ export interface EmailTemplateProps {
   ctaText?: string; // Added for dynamic CTA section
   subjectLine?: string; // New: For the email subject
   offerText?: string; // New: For the offer paragraph
+  psText?: string; // New: PS line
+  testimonialText?: string; // New: Testimonial quote
+  urgencyText?: string; // New: Urgency line
+  
+  // Section visibility flags
+  showPS?: boolean;
+  showTestimonial?: boolean;
+  showUrgency?: boolean;
+  
   stats?: {
     roiX?: number;      // e.g. 45
     payback?: string;   // e.g. "< 1 day"
@@ -37,6 +46,12 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
   ctaText = "I packaged the numbers and a quick how it works diagram into a one-page PDF here:",
   subjectLine = "Automate Your [Task] & See ROI", // New default
   offerText = "If you'd like, I can spin up a <strong>2-week pilot</strong> in your Zapier workspace—no code, no disruption—to prove the savings on live data.", // New default
+  psText = "PS - Most teams see results within the first 48 hours of setup.",
+  testimonialText = '"We saved 20 hours per week in the first month" - Alex Chen, Ops Director',
+  urgencyText = "Our calendar is filling up fast for Q1 implementations.",
+  showPS = true,
+  showTestimonial = false,
+  showUrgency = false,
   stats = { roiX: 0, payback: "N/A", runs: 0 },
 }) => {
   // Build the raw HTML only once per prop‑set
@@ -63,6 +78,17 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
             </p>
           </td>
         </tr>
+        ${showTestimonial && testimonialText ? `
+        <tr>
+          <td style="padding:0 20px 14px 20px;">
+            <div style="background:#f8f9fa;border-left:3px solid #3B82F6;padding:12px;margin:0;">
+              <p style="margin:0;font-size:13px;color:#555555;font-style:italic;line-height:1.4;">
+                ${testimonialText}
+              </p>
+            </div>
+          </td>
+        </tr>
+        ` : ''}
         <tr>
           <td align="center" style="padding:6px 20px;">
             <table width="100%" cellpadding="0" cellspacing="0">
@@ -93,6 +119,15 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
             </p>
           </td>
         </tr>
+        ${showUrgency && urgencyText ? `
+        <tr>
+          <td style="padding:0 20px 14px 20px;">
+            <p style="margin:0;font-size:13px;color:#ef4444;font-weight:500;text-align:center;">
+              ${urgencyText}
+            </p>
+          </td>
+        </tr>
+        ` : ''}
         <tr>
           <td style="padding:4px 20px 14px 20px;">
             <p style="margin:0;font-size:14px;color:#333333;line-height:1.4;">
@@ -110,6 +145,15 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
             </p>
           </td>
         </tr>
+        ${showPS && psText ? `
+        <tr>
+          <td style="padding:0 20px 20px 20px;">
+            <p style="margin:0;font-size:13px;color:#666666;font-style:italic;">
+              ${psText}
+            </p>
+          </td>
+        </tr>
+        ` : ''}
         <tr>
           <td style="background:#f6f7fb;border-bottom-left-radius:8px;border-bottom-right-radius:8px;padding:10px 20px;font-size:10px;color:#888888;text-align:center;">
             Generated with Apicus • ${new Date().toLocaleDateString()}
@@ -120,7 +164,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
   </tr>
 </table>
 <!-- === End email === -->`;
-  }, [firstName, yourName, yourCompany, yourEmail, calendlyLink, pdfLink, hookText, ctaText, subjectLine, offerText, stats]);
+  }, [firstName, yourName, yourCompany, yourEmail, calendlyLink, pdfLink, hookText, ctaText, subjectLine, offerText, psText, testimonialText, urgencyText, showPS, showTestimonial, showUrgency, stats]);
 
   // Copy helper
   const copyToClipboard = () => {

@@ -1065,6 +1065,27 @@ function BuildPageContent() {
     return filtered;
   }, [nodes]);
 
+  // Collect email context nodes for the email properties panel
+  const emailContextNodes = useMemo(() => {
+    return nodes
+      .filter(node => {
+        const nodeData = node.data as unknown as NodeData;
+        return nodeData.isEmailContext || [
+          "persona", "industry", "painpoint", "metric", 
+          "urgency", "socialproof", "objection", "value"
+        ].includes(node.type || "");
+      })
+      .map(node => {
+        const nodeData = node.data as unknown as NodeData;
+        return {
+          id: node.id,
+          type: node.type || "",
+          label: nodeData.label || node.type || "",
+          value: nodeData.contextValue || "",
+        };
+      });
+  }, [nodes]);
+
   // ADD THE HANDLER FUNCTION HERE
   const handleGenerateEmailOnCanvas = useCallback(async () => {
     if (!currentScenario || !currentScenario.id || !rfInstance) {
@@ -1093,7 +1114,7 @@ function BuildPageContent() {
           // Clear it after reading
           localStorage.removeItem('emailTemplateDefaults');
         }
-      } catch (e) {
+      } catch {
         // Ignore localStorage errors
       }
 
@@ -1353,6 +1374,17 @@ function BuildPageContent() {
         // Default to standard length and professional_warm tone for initial generation
         lengthOption: 'standard' as const,
         toneOption: templateDefaults.toneOption || 'professional_warm',
+        
+        // Enable all sections by default for initial generation
+        enabledSections: {
+          subject: true,
+          hook: true,
+          cta: true,
+          offer: true,
+          ps: true,
+          testimonial: false, // Disabled by default
+          urgency: false, // Disabled by default
+        }
       };
 
       const response = await fetch('/api/openai/generate-full-email', {
@@ -1380,6 +1412,12 @@ function BuildPageContent() {
                 hookText: emailTexts.hookText || sc.emailHookText || 'Default hook text...',
                 ctaText: emailTexts.ctaText || sc.emailCtaText || 'Default CTA text...',
                 offerText: emailTexts.offerText || sc.emailOfferText || 'Default offer text...',
+                psText: emailTexts.psText || sc.emailPsText || 'PS - Most teams see results within 48 hours.',
+                testimonialText: emailTexts.testimonialText || sc.emailTestimonialText || '',
+                urgencyText: emailTexts.urgencyText || sc.emailUrgencyText || '',
+                showPS: true, // Show PS by default
+                showTestimonial: false, // Hidden by default
+                showUrgency: false, // Hidden by default
                 stats: { 
                   roiX: Math.round(roiRatio * 10) / 10,
                   payback: paybackPeriod,
@@ -1408,6 +1446,9 @@ function BuildPageContent() {
           emailHookText: emailTexts.hookText || sc.emailHookText,
           emailCtaText: emailTexts.ctaText || sc.emailCtaText,
           emailOfferText: emailTexts.offerText || sc.emailOfferText,
+          emailPsText: emailTexts.psText || sc.emailPsText,
+          emailTestimonialText: emailTexts.testimonialText || sc.emailTestimonialText,
+          emailUrgencyText: emailTexts.urgencyText || sc.emailUrgencyText,
           nodesSnapshot: flowObject.nodes, // Include the updated nodes with email node
           edgesSnapshot: flowObject.edges, // Include current edges
           viewport: flowObject.viewport, // Include current viewport
@@ -1476,9 +1517,10 @@ function BuildPageContent() {
   const handleGenerateEmailSectionAI = useCallback(
     async (
       nodeId: string,
-      section: 'hook' | 'cta' | 'offer' | 'subject',
+      section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
       promptType: string, // This will be like 'time_cost_hook_standard_professional_warm', etc.
-      currentText: string
+      currentText: string,
+      selectedContextNodes?: string[]
     ) => {
       if (!currentScenario) {
         alert("No active scenario selected.");
@@ -1505,6 +1547,64 @@ function BuildPageContent() {
         const platformData = pricing[sc.platform || 'zapier'];
         const baseMonthlyCost = platformData.tiers[0]?.monthlyUSD || platformCostValue;
         const paybackPeriodDays = calculatePaybackPeriod(baseMonthlyCost, netROIValue);
+
+        // Collect email context from selected nodes
+        const emailContext: Record<string, string[]> = {
+          personas: [],
+          industries: [],
+          painPoints: [],
+          metrics: [],
+          urgencyFactors: [],
+          socialProofs: [],
+          objections: [],
+          valueProps: [],
+        };
+
+        if (selectedContextNodes && selectedContextNodes.length > 0) {
+          const contextNodes = nodes.filter(node => selectedContextNodes.includes(node.id));
+          
+          contextNodes.forEach(node => {
+            const nodeData = node.data as unknown as NodeData;
+            const contextValue = nodeData.contextValue || nodeData.label || "";
+            const nodeType = node.type || "";
+            
+            // Parse the value if it's JSON (for multi-select values)
+            let values: string[] = [];
+            try {
+              const parsed = JSON.parse(contextValue as string);
+              values = Array.isArray(parsed) ? parsed : [contextValue as string];
+            } catch {
+              values = [contextValue as string];
+            }
+            
+            switch(nodeType) {
+              case "persona":
+                emailContext.personas.push(...values);
+                break;
+              case "industry":
+                emailContext.industries.push(...values);
+                break;
+              case "painpoint":
+                emailContext.painPoints.push(...values);
+                break;
+              case "metric":
+                emailContext.metrics.push(...values);
+                break;
+              case "urgency":
+                emailContext.urgencyFactors.push(...values);
+                break;
+              case "socialproof":
+                emailContext.socialProofs.push(...values);
+                break;
+              case "objection":
+                emailContext.objections.push(...values);
+                break;
+              case "value":
+                emailContext.valueProps.push(...values);
+                break;
+            }
+          });
+        }
 
         // Extract workflow information with non-default labels
         const workflowSteps = nodes
@@ -1588,7 +1688,10 @@ function BuildPageContent() {
             uniqueApps,
             keySteps: workflowSteps.slice(0, 5),
             automationType: workflowSteps[0]?.appName || 'Custom Workflow'
-          }
+          },
+          
+          // Email context from selected nodes
+          ...(selectedContextNodes && selectedContextNodes.length > 0 && { emailContext })
         };
 
         // Get the current email node to extract previous sections
@@ -1600,11 +1703,14 @@ function BuildPageContent() {
           if (section !== 'subject' && emailData.subjectLine) {
             previousSections.subjectLine = emailData.subjectLine;
           }
-          if ((section === 'cta' || section === 'offer') && emailData.hookText) {
+          if ((section === 'cta' || section === 'offer' || section === 'ps' || section === 'testimonial' || section === 'urgency') && emailData.hookText) {
             previousSections.hookText = emailData.hookText;
           }
-          if (section === 'offer' && emailData.ctaText) {
+          if ((section === 'offer' || section === 'ps' || section === 'testimonial' || section === 'urgency') && emailData.ctaText) {
             previousSections.ctaText = emailData.ctaText;
+          }
+          if ((section === 'ps' || section === 'testimonial' || section === 'urgency') && emailData.offerText) {
+            previousSections.offerText = emailData.offerText;
           }
         }
 
@@ -1632,6 +1738,15 @@ function BuildPageContent() {
         } else if (actualPromptType.includes('offer')) {
           const style = actualPromptType.replace('_offer', '').replace(/_/g, ' ');
           systemPrompt = `Rewrite this email offer section. Type: ${style}. ${toneGuidance}`;
+        } else if (actualPromptType.includes('ps')) {
+          const style = actualPromptType.replace('_ps', '').replace(/_/g, ' ');
+          systemPrompt = `Rewrite this PS line. Style: ${style}. ${toneGuidance}`;
+        } else if (actualPromptType.includes('testimonial')) {
+          const style = actualPromptType.replace('_testimonial', '').replace(/_/g, ' ');
+          systemPrompt = `Rewrite this testimonial quote. Style: ${style}. ${toneGuidance}`;
+        } else if (actualPromptType.includes('urgency')) {
+          const style = actualPromptType.replace('_urgency', '').replace(/_/g, ' ');
+          systemPrompt = `Rewrite this urgency line. Style: ${style}. ${toneGuidance}`;
         }
         
         const response = await fetch('/api/openai/generate-email-section', {
@@ -1867,6 +1982,7 @@ function BuildPageContent() {
               onUpdateNodeData={handleUpdateEmailNodeData}
               onGenerateSection={handleGenerateEmailSectionAI}
               isGeneratingAIContent={isGeneratingAIContent}
+              emailContextNodes={emailContextNodes}
             />
           </div>
 

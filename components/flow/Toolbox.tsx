@@ -29,7 +29,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AlternativeTemplateForDisplay } from "./AlternativeTemplatesSheet";
-import { Separator } from "@/components/ui/separator";
 
 const ITEMS: { type: NodeType; label: string }[] = [
   { type: "trigger", label: "Trigger" },
