@@ -1164,24 +1164,95 @@ function BuildPageContent() {
         }
       }, 100);
 
-      // Now generate the actual email content
-      const roiDataPayload = {
+      // Extract workflow information with non-default labels
+      const workflowSteps = nodes
+        .filter(node => {
+          // Filter out nodes with default labels
+          const defaultLabels = [
+            /^Trigger \d+$/,
+            /^Action \d+$/,
+            /^Decision \d+$/,
+            /^Group \d+$/,
+          ];
+          const nodeData = node.data as unknown as NodeData;
+          const label = nodeData?.label || '';
+          return !defaultLabels.some(pattern => pattern.test(label));
+        })
+        .map(node => {
+          const nodeData = node.data as unknown as NodeData;
+          return {
+            type: node.type || 'unknown',
+            label: nodeData?.label || '',
+            appName: nodeData?.appName,
+            action: nodeData?.action,
+          };
+        });
+
+      // Get unique apps from workflow
+      const uniqueApps = [...new Set(
+        nodes
+          .map(node => (node.data as unknown as NodeData)?.appName)
+          .filter(Boolean)
+      )] as string[];
+
+      // Calculate all ROI values
+      const timeValue = calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0);
+      const riskValue = calculateRiskValue(sc.complianceEnabled || false, sc.runsPerMonth || 0, sc.riskFrequency || 0, sc.errorCost || 0, sc.riskLevel || 0);
+      const revenueValue = calculateRevenueValue(sc.revenueEnabled || false, sc.monthlyVolume || 0, sc.conversionRate || 0, sc.valuePerConversion || 0);
+      const totalValue = calculateTotalValue(timeValue, riskValue, revenueValue);
+      const platformCost = calculatePlatformCost(sc.platform || 'zapier', sc.runsPerMonth || 0, pricing, sc.nodesSnapshot?.length || 0);
+      const netROI = calculateNetROI(totalValue, platformCost);
+      const roiRatio = calculateROIRatio(totalValue, platformCost);
+      const paybackDays = calculatePaybackPeriod(platformCost, netROI);
+      const paybackPeriod = formatPaybackPeriod(paybackDays);
+
+      // Build comprehensive payload
+      const comprehensivePayload = {
+        // Core scenario data
         scenarioName: sc.name,
         platform: sc.platform,
-        timeValue: calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0),
-        platformCost: calculatePlatformCost(sc.platform || 'zapier', sc.runsPerMonth || 0, pricing, sc.nodesSnapshot?.length || 0),
-        netROI: calculateNetROI(calculateTotalValue(calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0), calculateRiskValue(sc.complianceEnabled || false, sc.runsPerMonth || 0, sc.riskFrequency || 0, sc.errorCost || 0, sc.riskLevel || 0), calculateRevenueValue(sc.revenueEnabled || false, sc.monthlyVolume || 0, sc.conversionRate || 0, sc.valuePerConversion || 0)), calculatePlatformCost(sc.platform || 'zapier', sc.runsPerMonth || 0, pricing, sc.nodesSnapshot?.length || 0)),
-        roiRatio: calculateROIRatio(calculateTotalValue(calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0), calculateRiskValue(sc.complianceEnabled || false, sc.runsPerMonth || 0, sc.riskFrequency || 0, sc.errorCost || 0, sc.riskLevel || 0), calculateRevenueValue(sc.revenueEnabled || false, sc.monthlyVolume || 0, sc.conversionRate || 0, sc.valuePerConversion || 0)), calculatePlatformCost(sc.platform || 'zapier', sc.runsPerMonth || 0, pricing, sc.nodesSnapshot?.length || 0)),
-        paybackPeriod: formatPaybackPeriod(calculatePaybackPeriod(pricing[sc.platform || 'zapier'].tiers[0]?.monthlyUSD || calculatePlatformCost(sc.platform || 'zapier', sc.runsPerMonth || 0, pricing, sc.nodesSnapshot?.length || 0), calculateNetROI(calculateTotalValue(calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0), calculateRiskValue(sc.complianceEnabled || false, sc.runsPerMonth || 0, sc.riskFrequency || 0, sc.errorCost || 0, sc.riskLevel || 0), calculateRevenueValue(sc.revenueEnabled || false, sc.monthlyVolume || 0, sc.conversionRate || 0, sc.valuePerConversion || 0)), calculatePlatformCost(sc.platform || 'zapier', sc.runsPerMonth || 0, pricing, sc.nodesSnapshot?.length || 0)))),
+        taskType: sc.taskType || 'general',
+        
+        // Basic metrics
         runsPerMonth: sc.runsPerMonth,
         minutesPerRun: sc.minutesPerRun,
-        nodeCount: sc.nodesSnapshot?.length || 0,
+        hourlyRate: sc.hourlyRate,
+        taskMultiplier: sc.taskMultiplier,
+        
+        // Calculated ROI values
+        timeValue,
+        platformCost,
+        netROI,
+        roiRatio,
+        paybackPeriod,
+        
+        // Revenue metrics (if enabled)
+        revenueEnabled: sc.revenueEnabled,
+        monthlyVolume: sc.monthlyVolume,
+        conversionRate: sc.conversionRate,
+        valuePerConversion: sc.valuePerConversion,
+        revenueValue,
+        
+        // Compliance metrics (if enabled)
+        complianceEnabled: sc.complianceEnabled,
+        riskLevel: sc.riskLevel,
+        riskFrequency: sc.riskFrequency,
+        errorCost: sc.errorCost,
+        riskValue,
+        
+        // Workflow information
+        workflowSteps,
+        totalSteps: nodes.filter(n => n.type !== 'group').length,
+        uniqueApps,
+        
+        // Default to standard length for initial generation
+        lengthOption: 'standard' as const,
       };
 
       const response = await fetch('/api/openai/generate-full-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roiData: roiDataPayload, scenarioName: sc.name, platform: sc.platform }),
+        body: JSON.stringify(comprehensivePayload),
       });
 
       if (!response.ok) {
@@ -1204,11 +1275,12 @@ function BuildPageContent() {
                 ctaText: emailTexts.ctaText || sc.emailCtaText || 'Default CTA text...',
                 offerText: emailTexts.offerText || sc.emailOfferText || 'Default offer text...',
                 stats: { 
-                  roiX: Math.round((roiDataPayload.roiRatio || 0) * 100),
-                  payback: roiDataPayload.paybackPeriod,
-                  runs: roiDataPayload.runsPerMonth || 0,
+                  roiX: Math.round(roiRatio * 10) / 10,
+                  payback: paybackPeriod,
+                  runs: sc.runsPerMonth || 0,
                 },
-                isLoading: false // Remove loading flag
+                isLoading: false, // Remove loading flag
+                lengthOption: 'standard', // Store current length option
               }
             };
           }
@@ -1281,7 +1353,7 @@ function BuildPageContent() {
         setIsManipulatingNodesProgrammatically(false);
       }, 500);
     }
-  }, [currentScenario, rfInstance, setNodes, setCurrentScenario]);
+  }, [currentScenario, rfInstance, setNodes, setCurrentScenario, nodes]);
 
   const handleUpdateEmailNodeData = useCallback((nodeId: string, data: Partial<EmailPreviewNodeData>) => {
     setNodes((nds) =>
@@ -1298,7 +1370,7 @@ function BuildPageContent() {
     async (
       nodeId: string,
       section: 'hook' | 'cta' | 'offer' | 'subject',
-      promptType: string, // This will be like 'time_cost_hook', 'direct_cta' etc.
+      promptType: string, // This will be like 'time_cost_hook_standard', 'direct_cta_concise' etc.
       currentText: string
     ) => {
       if (!currentScenario) {
@@ -1308,6 +1380,13 @@ function BuildPageContent() {
       setIsGeneratingAIContent(true);
       try {
         const sc = currentScenario;
+        
+        // Extract length option from promptType
+        const parts = promptType.split('_');
+        const lengthOption = parts[parts.length - 1] as 'concise' | 'standard' | 'detailed';
+        const actualPromptType = parts.slice(0, -1).join('_');
+        
+        // Calculate all ROI values
         const timeValue = calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0);
         const riskValue = calculateRiskValue(sc.complianceEnabled || false, sc.runsPerMonth || 0, sc.riskFrequency || 0, sc.errorCost || 0, sc.riskLevel || 0);
         const revenueValue = calculateRevenueValue(sc.revenueEnabled || false, sc.monthlyVolume || 0, sc.conversionRate || 0, sc.valuePerConversion || 0);
@@ -1319,25 +1398,122 @@ function BuildPageContent() {
         const baseMonthlyCost = platformData.tiers[0]?.monthlyUSD || platformCostValue;
         const paybackPeriodDays = calculatePaybackPeriod(baseMonthlyCost, netROIValue);
 
+        // Extract workflow information with non-default labels
+        const workflowSteps = nodes
+          .filter(node => {
+            const defaultLabels = [
+              /^Trigger \d+$/,
+              /^Action \d+$/,
+              /^Decision \d+$/,
+              /^Group \d+$/,
+            ];
+            const nodeData = node.data as unknown as NodeData;
+            const label = nodeData?.label || '';
+            return !defaultLabels.some(pattern => pattern.test(label));
+          })
+          .map(node => {
+            const nodeData = node.data as unknown as NodeData;
+            return {
+              type: node.type || 'unknown',
+              label: nodeData?.label || '',
+              appName: nodeData?.appName,
+              action: nodeData?.action,
+            };
+          });
+
+        // Get unique apps from workflow
+        const uniqueApps = [...new Set(
+          nodes
+            .map(node => (node.data as unknown as NodeData)?.appName)
+            .filter(Boolean)
+        )] as string[];
+
+        // Build comprehensive ROI payload
         const roiDataPayload = {
+          // Core scenario data
           scenarioName: sc.name,
+          platform: sc.platform,
+          taskType: sc.taskType || 'general',
+          
+          // Basic metrics
+          runsPerMonth: sc.runsPerMonth,
+          minutesPerRun: sc.minutesPerRun,
+          hourlyRate: sc.hourlyRate,
+          taskMultiplier: sc.taskMultiplier,
+          
+          // Calculated ROI values
           timeValue,
           platformCost: platformCostValue,
           netROI: netROIValue,
           roiRatio: roiRatioValue,
           paybackPeriod: formatPaybackPeriod(paybackPeriodDays),
-          runsPerMonth: sc.runsPerMonth,
-          minutesPerRun: sc.minutesPerRun,
-          platform: sc.platform,
-          nodeCount: sc.nodesSnapshot?.length || 0,
+          
+          // Time saved calculations
+          totalHoursSaved: ((sc.runsPerMonth || 0) * (sc.minutesPerRun || 0)) / 60,
+          dailyTimeSaved: ((sc.runsPerMonth || 0) * (sc.minutesPerRun || 0)) / 60 / 30,
+          
+          // Revenue metrics (if enabled)
+          ...(sc.revenueEnabled && {
+            revenueMetrics: {
+              monthlyVolume: sc.monthlyVolume || 0,
+              conversionRate: sc.conversionRate || 0,
+              valuePerConversion: sc.valuePerConversion || 0,
+              totalRevenueImpact: revenueValue,
+              additionalConversions: ((sc.monthlyVolume || 0) * ((sc.conversionRate || 0) / 100))
+            }
+          }),
+          
+          // Compliance metrics (if enabled)
+          ...(sc.complianceEnabled && {
+            complianceMetrics: {
+              riskLevel: sc.riskLevel || 0,
+              riskFrequency: sc.riskFrequency || 0,
+              errorCost: sc.errorCost || 0,
+              totalRiskMitigation: riskValue,
+              errorsPreventedMonthly: ((sc.runsPerMonth || 0) * ((sc.riskFrequency || 0) / 100))
+            }
+          }),
+          
+          // Workflow context
+          workflowSummary: {
+            totalSteps: nodes.filter(n => n.type !== 'group').length,
+            uniqueApps,
+            keySteps: workflowSteps.slice(0, 5),
+            automationType: workflowSteps[0]?.appName || 'Custom Workflow'
+          }
         };
 
-        // Map promptType (e.g., 'subject') to a more general system prompt for the API
-        let systemPrompt = "Rewrite the following email section."; // Default
-        if (promptType.includes('subject')) systemPrompt = `Rewrite this email subject line. Style: ${promptType.split('_')[0]}.`;
-        else if (promptType.includes('hook')) systemPrompt = `Rewrite this email hook section. Style: ${promptType.split('_')[0]}.`;
-        else if (promptType.includes('cta')) systemPrompt = `Rewrite this email CTA section. Style: ${promptType.split('_')[0]}.`;
-        else if (promptType.includes('offer')) systemPrompt = `Rewrite this email offer section. Style: ${promptType.split('_')[0]}.`;
+        // Get the current email node to extract previous sections
+        const emailNode = nodes.find(n => n.id === nodeId && n.type === 'emailPreview');
+        const emailData = emailNode?.data as EmailPreviewNodeData | undefined;
+        
+        const previousSections: Record<string, string> = {};
+        if (emailData) {
+          if (section !== 'subject' && emailData.subjectLine) {
+            previousSections.subjectLine = emailData.subjectLine;
+          }
+          if ((section === 'cta' || section === 'offer') && emailData.hookText) {
+            previousSections.hookText = emailData.hookText;
+          }
+          if (section === 'offer' && emailData.ctaText) {
+            previousSections.ctaText = emailData.ctaText;
+          }
+        }
+
+        // Map promptType to a more descriptive system prompt
+        let systemPrompt = "Rewrite the following email section.";
+        if (actualPromptType.includes('subject')) {
+          systemPrompt = `Rewrite this email subject line. Style: ${actualPromptType.split('_')[0]}.`;
+        } else if (actualPromptType.includes('hook')) {
+          const style = actualPromptType.replace('_hook', '').replace(/_/g, ' ');
+          systemPrompt = `Rewrite this email hook section with focus on: ${style}.`;
+        } else if (actualPromptType.includes('cta')) {
+          const style = actualPromptType.replace('_cta', '').replace(/_/g, ' ');
+          systemPrompt = `Rewrite this email CTA section. Style: ${style}.`;
+        } else if (actualPromptType.includes('offer')) {
+          const style = actualPromptType.replace('_offer', '').replace(/_/g, ' ');
+          systemPrompt = `Rewrite this email offer section. Type: ${style}.`;
+        }
         
         const response = await fetch('/api/openai/generate-email-section', {
           method: 'POST',
@@ -1346,6 +1522,9 @@ function BuildPageContent() {
             roiData: roiDataPayload,
             textToRewrite: currentText,
             systemPrompt,
+            lengthOption,
+            section,
+            previousSections,
           }),
         });
 
@@ -1365,7 +1544,7 @@ function BuildPageContent() {
         setIsGeneratingAIContent(false);
       }
     },
-    [currentScenario, handleUpdateEmailNodeData]
+    [currentScenario, handleUpdateEmailNodeData, nodes]
   );
 
   // Moved the loading return to before the main return, after all hooks

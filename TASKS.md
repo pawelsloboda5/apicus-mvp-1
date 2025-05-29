@@ -265,6 +265,84 @@ const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('action');
 - [ ] Add functionality to copy HTML and download email template.
 - [ ] Document email generation feature in `README.md` and relevant task files.
 
+## Enhanced Email Generation Feature (Priority) 3-4hrs
+
+### Phase 1: Comprehensive Context Generation
+- [x] **Update ROI Data Payload**: Include all scenario fields in email generation context
+  - [x] Task type and multiplier
+  - [x] Minutes saved per run and hourly wage
+  - [x] Lead conversion metrics (if revenue enabled)
+  - [x] Compliance/risk metrics (if compliance enabled)
+  - [x] Platform-specific details and costs
+  - [x] All calculated ROI values (timeValue, netROI, roiRatio, paybackPeriod)
+
+- [x] **Workflow Context Extraction**: Include non-default node information
+  - [x] Filter nodes with custom labels (not "Action #", "Trigger #", etc.)
+  - [x] Extract node types, app names, and configurations
+  - [x] Create workflow summary for AI context
+
+### Phase 2: Sequential Generation with Context Building
+- [x] **Implement Sequential Generation**:
+  - [x] Generate Subject Line first with 70% of ROI fields
+  - [x] Generate Hook Text with subject line + 70% of fields in context
+  - [x] Generate CTA Text with subject + hook + 70% of fields in context
+  - [x] Generate Offer Text with all previous sections + 70% of fields in context
+
+- [x] **API Endpoint Updates**:
+  - [x] Modify `/api/openai/generate-full-email` to handle sequential generation
+  - [x] Add context accumulation between generation steps
+  - [x] Implement field selection logic (70% overlap strategy)
+
+### Phase 3: Length Variations and Regeneration
+- [x] **Add Length Options**:
+  - [x] Implement three length zones: Concise, Standard, Detailed
+  - [x] Add length parameter to generation API
+  - [x] Create UI controls for length selection
+
+- [x] **Regeneration Feature**:
+  - [x] Add "Regenerate" button to EmailNodePropertiesPanel
+  - [x] Allow section-specific regeneration with length options
+  - [x] Preserve user edits when regenerating other sections
+
+### Phase 4: UI/UX Enhancements
+- [x] **Loading States**: Show progressive generation of each section
+- [ ] **Context Preview**: Display what context is being used for each section
+- [x] **Regeneration Options**: Dropdown or radio buttons for length selection
+- [ ] **History**: Keep last 3 generations for comparison (optional)
+
+### Implementation Details:
+- Context object structure:
+  ```typescript
+  {
+    scenarioName: string,
+    platform: string,
+    taskType: string,
+    // Core metrics
+    runsPerMonth: number,
+    minutesPerRun: number,
+    hourlyRate: number,
+    taskMultiplier: number,
+    // ROI calculations
+    timeValue: number,
+    platformCost: number,
+    netROI: number,
+    roiRatio: number,
+    paybackPeriod: string,
+    // Optional metrics
+    revenueMetrics?: { monthlyVolume, conversionRate, valuePerConversion },
+    complianceMetrics?: { riskLevel, riskFrequency, errorCost },
+    // Workflow summary
+    workflowSteps: Array<{ type, label, appName?, action? }>,
+    totalSteps: number,
+    uniqueApps: string[]
+  }
+  ```
+
+- Field selection for 70% overlap:
+  - Core fields (always included): scenarioName, platform, runsPerMonth, netROI, roiRatio
+  - Randomly select 70% of remaining fields for each section
+  - Ensure variety while maintaining relevance
+
 ## React 19 & Next.js 15 Performance Optimization (NEW PRIORITY) 4-6hrs
 
 ### React 19 Integration

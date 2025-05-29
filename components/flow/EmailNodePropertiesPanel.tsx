@@ -57,6 +57,11 @@ const AI_PROMPT_OPTIONS = {
     { label: 'Personalized Demo', value: 'demo_offer' },
     { label: 'Resource/Guide Offer', value: 'resource_offer' },
   ],
+  length: [
+    { label: 'Concise', value: 'concise' },
+    { label: 'Standard', value: 'standard' },
+    { label: 'Detailed', value: 'detailed' },
+  ]
 };
 
 export function EmailNodePropertiesPanel({
@@ -67,10 +72,15 @@ export function EmailNodePropertiesPanel({
   isGeneratingAIContent,
 }: EmailNodePropertiesPanelProps) {
   const [formData, setFormData] = useState<Partial<EmailPreviewNodeData>>({});
+  const [selectedLength, setSelectedLength] = useState<'concise' | 'standard' | 'detailed'>('standard');
 
   useEffect(() => {
     if (selectedNode) {
       setFormData(selectedNode.data);
+      // Set length from node data if available
+      if ((selectedNode.data as EmailPreviewNodeData & { lengthOption?: string })?.lengthOption) {
+        setSelectedLength((selectedNode.data as EmailPreviewNodeData & { lengthOption?: string }).lengthOption as 'concise' | 'standard' | 'detailed');
+      }
     } else {
       setFormData({});
     }
@@ -100,44 +110,81 @@ export function EmailNodePropertiesPanel({
           <Label htmlFor={fieldKey} className="text-base font-medium">
             {sectionName}
           </Label>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="ml-2 px-2 py-1 h-auto text-xs" 
-                disabled={isGeneratingAIContent}
-              >
-                {isGeneratingAIContent ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Wand2 className="h-3 w-3" />
-                )}
-                <span className="ml-1">Rewrite</span>
-                <ChevronDown className="h-3 w-3 ml-1" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {AI_PROMPT_OPTIONS[promptKey].map((opt) => (
-                <DropdownMenuItem
-                  key={opt.value}
+          <div className="flex gap-2">
+            {/* Length selector */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="px-2 py-1 h-auto text-xs" 
                   disabled={isGeneratingAIContent}
-                  onSelect={() => {
-                    if (selectedNode) {
-                      onGenerateSection(
-                        selectedNode.id,
-                        promptKey,
-                        opt.value,
-                        formData[fieldKey] || ''
-                      );
-                    }
-                  }}
                 >
-                  {opt.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  {AI_PROMPT_OPTIONS.length.find(opt => opt.value === selectedLength)?.label || 'Standard'}
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {AI_PROMPT_OPTIONS.length.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    disabled={isGeneratingAIContent}
+                    onSelect={() => {
+                      setSelectedLength(opt.value as 'concise' | 'standard' | 'detailed');
+                      if (selectedNode) {
+                        onUpdateNodeData(selectedNode.id, { 
+                          ...(selectedNode.data as EmailPreviewNodeData),
+                          lengthOption: opt.value 
+                        } as Partial<EmailPreviewNodeData>);
+                      }
+                    }}
+                  >
+                    {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            {/* AI rewrite button */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="px-2 py-1 h-auto text-xs" 
+                  disabled={isGeneratingAIContent}
+                >
+                  {isGeneratingAIContent ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3 w-3" />
+                  )}
+                  <span className="ml-1">Rewrite</span>
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {AI_PROMPT_OPTIONS[promptKey].map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    disabled={isGeneratingAIContent}
+                    onSelect={() => {
+                      if (selectedNode) {
+                        onGenerateSection(
+                          selectedNode.id,
+                          promptKey,
+                          opt.value + '_' + selectedLength, // Include length in prompt type
+                          formData[fieldKey] || ''
+                        );
+                      }
+                    }}
+                  >
+                    {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
         {fieldKey === 'subjectLine' ? (
            <Input
