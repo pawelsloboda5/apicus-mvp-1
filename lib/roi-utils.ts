@@ -4,7 +4,7 @@
  */
 
 import { Node } from "@xyflow/react";
-import { NodeType } from "@/lib/types";
+import { NodeType, PlatformType } from "@/lib/types";
 
 /**
  * Calculate the total time value of automation
@@ -68,42 +68,32 @@ export function calculateRevenueValue(
  * @param platform Automation platform (zapier, make, n8n)
  * @param runsPerMonth Number of runs per month
  * @param pricing Pricing data for platforms
- * @param nodeCount Optional number of nodes to calculate per-node costs
+ * @param stepsPerRun Optional number of steps per run for n8n
  * @returns Monthly cost in dollars
  */
 export function calculatePlatformCost(
-  platform: string,
+  platform: PlatformType,
   runsPerMonth: number,
-  pricing: Record<string, unknown>,
-  nodeCount: number = 0
+  pricing: any,
+  stepsPerRun: number = 5
 ): number {
-  const data = pricing[platform] as { tiers: Array<{ name: string; monthlyUSD: number; quota: number }> };
-  const tierName: Record<string, string> = {
-    zapier: "Professional",
-    make: "Core",
-    n8n: "Starter",
-  };
-  const tier = data.tiers.find((t: { name: string; monthlyUSD: number; quota: number }) => t.name === tierName[platform]) || data.tiers[0];
+  if (!pricing[platform]) return 0;
   
-  // Get cost per unit
-  const costPerUnit = tier.quota ? tier.monthlyUSD / tier.quota : 0;
+  const platformPricing = pricing[platform];
+  const unitsPerMonth = platform === 'n8n' ? runsPerMonth : runsPerMonth * stepsPerRun;
   
-  // Calculate units used
-  let unitsPerRun = 1;
-  
-  // Adjust based on platform and node count
-  if (platform === 'zapier') {
-    // In Zapier, each action consumes 1 task
-    unitsPerRun = nodeCount || 1;
-  } else if (platform === 'make') {
-    // In Make, operations can vary by complexity
-    unitsPerRun = nodeCount ? nodeCount * 1.2 : 1;
-  } else if (platform === 'n8n') {
-    // In n8n, executions are per workflow, not per node
-    unitsPerRun = 1;
+  // Find the cheapest suitable tier
+  for (const tier of platformPricing.tiers) {
+    if (tier.quota === 0 || tier.quota >= unitsPerMonth) {
+      const result = platformPricing.cost(tier.name, unitsPerMonth);
+      return result.cost;
+    }
   }
   
-  return unitsPerRun * runsPerMonth * costPerUnit;
+  // If no tier found, use the last tier with overage
+  const lastTier = platformPricing.tiers[platformPricing.tiers.length - 1];
+  const result = platformPricing.cost(lastTier.name, unitsPerMonth);
+  return result.cost;
 }
 
 /**
@@ -288,7 +278,7 @@ export function calculateGroupROI(
   
   // Calculate metrics
   const timeValue = calculateTimeValue(runsPerMonth, totalMinutesSaved, hourlyRate, taskMultiplier);
-  const platformCost = calculatePlatformCost(platform, runsPerMonth, pricing, groupNodes.length);
+  const platformCost = calculatePlatformCost(platform as PlatformType, runsPerMonth, pricing, 5);
   const netROI = timeValue - platformCost;
   const roiRatio = calculateROIRatio(timeValue, platformCost);
   

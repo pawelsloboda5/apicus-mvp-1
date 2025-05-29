@@ -1,9 +1,9 @@
 /*  ============================================================================
     Apicus – Pricing & Limits (v2025-05-18)
     ----------------------------------------------------------------------------
-    Zapier       → billed per “task”
-    Make.com     → billed per “operation”
-    n8n (cloud)  → billed per “execution”
+    Zapier       → billed per "task"
+    Make.com     → billed per "operation"
+    n8n (cloud)  → billed per "execution"
     This file is tree-shakable and <3 KB gzip.  Import anywhere in the repo.
     ========================================================================= */
 
@@ -12,7 +12,7 @@
 export type Unit = "task" | "op" | "exec";
 
 export interface Tier {
-  /** Marketing name (“Professional”, “Teams”, …) */
+  /** Marketing name ("Professional", "Teams", …) */
   name: string;
   /** Monthly price in USD when billed annually (cloud vendors quote that)   */
   monthlyUSD: number;
@@ -31,7 +31,7 @@ export interface Tier {
 export interface PlatformPricing {
   platform: "zapier" | "make" | "n8n";
   tiers: Tier[];
-  /** default unit label so callers don’t repeat themselves */
+  /** default unit label so callers don't repeat themselves */
   unit: Unit;
   /** quick helper to compute monthly cost incl. overage                      */
   cost: (tierName: string, usedUnits: number) => { cost: number; over: number };
@@ -50,54 +50,206 @@ export const pricing: Record<"zapier" | "make" | "n8n", PlatformPricing> = {
         quota: 100,
         unit: "task",
         notes: [
-          "Basic & premium triggers (15-min polling)",
-          "2-step Zaps only",
-          "100-task hard stop"
+          "100-task hard stop per month",
+          "Zapier automation platform (Zaps, basic Interfaces, basic Tables)",
+          "Unlimited Zaps (within task limit)",
+          "Two-step Zaps only",
+          "AI power-ups"
+        ]
+      },
+      // Professional Tiers
+      {
+        name: "Professional 750 tasks",
+        monthlyUSD: 29.99,
+        quota: 750,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps",
+          "Unlimited Premium apps",
+          "Webhooks",
+          "Email support"
         ]
       },
       {
-        name: "Professional",
-        monthlyUSD: 19.99,
-        quota: 2_000,
+        name: "Professional 2K tasks",
+        monthlyUSD: 73.50,
+        quota: 2000,
         unit: "task",
-        overageRate: 0.0125, // 1.25× ~$0.01 base rate
         notes: [
-          "Unlimited Zaps • Multi-step • 1-min polling • Webhooks",
-          "Live chat support when >2 000 tasks",
-          "AI Builder included"
+          "Multi-step Zaps",
+          "Unlimited Premium apps",
+          "Webhooks",
+          "Email and live chat support"
         ]
       },
       {
-        name: "Team",
-        monthlyUSD: 69,
-        quota: 50_000,
+        name: "Professional 5K tasks",
+        monthlyUSD: 133.50,
+        quota: 5000,
         unit: "task",
-        overageRate: 0.0099,
         notes: [
-          "25 seats included • Shared connections/workspaces",
-          "SAML SSO • Premier support"
+          "Multi-step Zaps",
+          "Unlimited Premium apps",
+          "Webhooks",
+          "Email and live chat support"
         ]
       },
       {
-        name: "Enterprise",
-        monthlyUSD: 0, // custom
-        quota: 100_000,
+        name: "Professional 10K tasks",
+        monthlyUSD: 193.50,
+        quota: 10000,
         unit: "task",
-        annualPool: true,
-        overageRate: 0.0085,
         notes: [
-          "Annual task pool, resets yearly",
-          "Unlimited users • SOC2 • SLA • TAM • Analytics"
+          "Multi-step Zaps",
+          "Unlimited Premium apps",
+          "Webhooks",
+          "Email and live chat support"
+        ]
+      },
+      {
+        name: "Professional 20K tasks",
+        monthlyUSD: 283.50,
+        quota: 20000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps",
+          "Unlimited Premium apps",
+          "Webhooks",
+          "Email and live chat support"
+        ]
+      },
+      {
+        name: "Professional 50K tasks",
+        monthlyUSD: 433.50,
+        quota: 50000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps",
+          "Unlimited Premium apps",
+          "Webhooks",
+          "Email and live chat support"
+        ]
+      },
+      {
+        name: "Professional 100K tasks",
+        monthlyUSD: 733.50,
+        quota: 100000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps",
+          "Unlimited Premium apps",
+          "Webhooks",
+          "Email and live chat support"
+        ]
+      },
+      {
+        name: "Professional 500K tasks",
+        monthlyUSD: 2199,
+        quota: 500000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps",
+          "Unlimited Premium apps",
+          "Webhooks",
+          "Email and live chat support"
+        ]
+      },
+      // Team Tiers
+      {
+        name: "Team 2K tasks",
+        monthlyUSD: 103.50,
+        quota: 2000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps", "Unlimited Premium apps", "Webhooks",
+          "25 users included", "Shared Zaps and folders", "Shared app connections",
+          "SAML SSO", "Premier Support (includes live chat & faster email)"
+        ]
+      },
+      {
+        name: "Team 5K tasks",
+        monthlyUSD: 178.50,
+        quota: 5000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps", "Unlimited Premium apps", "Webhooks",
+          "25 users included", "Shared Zaps and folders", "Shared app connections",
+          "SAML SSO", "Premier Support (includes live chat & faster email)"
+        ]
+      },
+      {
+        name: "Team 10K tasks",
+        monthlyUSD: 253.50,
+        quota: 10000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps", "Unlimited Premium apps", "Webhooks",
+          "25 users included", "Shared Zaps and folders", "Shared app connections",
+          "SAML SSO", "Premier Support (includes live chat & faster email)"
+        ]
+      },
+      {
+        name: "Team 20K tasks",
+        monthlyUSD: 373.50,
+        quota: 20000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps", "Unlimited Premium apps", "Webhooks",
+          "25 users included", "Shared Zaps and folders", "Shared app connections",
+          "SAML SSO", "Premier Support (includes live chat & faster email)"
+        ]
+      },
+      {
+        name: "Team 50K tasks",
+        monthlyUSD: 598.50,
+        quota: 50000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps", "Unlimited Premium apps", "Webhooks",
+          "25 users included", "Shared Zaps and folders", "Shared app connections",
+          "SAML SSO", "Premier Support (includes live chat & faster email)"
+        ]
+      },
+      {
+        name: "Team 100K tasks",
+        monthlyUSD: 898.50,
+        quota: 100000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps", "Unlimited Premium apps", "Webhooks",
+          "25 users included", "Shared Zaps and folders", "Shared app connections",
+          "SAML SSO", "Premier Support (includes live chat & faster email)"
+        ]
+      },
+      {
+        name: "Team 500K tasks",
+        monthlyUSD: 2699,
+        quota: 500000,
+        unit: "task",
+        notes: [
+          "Multi-step Zaps", "Unlimited Premium apps", "Webhooks",
+          "25 users included", "Shared Zaps and folders", "Shared app connections",
+          "SAML SSO", "Premier Support (includes live chat & faster email)"
         ]
       }
     ],
     cost(tierName, used) {
       const tier = pricing.zapier.tiers.find(t => t.name === tierName);
-      if (!tier) throw new Error("Zapier tier not found");
-      const over = Math.max(0, used - tier.quota);
-      const overCost =
-        tier.overageRate && over ? over * tier.overageRate : 0;
-      return { cost: tier.monthlyUSD + overCost, over: overCost };
+      if (!tier) throw new Error("Zapier tier not found: " + tierName);
+
+      // Free tier has a hard stop
+      if (tier.name === "Free" && used > tier.quota) {
+        return { cost: Infinity, over: Infinity };
+      }
+      
+      // For other tiers, if usage exceeds quota, this specific tier is not suitable.
+      // The cheapestOption function will find a higher tier or another platform.
+      if (used > tier.quota) {
+        return { cost: Infinity, over: Infinity };
+      }
+
+      // If usage is within quota, cost is the tier's monthly USD.
+      return { cost: tier.monthlyUSD, over: 0 };
     }
   },
 
@@ -111,49 +263,258 @@ export const pricing: Record<"zapier" | "make" | "n8n", PlatformPricing> = {
         quota: 1_000,
         unit: "op",
         notes: [
-          "2 active scenarios • 15-min scheduling",
-          "5 GB data transfer/month"
+          "1,000 operations/month",
+          "No-code visual workflow builder",
+          "2000+ apps",
+          "Routers & filters",
+          "Customer support",
+          "15-minute minimum interval between runs"
+        ]
+      },
+      // Core Tiers
+      {
+        name: "Core 10K Ops",
+        monthlyUSD: 10.59,
+        quota: 10_000,
+        unit: "op",
+        notes: [
+          "Everything in Free, plus:",
+          "Unlimited active scenarios",
+          "Scheduled scenarios (down to 1-min)",
+          "Increased data transfer limits",
+          "Access to Make API"
         ]
       },
       {
-        name: "Core",
-        monthlyUSD: 9,
+        name: "Core 20K Ops",
+        monthlyUSD: 18.82,
+        quota: 20_000,
+        unit: "op",
+        notes: [
+          "Everything in Free, plus:",
+          "Unlimited active scenarios",
+          "Scheduled scenarios (down to 1-min)",
+          "Increased data transfer limits",
+          "Access to Make API"
+        ]
+      },
+      {
+        name: "Core 40K Ops",
+        monthlyUSD: 34.12,
+        quota: 40_000,
+        unit: "op",
+        notes: [
+          "Everything in Free, plus:",
+          "Unlimited active scenarios",
+          "Scheduled scenarios (down to 1-min)",
+          "Increased data transfer limits",
+          "Access to Make API"
+        ]
+      },
+      {
+        name: "Core 80K Ops",
+        monthlyUSD: 64.71,
+        quota: 80_000,
+        unit: "op",
+        notes: [
+          "Everything in Free, plus:",
+          "Unlimited active scenarios",
+          "Scheduled scenarios (down to 1-min)",
+          "Increased data transfer limits",
+          "Access to Make API"
+        ]
+      },
+      {
+        name: "Core 150K Ops",
+        monthlyUSD: 116.47,
+        quota: 150_000,
+        unit: "op",
+        notes: [
+          "Everything in Free, plus:",
+          "Unlimited active scenarios",
+          "Scheduled scenarios (down to 1-min)",
+          "Increased data transfer limits",
+          "Access to Make API"
+        ]
+      },
+      {
+        name: "Core 300K Ops",
+        monthlyUSD: 214.31,
+        quota: 300_000,
+        unit: "op",
+        notes: [
+          "Everything in Free, plus:",
+          "Unlimited active scenarios",
+          "Scheduled scenarios (down to 1-min)",
+          "Increased data transfer limits",
+          "Access to Make API"
+        ]
+      },
+      // Pro Tiers
+      {
+        name: "Pro 10K Ops",
+        monthlyUSD: 18.82,
         quota: 10_000,
         unit: "op",
-        overageRate: 0.0009, // bundle pricing
-        notes: ["Unlimited scenarios • 1-min scheduling"]
+        notes: [
+          "Everything in Core, plus:",
+          "Priority scenario execution",
+          "Custom variables",
+          "Full-text execution log search",
+          "Advanced automation (error handling, scheduling)"
+        ]
       },
       {
-        name: "Pro",
-        monthlyUSD: 16,
-        quota: 50_000,
+        name: "Pro 20K Ops",
+        monthlyUSD: 34.12,
+        quota: 20_000,
         unit: "op",
-        overageRate: 0.00032,
-        notes: ["Priority runs • Advanced variables/logs"]
+        notes: [
+          "Everything in Core, plus:",
+          "Priority scenario execution",
+          "Custom variables",
+          "Full-text execution log search",
+          "Advanced automation (error handling, scheduling)"
+        ]
       },
       {
-        name: "Teams",
-        monthlyUSD: 29,
-        quota: 100_000,
+        name: "Pro 40K Ops",
+        monthlyUSD: 62.35,
+        quota: 40_000,
         unit: "op",
-        overageRate: 0.00029,
-        notes: ["Roles & sharing • Unlimited users"]
+        notes: [
+          "Everything in Core, plus:",
+          "Priority scenario execution",
+          "Custom variables",
+          "Full-text execution log search",
+          "Advanced automation (error handling, scheduling)"
+        ]
       },
       {
-        name: "Enterprise",
-        monthlyUSD: 0, // custom
-        quota: 0, // unlimited
+        name: "Pro 80K Ops",
+        monthlyUSD: 107.06,
+        quota: 80_000,
         unit: "op",
-        notes: ["SSO • Audit logs • 24/7 SLA • Annual ops pool"]
+        notes: [
+          "Everything in Core, plus:",
+          "Priority scenario execution",
+          "Custom variables",
+          "Full-text execution log search",
+          "Advanced automation (error handling, scheduling)"
+        ]
+      },
+      {
+        name: "Pro 150K Ops",
+        monthlyUSD: 180.53,
+        quota: 150_000,
+        unit: "op",
+        notes: [
+          "Everything in Core, plus:",
+          "Priority scenario execution",
+          "Custom variables",
+          "Full-text execution log search",
+          "Advanced automation (error handling, scheduling)"
+        ]
+      },
+      {
+        name: "Pro 300K Ops",
+        monthlyUSD: 315.93,
+        quota: 300_000,
+        unit: "op",
+        notes: [
+          "Everything in Core, plus:",
+          "Priority scenario execution",
+          "Custom variables",
+          "Full-text execution log search",
+          "Advanced automation (error handling, scheduling)"
+        ]
+      },
+      // Teams Tiers
+      {
+        name: "Teams 10K Ops",
+        monthlyUSD: 34.12,
+        quota: 10_000,
+        unit: "op",
+        notes: [
+          "Everything in Pro, plus:",
+          "Teams and team roles",
+          "Create and share scenario templates"
+        ]
+      },
+      {
+        name: "Teams 20K Ops",
+        monthlyUSD: 62.35,
+        quota: 20_000,
+        unit: "op",
+        notes: [
+          "Everything in Pro, plus:",
+          "Teams and team roles",
+          "Create and share scenario templates"
+        ]
+      },
+      {
+        name: "Teams 40K Ops",
+        monthlyUSD: 116.47,
+        quota: 40_000,
+        unit: "op",
+        notes: [
+          "Everything in Pro, plus:",
+          "Teams and team roles",
+          "Create and share scenario templates"
+        ]
+      },
+      {
+        name: "Teams 80K Ops",
+        monthlyUSD: 203.41,
+        quota: 80_000,
+        unit: "op",
+        notes: [
+          "Everything in Pro, plus:",
+          "Teams and team roles",
+          "Create and share scenario templates"
+        ]
+      },
+      {
+        name: "Teams 150K Ops",
+        monthlyUSD: 343.01,
+        quota: 150_000,
+        unit: "op",
+        notes: [
+          "Everything in Pro, plus:",
+          "Teams and team roles",
+          "Create and share scenario templates"
+        ]
+      },
+      {
+        name: "Teams 300K Ops",
+        monthlyUSD: 600.26,
+        quota: 300_000,
+        unit: "op",
+        notes: [
+          "Everything in Pro, plus:",
+          "Teams and team roles",
+          "Create and share scenario templates"
+        ]
       }
     ],
     cost(tierName, used) {
       const tier = pricing.make.tiers.find(t => t.name === tierName);
-      if (!tier) throw new Error("Make tier not found");
-      const over = Math.max(0, used - tier.quota);
-      const overCost =
-        tier.overageRate && over ? over * tier.overageRate : 0;
-      return { cost: tier.monthlyUSD + overCost, over: overCost };
+      if (!tier) throw new Error("Make tier not found: " + tierName);
+
+      // Free tier also has a hard stop per the new pricing data
+      if (tier.name === "Free" && used > tier.quota) {
+        return { cost: Infinity, over: Infinity };
+      }
+      
+      // For other tiers, if usage exceeds quota, this specific tier is not suitable.
+      // The cheapestOption function will find a higher tier or another platform.
+      // tier.quota !== 0 check is a safeguard, though we're removing Enterprise (which had quota: 0)
+      if (used > tier.quota && tier.quota !== 0) {
+        return { cost: Infinity, over: Infinity };
+      }
+
+      // If usage is within quota, cost is the tier's monthly USD.
+      return { cost: tier.monthlyUSD, over: 0 };
     }
   },
 
@@ -167,48 +528,65 @@ export const pricing: Record<"zapier" | "make" | "n8n", PlatformPricing> = {
         quota: 2_500,
         unit: "exec",
         notes: [
-          "5 active workflows • 5 concurrent runs",
-          "7-day log retention"
+          "2.5k workflow executions per month",
+          "5 active workflows (unlimited test workflows)",
+          "Hosted by n8n",
+          "1 shared project",
+          "5 concurrent executions",
+          "Unlimited users",
+          "Forum support"
         ]
       },
       {
-        name: "Pro",
+        name: "Pro 10k Executions",
         monthlyUSD: 60,
         quota: 10_000,
         unit: "exec",
         notes: [
-          "15 active workflows • 20 concurrent",
-          "14-day logs • RBAC"
+          "10k workflow executions per month",
+          "15 active workflows (unlimited test workflows)",
+          "Hosted by n8n",
+          "Everything in Starter plan, plus:",
+          "3 shared projects",
+          "20 concurrent executions",
+          "7 days of insights",
+          "Admin roles",
+          "Global variables",
+          "Workflow history",
+          "Execution search"
         ]
       },
       {
-        name: "Pro-50k",
-        monthlyUSD: 120,
+        name: "Pro 50k Executions",
+        monthlyUSD: 144,
         quota: 50_000,
         unit: "exec",
-        notes: ["50 active workflows • same features as Pro"]
-      },
-      {
-        name: "Enterprise",
-        monthlyUSD: 0, // custom
-        quota: 0, // unlimited
-        unit: "exec",
         notes: [
-          "200+ concurrent • 365-day logs • SSO",
-          "Dedicated infra/support"
+          "50k workflow executions per month",
+          "50 active workflows",
+          "Hosted by n8n",
+          "Includes all features of Pro 10k Executions plan"
         ]
       }
     ],
     cost(tierName, used) {
       const tier = pricing.n8n.tiers.find(t => t.name === tierName);
-      if (!tier) throw new Error("n8n tier not found");
-      if (tier.quota === 0) return { cost: tier.monthlyUSD, over: 0 }; // unlimited
-      const over = Math.max(0, used - tier.quota);
-      // n8n has no overage packs; must upgrade
-      return {
-        cost: tier.monthlyUSD,
-        over: over ? Infinity : 0 // signal “upgrade required”
-      };
+      if (!tier) throw new Error("n8n tier not found: " + tierName);
+
+      // If an "unlimited" tier (quota: 0) were to exist, its cost is fixed.
+      // This check remains for robustness, though current n8n tiers all have quotas.
+      if (tier.quota === 0) {
+          return { cost: tier.monthlyUSD, over: 0 };
+      }
+
+      // If usage exceeds quota, this specific tier is not suitable.
+      // Cost becomes Infinity to signal "upgrade required" / unsuitable.
+      if (used > tier.quota) {
+        return { cost: Infinity, over: Infinity };
+      }
+
+      // If usage is within quota, cost is the tier's monthly USD.
+      return { cost: tier.monthlyUSD, over: 0 };
     }
   }
 };
