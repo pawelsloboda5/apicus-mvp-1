@@ -1,6 +1,6 @@
 import { Node, Edge, ReactFlowInstance, NodeChange, EdgeChange, Viewport, NodeTypes, EdgeTypes } from "@xyflow/react";
 
-export type NodeType = "trigger" | "action" | "decision" | "group";
+export type NodeType = "trigger" | "action" | "decision" | "group" | "persona" | "industry" | "painpoint" | "metric" | "urgency" | "socialproof" | "objection" | "value";
 export type PlatformType = "zapier" | "make" | "n8n";
 
 export interface NodeData {
@@ -13,6 +13,12 @@ export interface NodeData {
   operator?: string;
   compareValue?: string;
   minuteContribution?: number;
+  
+  // Email context node specific fields
+  contextType?: string;
+  contextValue?: string;
+  contextDetails?: Record<string, unknown>;
+  isEmailContext?: boolean;
 }
 
 export interface GroupData {

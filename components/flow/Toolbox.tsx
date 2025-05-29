@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import { Sparkles, GitBranch, PlayCircle, Zap, PlusCircle, Trash2, Edit3, Check, X, MailOpen, Menu, ChevronLeft, ChevronRight, GripVertical, Workflow } from "lucide-react";
+import { Sparkles, GitBranch, PlayCircle, Zap, PlusCircle, Trash2, Edit3, Check, X, MailOpen, Menu, ChevronLeft, ChevronRight, GripVertical, Workflow, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NodeType, PlatformType } from "@/lib/types";
 import { db, Scenario, createScenario } from "@/lib/db";
@@ -29,6 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AlternativeTemplateForDisplay } from "./AlternativeTemplatesSheet";
+import { Separator } from "@/components/ui/separator";
 
 const ITEMS: { type: NodeType; label: string }[] = [
   { type: "trigger", label: "Trigger" },
@@ -38,11 +39,84 @@ const ITEMS: { type: NodeType; label: string }[] = [
   // { type: "group", label: "Group" }, 
 ];
 
+const EMAIL_CONTEXT_ITEMS: { 
+  type: NodeType; 
+  label: string; 
+  description: string;
+  defaultValue: string;
+  category: string;
+}[] = [
+  { 
+    type: "persona", 
+    label: "Target Persona", 
+    description: "Define who the email is for",
+    defaultValue: "Marketing Manager",
+    category: "audience"
+  },
+  { 
+    type: "industry", 
+    label: "Industry Context", 
+    description: "Specify the industry vertical",
+    defaultValue: "SaaS",
+    category: "audience"
+  },
+  { 
+    type: "painpoint", 
+    label: "Pain Point", 
+    description: "Highlight specific challenges",
+    defaultValue: "Manual data entry",
+    category: "problem"
+  },
+  { 
+    type: "metric", 
+    label: "Success Metric", 
+    description: "Define key success indicators",
+    defaultValue: "Time saved per week",
+    category: "value"
+  },
+  { 
+    type: "urgency", 
+    label: "Urgency Factor", 
+    description: "Add time-sensitive elements",
+    defaultValue: "End of quarter",
+    category: "timing"
+  },
+  { 
+    type: "socialproof", 
+    label: "Social Proof", 
+    description: "Include testimonial or case study",
+    defaultValue: "500+ companies automated",
+    category: "trust"
+  },
+  { 
+    type: "objection", 
+    label: "Objection Handler", 
+    description: "Address common concerns",
+    defaultValue: "No technical skills needed",
+    category: "trust"
+  },
+  { 
+    type: "value", 
+    label: "Value Proposition", 
+    description: "Emphasize unique benefits",
+    defaultValue: "10x faster than competitors",
+    category: "value"
+  }
+];
+
 const typeIcon = {
   trigger: PlayCircle,
   action: Sparkles,
   decision: GitBranch,
-  group: Zap, // Kept for potential future use or if group nodes are directly addable
+  group: Zap,
+  persona: User,
+  industry: Building,
+  painpoint: AlertCircle,
+  metric: TrendingUp,
+  urgency: Clock,
+  socialproof: Award,
+  objection: Shield,
+  value: Gem,
 };
 
 interface ToolboxProps {
@@ -220,6 +294,7 @@ function ToolboxContent({
   const [editingScenarioId, setEditingScenarioId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showEmailContextNodes, setShowEmailContextNodes] = useState(false);
 
   const getPlatformColor = (platform?: PlatformType) => {
     switch (platform) {
@@ -314,7 +389,9 @@ function ToolboxContent({
     if (isMobile && onClose) {
       onClose();
     }
-  };  const content = (
+  };
+
+  const content = (
     <div className={cn("flex flex-col h-full overflow-hidden", isMobile ? "p-4" : "p-4")}>
       {isMobile && (
         <SheetHeader className="px-0 pb-4 shrink-0">
@@ -337,6 +414,41 @@ function ToolboxContent({
           ))}
         </ul>
       </div>
+      
+      {/* NEW Section: Email Context Nodes - Desktop only */}
+      {!isMobile && (
+        <div className="border-t pt-4 mb-4">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-base font-semibold tracking-tight">Email Context Nodes</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEmailContextNodes(!showEmailContextNodes)}
+              className="h-6 px-2 text-xs"
+            >
+              {showEmailContextNodes ? 'Hide' : 'Show'}
+            </Button>
+          </div>
+          
+          {showEmailContextNodes && (
+            <>
+              <p className="text-xs text-muted-foreground mb-3 px-1">
+                Add these special nodes to influence how emails are generated
+              </p>
+              <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                {EMAIL_CONTEXT_ITEMS.map((item) => (
+                  <EmailContextToolboxItem
+                    key={item.type}
+                    {...item}
+                    isSelected={selectedNodeType === item.type}
+                    onSelect={onNodeTypeSelect}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
       
       {/* Section 2: My Scenarios - Fixed height with scrolling */}
       <div className={cn("border-t pt-4 flex flex-col h-[40vh]", isMobile ? "flex-grow min-h-0" : "flex-shrink-0")}>
@@ -578,6 +690,113 @@ function ToolboxItem({ type, label, isMobile = false, isSelected = false, onSele
       )}>
         {label}
       </span>
+      
+      {isSelected && !isDragging && (
+        <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+      )}
+    </li>
+  );
+}
+
+// New component for Email Context nodes
+interface EmailContextToolboxItemProps {
+  type: NodeType;
+  label: string;
+  description: string;
+  defaultValue: string;
+  category: string;
+  isSelected?: boolean;
+  onSelect?: (type: NodeType) => void;
+}
+
+function EmailContextToolboxItem({ 
+  type, 
+  label, 
+  description, 
+  defaultValue,
+  category,
+  isSelected = false, 
+  onSelect 
+}: EmailContextToolboxItemProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `tool-context-${type}`,
+    data: { 
+      nodeType: type,
+      isEmailContext: true,
+      contextValue: defaultValue,
+      category
+    },
+  });
+
+  const Icon = typeIcon[type];
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isDragging) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect?.(type);
+  };
+
+  const enhancedListeners = React.useMemo(() => {
+    if (!listeners) return {};
+    
+    return {
+      ...listeners,
+      onMouseDown: (e: React.MouseEvent) => {
+        onSelect?.(type);
+        if (listeners.onMouseDown) {
+          listeners.onMouseDown(e as unknown as MouseEvent);
+        }
+      },
+      onTouchStart: (e: React.TouchEvent) => {
+        onSelect?.(type);
+        if (listeners.onTouchStart) {
+          listeners.onTouchStart(e as unknown as TouchEvent);
+        }
+      }
+    };
+  }, [listeners, onSelect, type]);
+
+  const categoryColors = {
+    audience: "border-purple-500/50 bg-purple-50 dark:bg-purple-950/20",
+    problem: "border-red-500/50 bg-red-50 dark:bg-red-950/20",
+    value: "border-green-500/50 bg-green-50 dark:bg-green-950/20",
+    timing: "border-orange-500/50 bg-orange-50 dark:bg-orange-950/20",
+    trust: "border-blue-500/50 bg-blue-50 dark:bg-blue-950/20",
+  };
+
+  const iconColors = {
+    audience: "text-purple-600 dark:text-purple-400",
+    problem: "text-red-600 dark:text-red-400",
+    value: "text-green-600 dark:text-green-400",
+    timing: "text-orange-600 dark:text-orange-400",
+    trust: "text-blue-600 dark:text-blue-400",
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      {...attributes}
+      {...enhancedListeners}
+      className={cn(
+        "flex cursor-grab items-start gap-3 rounded-md border p-3 shadow-sm hover:shadow-md transition-all duration-200 relative",
+        categoryColors[category as keyof typeof categoryColors] || "bg-background",
+        isDragging && "opacity-50",
+        isSelected && "ring-2 ring-primary"
+      )}
+      onClick={handleClick}
+    >
+      <Icon className={cn(
+        "h-5 w-5 mt-0.5 flex-shrink-0",
+        iconColors[category as keyof typeof iconColors] || "text-foreground"
+      )} />
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-sm">{label}</div>
+        <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
+        <div className="text-xs text-foreground/70 mt-1 font-mono bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-sm inline-block">
+          &quot;{defaultValue}&quot;
+        </div>
+      </div>
       
       {isSelected && !isDragging && (
         <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />

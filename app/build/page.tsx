@@ -29,7 +29,7 @@ import {
 import { createSnapModifier } from "@dnd-kit/modifiers";
 import dynamic from "next/dynamic";
 import { pricing } from "../api/data/pricing";
-import { Loader2, PlayCircle, Sparkles, GitBranch } from "lucide-react";
+import { Loader2, PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useDroppable } from "@dnd-kit/core";
 
@@ -84,6 +84,15 @@ const nodeTypes = {
   decision: PixelNode,
   group: NodeGroup,
   emailPreview: EmailPreviewNode,
+  // Email context nodes
+  persona: PixelNode,
+  industry: PixelNode,
+  painpoint: PixelNode,
+  metric: PixelNode,
+  urgency: PixelNode,
+  socialproof: PixelNode,
+  objection: PixelNode,
+  value: PixelNode,
 };
 
 const edgeTypes = {
@@ -654,6 +663,15 @@ function BuildPageContent() {
           action: 1.2,
           decision: 0.8,
           group: 0,
+          // Email context nodes
+          persona: 0,
+          industry: 0,
+          painpoint: 0,
+          metric: 0,
+          urgency: 0,
+          socialproof: 0,
+          objection: 0,
+          value: 0,
         },
         operationType
       );
@@ -759,8 +777,12 @@ function BuildPageContent() {
         return;
       }
       
-      const type = active.data.current?.nodeType as "trigger" | "action" | "decision" | undefined;
-      if (!type || !reactFlowWrapper.current || !rfInstance) {
+      const nodeType = active.data.current?.nodeType as NodeType;
+      const isEmailContext = active.data.current?.isEmailContext as boolean;
+      const contextValue = active.data.current?.contextValue as string;
+      const category = active.data.current?.category as string;
+      
+      if (!nodeType || !reactFlowWrapper.current || !rfInstance) {
         return;
       }
 
@@ -788,17 +810,23 @@ function BuildPageContent() {
       const newId = nanoid(6);
       const newNode = {
         id: newId,
-        type,
+        type: nodeType,
         position: snapped,
-        data: { 
-          label: `${type.charAt(0).toUpperCase() + type.slice(1)} ${nodes.filter(n => n.type === type).length + 1}`,
-          ...(type === 'trigger' && { typeOf: 'webhook' }),
-          ...(type === 'action' && { 
+        data: isEmailContext ? {
+          label: `${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}`,
+          isEmailContext: true,
+          contextType: nodeType,
+          contextValue: contextValue || "",
+          category: category || "",
+        } : { 
+          label: `${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)} ${nodes.filter(n => n.type === nodeType).length + 1}`,
+          ...(nodeType === 'trigger' && { typeOf: 'webhook' }),
+          ...(nodeType === 'action' && { 
             appName: 'New Action',
             action: 'configure',
             typeOf: 'data_processing' 
           }),
-          ...(type === 'decision' && { 
+          ...(nodeType === 'decision' && { 
             conditionType: 'value',
             operator: 'equals' 
           }),
@@ -1069,6 +1097,61 @@ function BuildPageContent() {
         // Ignore localStorage errors
       }
 
+      // Collect email context nodes
+      const emailContextNodes = nodes.filter(node => {
+        const nodeData = node.data as unknown as NodeData;
+        return nodeData.isEmailContext || (node.type && [
+          "persona", "industry", "painpoint", "metric", 
+          "urgency", "socialproof", "objection", "value"
+        ].includes(node.type));
+      });
+
+      // Build email context object
+      const emailContext: Record<string, string[]> = {
+        personas: [],
+        industries: [],
+        painPoints: [],
+        metrics: [],
+        urgencyFactors: [],
+        socialProofs: [],
+        objections: [],
+        valueProps: [],
+      };
+
+      emailContextNodes.forEach(node => {
+        const nodeData = node.data as unknown as NodeData;
+        const contextValue = nodeData.contextValue || nodeData.label || "";
+        const nodeType = node.type || "";
+        
+        switch(nodeType) {
+          case "persona":
+            emailContext.personas.push(contextValue as string);
+            break;
+          case "industry":
+            emailContext.industries.push(contextValue as string);
+            break;
+          case "painpoint":
+            emailContext.painPoints.push(contextValue as string);
+            break;
+          case "metric":
+            emailContext.metrics.push(contextValue as string);
+            break;
+          case "urgency":
+            emailContext.urgencyFactors.push(contextValue as string);
+            break;
+          case "socialproof":
+            emailContext.socialProofs.push(contextValue as string);
+            break;
+          case "objection":
+            emailContext.objections.push(contextValue as string);
+            break;
+          case "value":
+            emailContext.valueProps.push(contextValue as string);
+            break;
+        }
+      });
+
+      // Find optimal position for email node to avoid overlaps
       // Find optimal position for email node to avoid overlaps
       const findOptimalEmailPosition = (existingNodes: Node<Record<string, unknown>>[]) => {
         const emailNodeWidth = 700; // Increased width for better display
@@ -1186,7 +1269,7 @@ function BuildPageContent() {
       // Extract workflow information with non-default labels
       const workflowSteps = nodes
         .filter(node => {
-          // Filter out nodes with default labels
+          // Filter out nodes with default labels and email context nodes
           const defaultLabels = [
             /^Trigger \d+$/,
             /^Action \d+$/,
@@ -1195,7 +1278,7 @@ function BuildPageContent() {
           ];
           const nodeData = node.data as unknown as NodeData;
           const label = nodeData?.label || '';
-          return !defaultLabels.some(pattern => pattern.test(label));
+          return !defaultLabels.some(pattern => pattern.test(label)) && !nodeData.isEmailContext;
         })
         .map(node => {
           const nodeData = node.data as unknown as NodeData;
@@ -1261,12 +1344,15 @@ function BuildPageContent() {
         
         // Workflow information
         workflowSteps,
-        totalSteps: nodes.filter(n => n.type !== 'group').length,
+        totalSteps: nodes.filter(n => n.type !== 'group' && !(n.data as unknown as NodeData).isEmailContext).length,
         uniqueApps,
+        
+        // Email context from nodes
+        emailContext,
         
         // Default to standard length and professional_warm tone for initial generation
         lengthOption: 'standard' as const,
-        toneOption: 'professional_warm',
+        toneOption: templateDefaults.toneOption || 'professional_warm',
       };
 
       const response = await fetch('/api/openai/generate-full-email', {
@@ -1916,6 +2002,14 @@ function BuildPageContent() {
                 {activeDragItem.type === 'trigger' && <PlayCircle className="h-4 w-4" />}
                 {activeDragItem.type === 'action' && <Sparkles className="h-4 w-4" />}
                 {activeDragItem.type === 'decision' && <GitBranch className="h-4 w-4" />}
+                {activeDragItem.type === 'persona' && <User className="h-4 w-4" />}
+                {activeDragItem.type === 'industry' && <Building className="h-4 w-4" />}
+                {activeDragItem.type === 'painpoint' && <AlertCircle className="h-4 w-4" />}
+                {activeDragItem.type === 'metric' && <TrendingUp className="h-4 w-4" />}
+                {activeDragItem.type === 'urgency' && <Clock className="h-4 w-4" />}
+                {activeDragItem.type === 'socialproof' && <Award className="h-4 w-4" />}
+                {activeDragItem.type === 'objection' && <Shield className="h-4 w-4" />}
+                {activeDragItem.type === 'value' && <Gem className="h-4 w-4" />}
                 <span>{activeDragItem.type.charAt(0).toUpperCase() + activeDragItem.type.slice(1)}</span>
               </div>
             </div>

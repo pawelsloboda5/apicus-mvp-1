@@ -94,6 +94,18 @@ interface EmailGenerationPayload {
   totalSteps?: number;
   uniqueApps?: string[];
   
+  // Email context from nodes
+  emailContext?: {
+    personas?: string[];
+    industries?: string[];
+    painPoints?: string[];
+    metrics?: string[];
+    urgencyFactors?: string[];
+    socialProofs?: string[];
+    objections?: string[];
+    valueProps?: string[];
+  };
+  
   // Generation options
   lengthOption?: 'concise' | 'standard' | 'detailed';
   toneOption?: string;
@@ -129,19 +141,55 @@ async function generateSection(
   
   const toneGuidance = toneInstructions[toneOption] || toneInstructions['professional_warm'];
   
+  // Build email context instructions if available
+  let contextInstructions = '';
+  const emailContext = context.emailContext as EmailGenerationPayload['emailContext'];
+  if (emailContext) {
+    const contextParts = [];
+    
+    if (emailContext.personas?.length) {
+      contextParts.push(`Target audience: ${emailContext.personas.join(', ')}`);
+    }
+    if (emailContext.industries?.length) {
+      contextParts.push(`Industry context: ${emailContext.industries.join(', ')}`);
+    }
+    if (emailContext.painPoints?.length) {
+      contextParts.push(`Key pain points to address: ${emailContext.painPoints.join(', ')}`);
+    }
+    if (emailContext.metrics?.length) {
+      contextParts.push(`Success metrics to emphasize: ${emailContext.metrics.join(', ')}`);
+    }
+    if (emailContext.urgencyFactors?.length) {
+      contextParts.push(`Urgency factors: ${emailContext.urgencyFactors.join(', ')}`);
+    }
+    if (emailContext.socialProofs?.length) {
+      contextParts.push(`Social proof elements: ${emailContext.socialProofs.join(', ')}`);
+    }
+    if (emailContext.objections?.length) {
+      contextParts.push(`Objections to address: ${emailContext.objections.join(', ')}`);
+    }
+    if (emailContext.valueProps?.length) {
+      contextParts.push(`Value propositions to highlight: ${emailContext.valueProps.join(', ')}`);
+    }
+    
+    if (contextParts.length > 0) {
+      contextInstructions = `\n\nIMPORTANT CONTEXT TO INCORPORATE:\n${contextParts.join('\n')}`;
+    }
+  }
+  
   let systemPrompt = '';
   switch(sectionType) {
     case 'subject':
-      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. Keep it very short - just 2-4 words or 1 sentence unless ${lengthInstructions} is anything other than concise that capture the core value proposition. Focus on the most impressive metric or benefit. Context includes workflow automation details and ROI calculations. Make it punchy and benefit-focused, not feature-focused. Avoid generic words like 'Automate' if possible - be specific about the outcome. ${toneGuidance}`;
+      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. Keep it very short - just 2-4 words or 1 sentence unless ${lengthInstructions} is anything other than concise that capture the core value proposition. Focus on the most impressive metric or benefit. Context includes workflow automation details and ROI calculations. Make it punchy and benefit-focused, not feature-focused. Avoid generic words like 'Automate' if possible - be specific about the outcome. ${toneGuidance}${contextInstructions}`;
       break;
     case 'hook':
-      systemPrompt = `Generate an engaging hook for a cold outreach email about an automation solution. ${lengthInstructions} Write in a conversational, human tone - as if talking to a colleague. Start with their pain point or current situation, not with the solution. Use natural language, contractions, and avoid corporate jargon. Reference a specific struggle they face. Don't repeat the subject line verbatim. ${toneGuidance}`;
+      systemPrompt = `Generate an engaging hook for a cold outreach email about an automation solution. ${lengthInstructions} Write in a conversational, human tone - as if talking to a colleague. Start with their pain point or current situation, not with the solution. Use natural language, contractions, and avoid corporate jargon. Reference a specific struggle they face. Don't repeat the subject line verbatim. ${toneGuidance}${contextInstructions}`;
       break;
     case 'cta':
-      systemPrompt = `Generate a clear call-to-action paragraph that references the ROI data and leads to a PDF download. ${lengthInstructions} Be specific about what's in the PDF without repeating everything from the hook. Use concrete numbers but weave them naturally into the narrative. Avoid phrases already used in previous sections. Keep it action-oriented but conversational. ${toneGuidance}`;
+      systemPrompt = `Generate a clear call-to-action paragraph that references the ROI data and leads to a PDF download. ${lengthInstructions} Be specific about what's in the PDF without repeating everything from the hook. Use concrete numbers but weave them naturally into the narrative. Avoid phrases already used in previous sections. Keep it action-oriented but conversational. ${toneGuidance}${contextInstructions}`;
       break;
     case 'offer':
-      systemPrompt = `Generate a soft offer paragraph suggesting a pilot, demo, or consultation. ${lengthInstructions} Make it feel like a helpful suggestion from a peer, not a sales pitch. Avoid repeating ROI numbers or benefits already mentioned. Focus on the next step and make it low-pressure. Use phrases like 'happy to show you' or 'walk through together' instead of formal business language. ${toneGuidance}`;
+      systemPrompt = `Generate a soft offer paragraph suggesting a pilot, demo, or consultation. ${lengthInstructions} Make it feel like a helpful suggestion from a peer, not a sales pitch. Avoid repeating ROI numbers or benefits already mentioned. Focus on the next step and make it low-pressure. Use phrases like 'happy to show you' or 'walk through together' instead of formal business language. ${toneGuidance}${contextInstructions}`;
       break;
   }
   
@@ -222,6 +270,9 @@ export async function POST(req: Request) {
       // Time saved calculations
       totalHoursSaved: ((payload.runsPerMonth || 0) * (payload.minutesPerRun || 0)) / 60,
       dailyTimeSaved: ((payload.runsPerMonth || 0) * (payload.minutesPerRun || 0)) / 60 / 30,
+      
+      // Email context if provided
+      ...(payload.emailContext && { emailContext: payload.emailContext }),
     };
     
     // Add revenue metrics if enabled
@@ -291,7 +342,8 @@ export async function POST(req: Request) {
         lengthOption,
         toneOption,
         contextFieldsUsed: Object.keys(fullContext).length,
-        workflowStepsIncluded: payload.workflowSteps?.length || 0
+        workflowStepsIncluded: payload.workflowSteps?.length || 0,
+        emailContextProvided: !!payload.emailContext && Object.values(payload.emailContext).some(arr => arr && arr.length > 0)
       }
     });
 

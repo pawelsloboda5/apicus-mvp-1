@@ -198,6 +198,15 @@ export function calculateNodeTimeSavings(
     action: 1.2,
     decision: 0.8,
     group: 0,
+    // Email context nodes have minimal time impact as they are metadata
+    persona: 0,
+    industry: 0,
+    painpoint: 0,
+    metric: 0,
+    urgency: 0,
+    socialproof: 0,
+    objection: 0,
+    value: 0,
   },
   operationType?: string
 ): number {
@@ -269,6 +278,15 @@ export function calculateGroupROI(
         action: 1.2,
         decision: 0.8,
         group: 0,
+        // Email context nodes have minimal time impact
+        persona: 0,
+        industry: 0,
+        painpoint: 0,
+        metric: 0,
+        urgency: 0,
+        socialproof: 0,
+        objection: 0,
+        value: 0,
       },
       operationType
     );
