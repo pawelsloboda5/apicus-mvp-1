@@ -96,6 +96,7 @@ interface EmailGenerationPayload {
   
   // Generation options
   lengthOption?: 'concise' | 'standard' | 'detailed';
+  toneOption?: string;
 }
 
 function getLengthInstructions(lengthOption: string) {
@@ -113,24 +114,40 @@ async function generateSection(
   sectionType: 'subject' | 'hook' | 'cta' | 'offer',
   context: Record<string, unknown>,
   previousSections: Record<string, string>,
-  lengthOption: string = 'standard'
+  lengthOption: string = 'standard',
+  toneOption: string = 'professional_warm'
 ) {
   const lengthInstructions = getLengthInstructions(lengthOption);
+  
+  // Define tone-specific instructions
+  const toneInstructions: Record<string, string> = {
+    'professional_warm': 'Write in a professional yet warm and approachable manner. Be authoritative but friendly.',
+    'casual_friendly': 'Use a casual, conversational tone. Write like you\'re talking to a friend or colleague. Use contractions and informal language where appropriate.',
+    'direct_results': 'Be direct, concise, and results-focused. Lead with outcomes and metrics. Skip pleasantries and get to the point.',
+    'consultative_helpful': 'Take a consultative, advisory tone. Position yourself as a helpful expert who wants to guide them to success.'
+  };
+  
+  const toneGuidance = toneInstructions[toneOption] || toneInstructions['professional_warm'];
   
   let systemPrompt = '';
   switch(sectionType) {
     case 'subject':
-      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. ${lengthInstructions} Focus on the most impressive metric or benefit. Context includes workflow automation details and ROI calculations.`;
+      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. Keep it very short - just 2-4 words or 1 sentence unless ${lengthInstructions} is anything other than concise that capture the core value proposition. Focus on the most impressive metric or benefit. Context includes workflow automation details and ROI calculations. Make it punchy and benefit-focused, not feature-focused. Avoid generic words like 'Automate' if possible - be specific about the outcome. ${toneGuidance}`;
       break;
     case 'hook':
-      systemPrompt = `Generate an engaging hook for a cold outreach email about an automation solution. ${lengthInstructions} Reference the pain point and immediate value. Build on the subject line theme.`;
+      systemPrompt = `Generate an engaging hook for a cold outreach email about an automation solution. ${lengthInstructions} Write in a conversational, human tone - as if talking to a colleague. Start with their pain point or current situation, not with the solution. Use natural language, contractions, and avoid corporate jargon. Reference a specific struggle they face. Don't repeat the subject line verbatim. ${toneGuidance}`;
       break;
     case 'cta':
-      systemPrompt = `Generate a clear call-to-action paragraph that references the ROI data and leads to a PDF download. ${lengthInstructions} Build on the established narrative from subject and hook.`;
+      systemPrompt = `Generate a clear call-to-action paragraph that references the ROI data and leads to a PDF download. ${lengthInstructions} Be specific about what's in the PDF without repeating everything from the hook. Use concrete numbers but weave them naturally into the narrative. Avoid phrases already used in previous sections. Keep it action-oriented but conversational. ${toneGuidance}`;
       break;
     case 'offer':
-      systemPrompt = `Generate a soft offer paragraph suggesting a pilot, demo, or consultation. ${lengthInstructions} Reference the solution's potential while maintaining a consultative tone. Complete the email narrative.`;
+      systemPrompt = `Generate a soft offer paragraph suggesting a pilot, demo, or consultation. ${lengthInstructions} Make it feel like a helpful suggestion from a peer, not a sales pitch. Avoid repeating ROI numbers or benefits already mentioned. Focus on the next step and make it low-pressure. Use phrases like 'happy to show you' or 'walk through together' instead of formal business language. ${toneGuidance}`;
       break;
+  }
+  
+  // Add anti-repetition instructions if we have previous sections
+  if (Object.keys(previousSections).length > 0) {
+    systemPrompt += ` IMPORTANT: Avoid repeating these phrases/concepts that were already used: ${Object.values(previousSections).join(' | ')}. Find fresh angles and new ways to express value.`;
   }
   
   // Build conversation context with previous sections
@@ -140,6 +157,12 @@ async function generateSection(
       content: systemPrompt
     }
   ];
+  
+  // Add tone guidance
+  messages.push({
+    role: "system", 
+    content: "Write like a helpful consultant who genuinely wants to solve problems, not a salesperson. Use 'you' and 'your' frequently. Be specific, not generic. If mentioning tools/apps, do it naturally as part of the solution, not as a feature list."
+  });
   
   // Add previous sections as context
   if (Object.keys(previousSections).length > 0) {
@@ -151,16 +174,16 @@ async function generateSection(
     });
   }
   
-  // Add the context data
+  // Add the context data with instructions for natural integration
   messages.push({
     role: "user",
-    content: `Generate the ${sectionType} section based on this context:\n${JSON.stringify(context, null, 2)}\n\nProvide only the generated text, no explanations.`
+    content: `Generate the ${sectionType} section based on this context. Integrate metrics naturally - don't just list them. Focus on outcomes and benefits, not features.\n\nContext:\n${JSON.stringify(context, null, 2)}\n\nProvide only the generated text, no explanations.`
   });
   
   const completion = await openai.chat.completions.create({
     model: chatDeploymentName,
     messages,
-    temperature: 0.7,
+    temperature: sectionType === 'subject' ? 0.8 : 0.75, // Slightly higher for more natural variation
     max_tokens: sectionType === 'subject' ? 100 : 300,
   });
   
@@ -175,6 +198,7 @@ export async function POST(req: Request) {
   try {
     const payload = await req.json() as EmailGenerationPayload;
     const lengthOption = payload.lengthOption || 'standard';
+    const toneOption = payload.toneOption || 'professional_warm';
     
     // Build comprehensive context object
     const fullContext: Record<string, unknown> = {
@@ -237,12 +261,12 @@ export async function POST(req: Request) {
     
     // 1. Generate Subject Line with 70% of fields
     const subjectContext = selectFieldsForContext(fullContext);
-    generatedSections.subjectLine = await generateSection('subject', subjectContext, {}, lengthOption);
+    generatedSections.subjectLine = await generateSection('subject', subjectContext, {}, lengthOption, toneOption);
     
     // 2. Generate Hook with subject + 70% of fields
     const hookContext = selectFieldsForContext(fullContext);
     generatedSections.hookText = await generateSection('hook', hookContext, 
-      { subjectLine: generatedSections.subjectLine }, lengthOption);
+      { subjectLine: generatedSections.subjectLine }, lengthOption, toneOption);
     
     // 3. Generate CTA with subject + hook + 70% of fields
     const ctaContext = selectFieldsForContext(fullContext);
@@ -250,7 +274,7 @@ export async function POST(req: Request) {
       { 
         subjectLine: generatedSections.subjectLine,
         hookText: generatedSections.hookText 
-      }, lengthOption);
+      }, lengthOption, toneOption);
     
     // 4. Generate Offer with all previous + 70% of fields
     const offerContext = selectFieldsForContext(fullContext);
@@ -259,12 +283,13 @@ export async function POST(req: Request) {
         subjectLine: generatedSections.subjectLine,
         hookText: generatedSections.hookText,
         ctaText: generatedSections.ctaText
-      }, lengthOption);
+      }, lengthOption, toneOption);
     
     return NextResponse.json({
       ...generatedSections,
       metadata: {
         lengthOption,
+        toneOption,
         contextFieldsUsed: Object.keys(fullContext).length,
         workflowStepsIncluded: payload.workflowSteps?.length || 0
       }

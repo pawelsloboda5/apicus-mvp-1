@@ -15,13 +15,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmailPreviewNodeData } from './EmailPreviewNode';
 import { Node } from '@xyflow/react';
-import { Loader2, Wand2, ChevronDown } from 'lucide-react';
+import { Loader2, Wand2, ChevronDown, Check } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from '@/lib/utils';
 
 interface EmailNodePropertiesPanelProps {
   selectedNode: Node<EmailPreviewNodeData> | null;
@@ -38,29 +39,35 @@ interface EmailNodePropertiesPanelProps {
 
 const AI_PROMPT_OPTIONS = {
   subject: [
-    { label: 'More Intriguing', value: 'intriguing_subject' },
-    { label: 'Benefit-Oriented', value: 'benefit_subject' },
-    { label: 'Urgency-Driven', value: 'urgency_subject' },
+    { label: 'ROI-Focused', value: 'roi_subject' },
+    { label: 'Problem-Focused', value: 'problem_subject' },
+    { label: 'Outcome-Focused', value: 'outcome_subject' },
   ],
   hook: [
-    { label: 'Focus Time/Cost Savings', value: 'time_cost_hook' },
-    { label: 'Highlight Efficiency', value: 'efficiency_hook' },
-    { label: 'Emphasize Strategic Impact', value: 'impact_hook' },
+    { label: 'Empathetic & Problem-First', value: 'empathy_hook' },
+    { label: 'Data-Driven Insight', value: 'data_hook' },
+    { label: 'Peer-to-Peer Advice', value: 'peer_hook' },
   ],
   cta: [
-    { label: 'Direct & Action-Oriented', value: 'direct_cta' },
-    { label: 'Softer & Consultative', value: 'soft_cta' },
-    { label: 'Value-Driven Link', value: 'value_cta' },
+    { label: 'Specific & Actionable', value: 'specific_cta' },
+    { label: 'Curious & Explorative', value: 'curious_cta' },
+    { label: 'Results-Focused', value: 'results_cta' },
   ],
   offer: [
-    { label: 'Low-Commitment Pilot', value: 'pilot_offer' },
-    { label: 'Personalized Demo', value: 'demo_offer' },
-    { label: 'Resource/Guide Offer', value: 'resource_offer' },
+    { label: 'Helpful Colleague', value: 'colleague_offer' },
+    { label: 'Expert Guide', value: 'expert_offer' },
+    { label: 'Partnership Approach', value: 'partner_offer' },
   ],
   length: [
     { label: 'Concise', value: 'concise' },
     { label: 'Standard', value: 'standard' },
     { label: 'Detailed', value: 'detailed' },
+  ],
+  tone: [
+    { label: 'Professional & Warm', value: 'professional_warm' },
+    { label: 'Casual & Friendly', value: 'casual_friendly' },
+    { label: 'Direct & Results-Driven', value: 'direct_results' },
+    { label: 'Consultative & Helpful', value: 'consultative_helpful' },
   ]
 };
 
@@ -73,6 +80,7 @@ export function EmailNodePropertiesPanel({
 }: EmailNodePropertiesPanelProps) {
   const [formData, setFormData] = useState<Partial<EmailPreviewNodeData>>({});
   const [selectedLength, setSelectedLength] = useState<'concise' | 'standard' | 'detailed'>('standard');
+  const [selectedTone, setSelectedTone] = useState<string>('professional_warm');
 
   useEffect(() => {
     if (selectedNode) {
@@ -80,6 +88,10 @@ export function EmailNodePropertiesPanel({
       // Set length from node data if available
       if ((selectedNode.data as EmailPreviewNodeData & { lengthOption?: string })?.lengthOption) {
         setSelectedLength((selectedNode.data as EmailPreviewNodeData & { lengthOption?: string }).lengthOption as 'concise' | 'standard' | 'detailed');
+      }
+      // Set tone from node data if available
+      if ((selectedNode.data as EmailPreviewNodeData & { toneOption?: string })?.toneOption) {
+        setSelectedTone((selectedNode.data as EmailPreviewNodeData & { toneOption?: string }).toneOption || 'professional_warm');
       }
     } else {
       setFormData({});
@@ -173,7 +185,7 @@ export function EmailNodePropertiesPanel({
                         onGenerateSection(
                           selectedNode.id,
                           promptKey,
-                          opt.value + '_' + selectedLength, // Include length in prompt type
+                          opt.value + '_' + selectedLength + '_' + selectedTone, // Include tone
                           formData[fieldKey] || ''
                         );
                       }
@@ -322,6 +334,55 @@ export function EmailNodePropertiesPanel({
               
               <div className="space-y-4">
                 <h4 className="text-base font-semibold text-muted-foreground">Email Content (AI Assisted)</h4>
+                
+                {/* Global Tone Selector */}
+                <div className="space-y-2 p-3 bg-muted/20 rounded-md">
+                  <Label htmlFor="tone" className="text-sm font-medium">
+                    Overall Email Tone
+                  </Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full justify-between" 
+                        disabled={isGeneratingAIContent}
+                      >
+                        <span>{AI_PROMPT_OPTIONS.tone.find(opt => opt.value === selectedTone)?.label || 'Professional & Warm'}</span>
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {AI_PROMPT_OPTIONS.tone.map((opt) => (
+                        <DropdownMenuItem
+                          key={opt.value}
+                          disabled={isGeneratingAIContent}
+                          onSelect={() => {
+                            setSelectedTone(opt.value);
+                            if (selectedNode) {
+                              onUpdateNodeData(selectedNode.id, { 
+                                ...(selectedNode.data as EmailPreviewNodeData),
+                                toneOption: opt.value 
+                              } as Partial<EmailPreviewNodeData>);
+                            }
+                          }}
+                        >
+                          <Check 
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedTone === opt.value ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {opt.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Sets the overall writing style for all email sections
+                  </p>
+                </div>
+                
                 <div className="space-y-6">
                   {renderAISection('Subject Line', 'subjectLine', 'subject')}
                   {renderAISection('Hook Text', 'hookText', 'hook')}

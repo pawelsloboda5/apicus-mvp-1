@@ -5,6 +5,7 @@ export interface EmailPreviewNodeData extends EmailTemplateProps {
   nodeTitle?: string;
   isLoading?: boolean;
   lengthOption?: 'concise' | 'standard' | 'detailed';
+  toneOption?: string;
   [key: string]: unknown; // Replace any with unknown
 }
 

@@ -1050,6 +1050,25 @@ function BuildPageContent() {
       setIsManipulatingNodesProgrammatically(true);
       const sc = currentScenario;
 
+      // Check for template defaults from localStorage
+      let templateDefaults: {
+        subjectLine?: string;
+        hookText?: string;
+        toneOption?: string;
+        templateType?: string;
+      } = {};
+      
+      try {
+        const stored = localStorage.getItem('emailTemplateDefaults');
+        if (stored) {
+          templateDefaults = JSON.parse(stored);
+          // Clear it after reading
+          localStorage.removeItem('emailTemplateDefaults');
+        }
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+
       // Find optimal position for email node to avoid overlaps
       const findOptimalEmailPosition = (existingNodes: Node<Record<string, unknown>>[]) => {
         const emailNodeWidth = 700; // Increased width for better display
@@ -1131,8 +1150,8 @@ function BuildPageContent() {
             yourEmail: sc.emailYourEmail || '[YOUR_EMAIL]',
             calendlyLink: sc.emailCalendlyLink || 'https://calendly.com/your-link',
             pdfLink: sc.emailPdfLink || 'https://example.com/roi.pdf',
-            subjectLine: 'Generating subject line...',
-            hookText: 'AI is crafting your personalized hook text...',
+            subjectLine: templateDefaults.subjectLine || 'Generating subject line...',
+            hookText: templateDefaults.hookText || 'AI is crafting your personalized hook text...',
             ctaText: 'Generating compelling call-to-action...',
             offerText: 'Creating your value proposition...',
             stats: { 
@@ -1245,8 +1264,9 @@ function BuildPageContent() {
         totalSteps: nodes.filter(n => n.type !== 'group').length,
         uniqueApps,
         
-        // Default to standard length for initial generation
+        // Default to standard length and professional_warm tone for initial generation
         lengthOption: 'standard' as const,
+        toneOption: 'professional_warm',
       };
 
       const response = await fetch('/api/openai/generate-full-email', {
@@ -1281,6 +1301,7 @@ function BuildPageContent() {
                 },
                 isLoading: false, // Remove loading flag
                 lengthOption: 'standard', // Store current length option
+                toneOption: 'professional_warm', // Store current tone option
               }
             };
           }
@@ -1370,7 +1391,7 @@ function BuildPageContent() {
     async (
       nodeId: string,
       section: 'hook' | 'cta' | 'offer' | 'subject',
-      promptType: string, // This will be like 'time_cost_hook_standard', 'direct_cta_concise' etc.
+      promptType: string, // This will be like 'time_cost_hook_standard_professional_warm', etc.
       currentText: string
     ) => {
       if (!currentScenario) {
@@ -1381,10 +1402,11 @@ function BuildPageContent() {
       try {
         const sc = currentScenario;
         
-        // Extract length option from promptType
+        // Extract length option and tone from promptType
         const parts = promptType.split('_');
-        const lengthOption = parts[parts.length - 1] as 'concise' | 'standard' | 'detailed';
-        const actualPromptType = parts.slice(0, -1).join('_');
+        const toneOption = parts[parts.length - 1] + '_' + parts[parts.length - 2]; // e.g., 'professional_warm'
+        const lengthOption = parts[parts.length - 3] as 'concise' | 'standard' | 'detailed';
+        const actualPromptType = parts.slice(0, -3).join('_');
         
         // Calculate all ROI values
         const timeValue = calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0);
@@ -1500,19 +1522,30 @@ function BuildPageContent() {
           }
         }
 
-        // Map promptType to a more descriptive system prompt
+        // Map promptType to a more descriptive system prompt with tone awareness
         let systemPrompt = "Rewrite the following email section.";
+        
+        // Add tone-specific instructions
+        const toneInstructions = {
+          'professional_warm': 'Use a professional yet warm and approachable tone.',
+          'casual_friendly': 'Write in a casual, friendly tone like talking to a colleague over coffee.',
+          'direct_results': 'Be direct and results-focused, emphasizing concrete outcomes.',
+          'consultative_helpful': 'Take a consultative approach, positioning yourself as a helpful advisor.'
+        };
+        
+        const toneGuidance = toneInstructions[toneOption as keyof typeof toneInstructions] || toneInstructions['professional_warm'];
+        
         if (actualPromptType.includes('subject')) {
-          systemPrompt = `Rewrite this email subject line. Style: ${actualPromptType.split('_')[0]}.`;
+          systemPrompt = `Rewrite this email subject line. Style: ${actualPromptType.split('_')[0]}. ${toneGuidance}`;
         } else if (actualPromptType.includes('hook')) {
           const style = actualPromptType.replace('_hook', '').replace(/_/g, ' ');
-          systemPrompt = `Rewrite this email hook section with focus on: ${style}.`;
+          systemPrompt = `Rewrite this email hook section with focus on: ${style}. ${toneGuidance}`;
         } else if (actualPromptType.includes('cta')) {
           const style = actualPromptType.replace('_cta', '').replace(/_/g, ' ');
-          systemPrompt = `Rewrite this email CTA section. Style: ${style}.`;
+          systemPrompt = `Rewrite this email CTA section. Style: ${style}. ${toneGuidance}`;
         } else if (actualPromptType.includes('offer')) {
           const style = actualPromptType.replace('_offer', '').replace(/_/g, ' ');
-          systemPrompt = `Rewrite this email offer section. Type: ${style}.`;
+          systemPrompt = `Rewrite this email offer section. Type: ${style}. ${toneGuidance}`;
         }
         
         const response = await fetch('/api/openai/generate-email-section', {
@@ -1525,6 +1558,7 @@ function BuildPageContent() {
             lengthOption,
             section,
             previousSections,
+            toneOption,
           }),
         });
 
