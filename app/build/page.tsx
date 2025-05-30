@@ -232,6 +232,29 @@ function BuildPageContent() {
     }
   }, [isEditingTitle]);
 
+  // Add event listener for email node properties button clicks
+  useEffect(() => {
+    const handleEmailNodePropertiesClick = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const nodeElement = customEvent.detail?.nodeElement as HTMLElement;
+      if (nodeElement) {
+        // Extract node id from the element's data attribute
+        const nodeId = nodeElement.getAttribute('data-id');
+        if (nodeId) {
+          setSelectedEmailNodeId(nodeId);
+          setSelectedId(null);
+          setSelectedGroupId(null);
+          setIsMultiSelectionActive(false);
+        }
+      }
+    };
+
+    document.addEventListener('emailNodePropertiesClick', handleEmailNodePropertiesClick);
+    return () => {
+      document.removeEventListener('emailNodePropertiesClick', handleEmailNodePropertiesClick);
+    };
+  }, []);
+
   const saveScenarioName = async () => {
     if (currentScenario && currentScenario.id && editingScenarioName.trim() !== "") {
       const newName = editingScenarioName.trim();
@@ -294,16 +317,8 @@ function BuildPageContent() {
     setValuePerConversion(scenario.valuePerConversion || 200);
 
     const loadedNodes = (scenario.nodesSnapshot as Node<Record<string, unknown>>[] || []).map(node => {
-      // Add onOpenNodeProperties callback to email preview nodes
-      if (node.type === 'emailPreview') {
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            onOpenNodeProperties: () => setSelectedId(node.id)
-          }
-        };
-      }
+      // Don't add functions to node data as they can't be saved to IndexedDB
+      // The click handling should be done at the component level instead
       return node;
     });
     
@@ -1288,7 +1303,6 @@ function BuildPageContent() {
               runs: sc.runsPerMonth || 0,
             },
             isLoading: true, // Add loading flag
-            onOpenNodeProperties: () => setSelectedId(loadingEmailNodeId)
           },
           draggable: true,
           selectable: true,
@@ -1451,7 +1465,6 @@ function BuildPageContent() {
                 isLoading: false, // Remove loading flag
                 lengthOption: 'standard', // Store current length option
                 toneOption: 'professional_warm', // Store current tone option
-                onOpenNodeProperties: () => setSelectedId(loadingEmailNodeId)
               }
             };
           }
@@ -1510,7 +1523,6 @@ function BuildPageContent() {
                 ctaText: 'Please try again',
                 offerText: 'Click the Generate Email button to retry',
                 isLoading: false,
-                onOpenNodeProperties: () => setSelectedId(node.id)
               }
             };
           }

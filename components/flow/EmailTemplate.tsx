@@ -178,6 +178,21 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
     });
   };
 
+  // Properties button click handler
+  const handlePropertiesClick = () => {
+    if (onOpenNodeProperties) {
+      onOpenNodeProperties();
+    } else {
+      // Dispatch a custom event that the parent can listen to
+      // This allows the EmailPreviewNode to work without storing functions in node data
+      const event = new CustomEvent('emailNodePropertiesClick', { 
+        bubbles: true,
+        detail: { nodeElement: document.activeElement?.closest('.react-flow__node-emailPreview') }
+      });
+      document.dispatchEvent(event);
+    }
+  };
+
   return (
     <div className="space-y-4 w-full h-full flex flex-col">
       {/* Interactive buttons */}
@@ -190,12 +205,10 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
         >
           Download
         </a>
-        {onOpenNodeProperties && (
-          <Button onClick={onOpenNodeProperties} size="sm" variant="outline" className="text-xs">
-            <Settings className="h-3 w-3 mr-1" />
-            Properties
-          </Button>
-        )}
+        <Button onClick={handlePropertiesClick} size="sm" variant="outline" className="text-xs">
+          <Settings className="h-3 w-3 mr-1" />
+          Properties
+        </Button>
       </div>
 
       {/* Live preview via iframe - optimized for canvas display */}
@@ -204,7 +217,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
             title="Email preview"
             srcDoc={rawHtml}
             className="w-full h-full border rounded-lg shadow-sm bg-white"
-            sandbox="allow-same-origin"
+            sandbox="allow-same-origin allow-scripts"
             style={{ minHeight: '600px' }}
         />
       </div>
