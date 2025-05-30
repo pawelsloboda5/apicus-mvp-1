@@ -589,7 +589,9 @@ function BuildPageContent() {
       const cleanedNodes = flowObject.nodes.map(node => {
         if (node.type === 'emailPreview' && node.data && typeof node.data === 'object') {
           // Remove non-serializable properties like functions
-          const { onOpenNodeProperties: _onOpenNodeProperties, ...cleanData } = node.data as Record<string, unknown>;
+          const nodeData = node.data as Record<string, unknown>;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { onOpenNodeProperties, ...cleanData } = nodeData;
           return { ...node, data: cleanData };
         }
         return node;
@@ -1483,7 +1485,9 @@ function BuildPageContent() {
         const cleanedNodes = flowObject.nodes.map(node => {
           if (node.type === 'emailPreview' && node.data && typeof node.data === 'object') {
             // Remove non-serializable properties like functions
-            const { onOpenNodeProperties: _onOpenNodeProperties, ...cleanData } = node.data as Record<string, unknown>;
+            const nodeData = node.data as Record<string, unknown>;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { onOpenNodeProperties, ...cleanData } = nodeData;
             return { ...node, data: cleanData };
           }
           return node;
@@ -1539,7 +1543,9 @@ function BuildPageContent() {
         const cleanedNodes = flowObject.nodes.map(node => {
           if (node.type === 'emailPreview' && node.data && typeof node.data === 'object') {
             // Remove non-serializable properties like functions
-            const { onOpenNodeProperties: _onOpenNodeProperties, ...cleanData } = node.data as Record<string, unknown>;
+            const nodeData = node.data as Record<string, unknown>;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { onOpenNodeProperties, ...cleanData } = nodeData;
             return { ...node, data: cleanData };
           }
           return node;
