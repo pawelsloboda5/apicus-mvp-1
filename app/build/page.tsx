@@ -589,7 +589,7 @@ function BuildPageContent() {
       const cleanedNodes = flowObject.nodes.map(node => {
         if (node.type === 'emailPreview' && node.data && typeof node.data === 'object') {
           // Remove non-serializable properties like functions
-          const { onOpenNodeProperties: _, ...cleanData } = node.data as Record<string, unknown>;
+          const { onOpenNodeProperties: _onOpenNodeProperties, ...cleanData } = node.data as Record<string, unknown>;
           return { ...node, data: cleanData };
         }
         return node;
@@ -1483,7 +1483,7 @@ function BuildPageContent() {
         const cleanedNodes = flowObject.nodes.map(node => {
           if (node.type === 'emailPreview' && node.data && typeof node.data === 'object') {
             // Remove non-serializable properties like functions
-            const { onOpenNodeProperties: _, ...cleanData } = node.data as Record<string, unknown>;
+            const { onOpenNodeProperties: _onOpenNodeProperties, ...cleanData } = node.data as Record<string, unknown>;
             return { ...node, data: cleanData };
           }
           return node;
@@ -1539,7 +1539,7 @@ function BuildPageContent() {
         const cleanedNodes = flowObject.nodes.map(node => {
           if (node.type === 'emailPreview' && node.data && typeof node.data === 'object') {
             // Remove non-serializable properties like functions
-            const { onOpenNodeProperties: _, ...cleanData } = node.data as Record<string, unknown>;
+            const { onOpenNodeProperties: _onOpenNodeProperties, ...cleanData } = node.data as Record<string, unknown>;
             return { ...node, data: cleanData };
           }
           return node;
