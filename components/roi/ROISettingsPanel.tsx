@@ -474,7 +474,7 @@ export function ROISettingsPanel({
             {/* Hourly rate */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label htmlFor="hourly" className="font-medium">Hourly Wage ($)</Label>
+                <Label htmlFor="hourly" className="font-medium">Labor Costs Per hr ($)</Label>
                 <Input
                   id="hourly"
                   type="number"

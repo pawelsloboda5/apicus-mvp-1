@@ -293,7 +293,21 @@ function BuildPageContent() {
     setConversionRate(scenario.conversionRate || 5);
     setValuePerConversion(scenario.valuePerConversion || 200);
 
-    setNodes(scenario.nodesSnapshot as Node<Record<string, unknown>>[] || []);
+    const loadedNodes = (scenario.nodesSnapshot as Node<Record<string, unknown>>[] || []).map(node => {
+      // Add onOpenNodeProperties callback to email preview nodes
+      if (node.type === 'emailPreview') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onOpenNodeProperties: () => setSelectedId(node.id)
+          }
+        };
+      }
+      return node;
+    });
+    
+    setNodes(loadedNodes);
     setEdges(scenario.edgesSnapshot as Edge<Record<string, unknown>>[] || []);
     if (rfInstance && scenario.viewport) {
       rfInstance.setViewport(scenario.viewport as Viewport);
@@ -1263,7 +1277,8 @@ function BuildPageContent() {
               payback: 'Calculating...',
               runs: sc.runsPerMonth || 0,
             },
-            isLoading: true // Add loading flag
+            isLoading: true, // Add loading flag
+            onOpenNodeProperties: () => setSelectedId(loadingEmailNodeId)
           },
           draggable: true,
           selectable: true,
@@ -1426,6 +1441,7 @@ function BuildPageContent() {
                 isLoading: false, // Remove loading flag
                 lengthOption: 'standard', // Store current length option
                 toneOption: 'professional_warm', // Store current tone option
+                onOpenNodeProperties: () => setSelectedId(loadingEmailNodeId)
               }
             };
           }
@@ -1473,7 +1489,8 @@ function BuildPageContent() {
                 hookText: `Error: ${error instanceof Error ? error.message : String(error)}`,
                 ctaText: 'Please try again',
                 offerText: 'Click the Generate Email button to retry',
-                isLoading: false
+                isLoading: false,
+                onOpenNodeProperties: () => setSelectedId(node.id)
               }
             };
           }

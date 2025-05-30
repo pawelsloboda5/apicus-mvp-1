@@ -8,12 +8,12 @@ import { NodeType, PlatformType } from "@/lib/types";
 import type { PlatformPricing } from "@/app/api/data/pricing";
 
 /**
- * Calculate the total time value of automation
- * @param runsPerMonth Number of times automation runs per month
- * @param minutesPerRun Minutes saved per run
- * @param hourlyRate Hourly wage rate
- * @param taskMultiplier Task value multiplier
- * @returns The calculated time value in dollars
+ * Calculate the time value of automation
+ * @param runsPerMonth Number of automation runs per month
+ * @param minutesPerRun Minutes saved per automation run
+ * @param hourlyRate Labour costs per hour ($/hour)
+ * @param taskMultiplier Task value multiplier based on importance
+ * @returns Monthly time value in dollars
  */
 export function calculateTimeValue(
   runsPerMonth: number,
@@ -21,8 +21,7 @@ export function calculateTimeValue(
   hourlyRate: number,
   taskMultiplier: number
 ): number {
-  const totalMinutesPerMonth = runsPerMonth * minutesPerRun;
-  const totalHoursPerMonth = totalMinutesPerMonth / 60;
+  const totalHoursPerMonth = (runsPerMonth * minutesPerRun) / 60;
   return totalHoursPerMonth * hourlyRate * taskMultiplier;
 }
 

@@ -6,6 +6,7 @@ export interface EmailPreviewNodeData extends EmailTemplateProps {
   isLoading?: boolean;
   lengthOption?: 'concise' | 'standard' | 'detailed';
   toneOption?: string;
+  onOpenNodeProperties?: () => void;
   [key: string]: unknown; // Replace any with unknown
 }
 
@@ -22,7 +23,7 @@ interface EmailPreviewNodeProps {
 }
 
 export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
-  const { nodeTitle = "Generated Email Output", isLoading = false, ...emailProps } = data;
+  const { nodeTitle = "Generated Email Output", isLoading = false, onOpenNodeProperties, ...emailProps } = data;
 
   // The EmailTemplate component itself renders an iframe with srcDoc for the preview.
   // We just need to wrap it in a node structure.
@@ -50,7 +51,7 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
             </div>
           </div>
         ) : (
-          <EmailTemplate {...emailProps} />
+          <EmailTemplate {...emailProps} onOpenNodeProperties={onOpenNodeProperties} />
         )}
       </div>
     </div>

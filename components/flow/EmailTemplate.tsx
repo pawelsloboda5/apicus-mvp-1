@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Settings } from "lucide-react";
 
 /**
  * EmailTemplate – renders a live preview **and** produces a raw HTML string
@@ -33,6 +34,9 @@ export interface EmailTemplateProps {
     payback?: string;   // e.g. "< 1 day"
     runs?: number;      // e.g. 290
   };
+  
+  // Function to open node properties panel
+  onOpenNodeProperties?: () => void;
 }
 
 export const EmailTemplate: React.FC<EmailTemplateProps> = ({
@@ -53,6 +57,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
   showTestimonial = false,
   showUrgency = false,
   stats = { roiX: 0, payback: "N/A", runs: 0 },
+  onOpenNodeProperties,
 }) => {
   // Build the raw HTML only once per prop‑set
   const rawHtml = useMemo(() => {
@@ -185,6 +190,12 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
         >
           Download
         </a>
+        {onOpenNodeProperties && (
+          <Button onClick={onOpenNodeProperties} size="sm" variant="outline" className="text-xs">
+            <Settings className="h-3 w-3 mr-1" />
+            Properties
+          </Button>
+        )}
       </div>
 
       {/* Live preview via iframe - optimized for canvas display */}
