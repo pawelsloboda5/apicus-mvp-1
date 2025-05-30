@@ -125,11 +125,11 @@ interface EmailGenerationPayload {
 function getLengthInstructions(lengthOption: string) {
   switch(lengthOption) {
     case 'concise':
-      return 'Keep it very brief and punchy. Maximum 1-2 sentences.';
+      return 'Very brief. Maximum 1 sentence. Under 20 words.';
     case 'detailed':
-      return 'Provide comprehensive detail. 3-4 sentences with specific examples and metrics.';
+      return '2-3 sentences maximum. Be specific but concise.';
     default:
-      return 'Standard length. 2-3 sentences with key points.';
+      return '1-2 sentences. Keep it punchy and direct.';
   }
 }
 
@@ -144,10 +144,10 @@ async function generateSection(
   
   // Define tone-specific instructions
   const toneInstructions: Record<string, string> = {
-    'professional_warm': 'Write in a professional yet warm and approachable manner. Be authoritative but friendly.',
-    'casual_friendly': 'Use a casual, conversational tone. Write like you\'re talking to a friend or colleague. Use contractions and informal language where appropriate.',
-    'direct_results': 'Be direct, concise, and results-focused. Lead with outcomes and metrics. Skip pleasantries and get to the point.',
-    'consultative_helpful': 'Take a consultative, advisory tone. Position yourself as a helpful expert who wants to guide them to success.'
+    'professional_warm': 'Professional but conversational. Like a helpful consultant talking directly to a client.',
+    'casual_friendly': 'Casual and friendly. Use contractions. Keep it natural.',
+    'direct_results': 'Direct and results-focused. Lead with outcomes. Skip pleasantries.',
+    'consultative_helpful': 'Helpful expert tone. Guide them to success without being pushy.'
   };
   
   const toneGuidance = toneInstructions[toneOption] || toneInstructions['professional_warm'];
@@ -188,34 +188,43 @@ async function generateSection(
     }
   }
   
+  // Add global formatting rules
+  const globalFormattingRules = `
+CRITICAL FORMATTING RULES:
+- NEVER use em dashes (—). Use commas or periods instead.
+- Keep sentences SHORT. Break up long ones.
+- Be concise. Remove filler words and repetitive phrases.
+- Total email must be under 220 words.
+- Write like you're talking to a colleague, not writing a formal proposal.`;
+  
   let systemPrompt = '';
   switch(sectionType) {
     case 'subject':
-      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. CRITICAL: Keep it SHORT - maximum 6-8 words. Focus on ONE key benefit or metric. Make it specific and outcome-focused. Examples of good length: "Cut data entry 80% this month" or "Save 15 hours weekly guaranteed". Avoid generic words like 'Automate' or 'Transform'. ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. MAXIMUM 6-8 words. Focus on ONE specific benefit or metric. No generic words like 'Automate' or 'Transform'. Examples: "Cut data entry 80% this month" or "Save 15 hours weekly guaranteed". ${toneGuidance}${contextInstructions}`;
       break;
     case 'hook':
-      systemPrompt = `Generate an engaging hook for a cold outreach email about an automation solution. ${lengthInstructions} Write in a conversational, human tone - as if talking to a colleague. Start with their pain point or current situation, not with the solution. Use natural language, contractions, and avoid corporate jargon. Reference a specific struggle they face. Don't repeat the subject line verbatim. ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate an engaging hook for a cold outreach email about automation. ${lengthInstructions} Start with their specific pain point or current situation. Use natural language and contractions. No corporate jargon. ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
     case 'cta':
-      systemPrompt = `Generate a clear call-to-action paragraph that references the ROI data and leads to a PDF download. ${lengthInstructions} Be specific about what's in the PDF without repeating everything from the hook. Use concrete numbers but weave them naturally into the narrative. Avoid phrases already used in previous sections. Keep it action-oriented but conversational. ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a clear call-to-action that references ROI data and leads to PDF download. ${lengthInstructions} Be specific about what's in the PDF. Use concrete numbers naturally. Make it inviting (e.g., "Want to see the breakdown?" or "Here's your custom ROI snapshot:"). ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
     case 'offer':
-      systemPrompt = `Generate a soft offer paragraph suggesting a pilot, demo, or consultation. ${lengthInstructions} Make it feel like a helpful suggestion from a peer, not a sales pitch. Avoid repeating ROI numbers or benefits already mentioned. Focus on the next step and make it low-pressure. Use phrases like 'happy to show you' or 'walk through together' instead of formal business language. ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a soft offer suggesting a pilot, demo, or consultation. ${lengthInstructions} Make it feel helpful, not salesy. Use phrases like "happy to show you" or "let's walk through it together". Focus on next steps. ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
     case 'ps':
-      systemPrompt = `Generate a compelling PS line for the email. Keep it to ONE sentence. Add a surprising fact, additional benefit, or create urgency. Make it feel like an afterthought that's actually important. Examples: "PS - Your competitor just automated this last month" or "PS - The setup takes less than 30 minutes". ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a PS line. ONE short sentence only. Under 15 words. Add a surprising fact or create urgency. Examples: "PS. Your competitor automated this last month" or "PS. Setup takes under 30 minutes". ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
     case 'testimonial':
-      systemPrompt = `Generate a brief testimonial quote from a similar customer. Keep it to 1-2 sentences max. Make it specific with real metrics and relatable to the target persona. Format as a quote with attribution. Example: "We cut our reporting time by 85% in the first week" - Sarah Chen, Ops Manager at TechCo. ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a brief testimonial quote. ONE sentence with specific metrics. Include attribution. Example: "Cut reporting time by 85% in week one" - Sarah Chen, Ops Manager. ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
     case 'urgency':
-      systemPrompt = `Generate a subtle urgency line that creates FOMO without being pushy. One sentence only. Reference timing, competitive advantage, or limited availability. Examples: "Three of your competitors started using this last quarter" or "Our calendar fills up fast in Q4". ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a subtle urgency line. ONE short sentence. Create FOMO without being pushy. Examples: "Three competitors started last quarter" or "Q4 calendars filling fast". ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
   }
   
   // Add anti-repetition instructions if we have previous sections
   if (Object.keys(previousSections).length > 0) {
-    systemPrompt += ` IMPORTANT: Avoid repeating these phrases/concepts that were already used: ${Object.values(previousSections).join(' | ')}. Find fresh angles and new ways to express value.`;
+    systemPrompt += ` IMPORTANT: Don't repeat these concepts already used: ${Object.values(previousSections).join(' | ')}. Find fresh angles.`;
   }
   
   // Build conversation context with previous sections
@@ -226,10 +235,10 @@ async function generateSection(
     }
   ];
   
-  // Add tone guidance
+  // Add tone guidance with brevity emphasis
   messages.push({
     role: "system", 
-    content: "Write like a helpful consultant who genuinely wants to solve problems, not a salesperson. Use 'you' and 'your' frequently. Be specific, not generic. If mentioning tools/apps, do it naturally as part of the solution, not as a feature list."
+    content: "Write like a helpful consultant who wants to solve problems. Be specific, not generic. Every word must earn its place. Cut anything that doesn't add value. Remember: total email under 220 words."
   });
   
   // Add previous sections as context
@@ -245,14 +254,14 @@ async function generateSection(
   // Add the context data with instructions for natural integration
   messages.push({
     role: "user",
-    content: `Generate the ${sectionType} section based on this context. Integrate metrics naturally - don't just list them. Focus on outcomes and benefits, not features.\n\nContext:\n${JSON.stringify(context, null, 2)}\n\nProvide only the generated text, no explanations.`
+    content: `Generate the ${sectionType} section based on this context. Keep it concise and direct.\n\nContext:\n${JSON.stringify(context, null, 2)}\n\nProvide only the generated text, no explanations.`
   });
   
   const completion = await openai.chat.completions.create({
     model: chatDeploymentName,
     messages,
-    temperature: sectionType === 'subject' ? 0.8 : 0.75, // Slightly higher for more natural variation
-    max_tokens: sectionType === 'subject' ? 50 : (sectionType === 'ps' || sectionType === 'urgency' ? 100 : 300),
+    temperature: sectionType === 'subject' ? 0.8 : 0.7, // Slightly lower for more focused output
+    max_tokens: sectionType === 'subject' ? 30 : (sectionType === 'ps' || sectionType === 'urgency' ? 50 : 150), // Reduced token limits
   });
   
   return completion.choices[0]?.message?.content?.trim() || "";

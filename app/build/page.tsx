@@ -570,8 +570,18 @@ function BuildPageContent() {
       
       const flowObject = rfInstance.toObject();
       
+      // Clean function references from nodes before saving
+      const cleanedNodes = flowObject.nodes.map(node => {
+        if (node.type === 'emailPreview' && node.data && typeof node.data === 'object') {
+          // Remove non-serializable properties like functions
+          const { onOpenNodeProperties, ...cleanData } = node.data as Record<string, unknown>;
+          return { ...node, data: cleanData };
+        }
+        return node;
+      });
+      
       // Determine if there has been a meaningful change to content or viewport
-      const nodesChanged = JSON.stringify(flowObject.nodes) !== JSON.stringify(currentScenario.nodesSnapshot || []);
+      const nodesChanged = JSON.stringify(cleanedNodes) !== JSON.stringify(currentScenario.nodesSnapshot || []);
       const edgesChanged = JSON.stringify(flowObject.edges) !== JSON.stringify(currentScenario.edgesSnapshot || []);
       const viewportChanged = JSON.stringify(flowObject.viewport) !== JSON.stringify(currentScenario.viewport);
 
@@ -579,7 +589,7 @@ function BuildPageContent() {
 
       if (hasContentChanged && currentScenario.id) {
         const updatePayload: Partial<Scenario> = {
-          nodesSnapshot: flowObject.nodes,
+          nodesSnapshot: cleanedNodes,
           edgesSnapshot: flowObject.edges,
           viewport: flowObject.viewport,
           updatedAt: Date.now(),
@@ -1456,6 +1466,16 @@ function BuildPageContent() {
         // Get the current flow state including our updated email node
         const flowObject = rfInstance.toObject();
         
+        // Clean function references from nodes before saving
+        const cleanedNodes = flowObject.nodes.map(node => {
+          if (node.type === 'emailPreview' && node.data && typeof node.data === 'object') {
+            // Remove non-serializable properties like functions
+            const { onOpenNodeProperties, ...cleanData } = node.data as Record<string, unknown>;
+            return { ...node, data: cleanData };
+          }
+          return node;
+        });
+        
         // Update scenario with BOTH email fields AND the current nodes snapshot
         const comprehensiveUpdate: Partial<Scenario> = {
           emailSubjectLine: emailTexts.subjectLine || sc.emailSubjectLine,
@@ -1465,7 +1485,7 @@ function BuildPageContent() {
           emailPsText: emailTexts.psText || sc.emailPsText,
           emailTestimonialText: emailTexts.testimonialText || sc.emailTestimonialText,
           emailUrgencyText: emailTexts.urgencyText || sc.emailUrgencyText,
-          nodesSnapshot: flowObject.nodes, // Include the updated nodes with email node
+          nodesSnapshot: cleanedNodes, // Use cleaned nodes
           edgesSnapshot: flowObject.edges, // Include current edges
           viewport: flowObject.viewport, // Include current viewport
           updatedAt: Date.now(),
@@ -1502,8 +1522,19 @@ function BuildPageContent() {
       setTimeout(async () => {
         if (!rfInstance || !currentScenario?.id) return;
         const flowObject = rfInstance.toObject();
+        
+        // Clean function references from nodes before saving
+        const cleanedNodes = flowObject.nodes.map(node => {
+          if (node.type === 'emailPreview' && node.data && typeof node.data === 'object') {
+            // Remove non-serializable properties like functions
+            const { onOpenNodeProperties, ...cleanData } = node.data as Record<string, unknown>;
+            return { ...node, data: cleanData };
+          }
+          return node;
+        });
+        
         const errorUpdate: Partial<Scenario> = {
-          nodesSnapshot: flowObject.nodes,
+          nodesSnapshot: cleanedNodes,
           edgesSnapshot: flowObject.edges,
           viewport: flowObject.viewport,
           updatedAt: Date.now(),
