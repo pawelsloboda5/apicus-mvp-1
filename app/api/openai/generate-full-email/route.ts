@@ -159,32 +159,32 @@ async function generateSection(
     const contextParts = [];
     
     if (emailContext.personas?.length) {
-      contextParts.push(`Target audience: ${emailContext.personas.join(', ')}`);
+      contextParts.push(`TARGET PERSONAS: ${emailContext.personas.join(', ')} - Tailor language, examples, and pain points specifically for these roles. Use their terminology and reference their daily challenges.`);
     }
     if (emailContext.industries?.length) {
-      contextParts.push(`Industry context: ${emailContext.industries.join(', ')}`);
+      contextParts.push(`INDUSTRY CONTEXT: ${emailContext.industries.join(', ')} - Use industry-specific language, reference common tools/processes in this industry, and highlight industry-specific compliance or challenges.`);
     }
     if (emailContext.painPoints?.length) {
-      contextParts.push(`Key pain points to address: ${emailContext.painPoints.join(', ')}`);
+      contextParts.push(`PAIN POINTS TO ADDRESS: ${emailContext.painPoints.join(', ')} - Lead with these specific problems. Make them feel understood by describing the pain vividly. Show how automation directly solves each one.`);
     }
     if (emailContext.metrics?.length) {
-      contextParts.push(`Success metrics to emphasize: ${emailContext.metrics.join(', ')}`);
+      contextParts.push(`SUCCESS METRICS TO EMPHASIZE: ${emailContext.metrics.join(', ')} - Quantify the impact using these specific metrics. Make them the hero metrics in your value proposition.`);
     }
     if (emailContext.urgencyFactors?.length) {
-      contextParts.push(`Urgency factors: ${emailContext.urgencyFactors.join(', ')}`);
+      contextParts.push(`URGENCY FACTORS: ${emailContext.urgencyFactors.join(', ')} - Weave these time-sensitive elements naturally into the message. Create FOMO around these specific deadlines or opportunities.`);
     }
     if (emailContext.socialProofs?.length) {
-      contextParts.push(`Social proof elements: ${emailContext.socialProofs.join(', ')}`);
+      contextParts.push(`SOCIAL PROOF ELEMENTS: ${emailContext.socialProofs.join(', ')} - Integrate these credibility markers naturally. Use them to build trust without being boastful.`);
     }
     if (emailContext.objections?.length) {
-      contextParts.push(`Objections to address: ${emailContext.objections.join(', ')}`);
+      contextParts.push(`OBJECTIONS TO PREEMPTIVELY ADDRESS: ${emailContext.objections.join(', ')} - Subtly address these concerns without making them the focus. Turn potential blockers into reassurances.`);
     }
     if (emailContext.valueProps?.length) {
-      contextParts.push(`Value propositions to highlight: ${emailContext.valueProps.join(', ')}`);
+      contextParts.push(`VALUE PROPOSITIONS TO HIGHLIGHT: ${emailContext.valueProps.join(', ')} - Make these benefits tangible and specific. Connect them directly to the persona's goals and the pain points mentioned.`);
     }
     
     if (contextParts.length > 0) {
-      contextInstructions = `\n\nIMPORTANT CONTEXT TO INCORPORATE:\n${contextParts.join('\n')}`;
+      contextInstructions = `\n\nEMAIL PERSONALIZATION CONTEXT:\n${contextParts.join('\n\n')}\n\nIMPORTANT: Use ALL of these context elements creatively. Don't just list them - weave them into a narrative that feels personalized and relevant.`;
     }
   }
   
@@ -200,25 +200,85 @@ CRITICAL FORMATTING RULES:
   let systemPrompt = '';
   switch(sectionType) {
     case 'subject':
-      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. MAXIMUM 6-8 words. Focus on ONE specific benefit or metric. No generic words like 'Automate' or 'Transform'. Examples: "Cut data entry 80% this month" or "Save 15 hours weekly guaranteed". ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a compelling email subject line for an automation ROI proposal. MAXIMUM 6-8 words. 
+      
+      ${emailContext?.personas?.length ? `PERSONA FOCUS: Write specifically for ${emailContext.personas[0]} - use their language.` : ''}
+      ${emailContext?.painPoints?.length ? `PAIN POINT HOOK: Lead with their biggest pain: ${emailContext.painPoints[0]}` : ''}
+      ${emailContext?.metrics?.length ? `METRIC FOCUS: Highlight the ${emailContext.metrics[0]} improvement` : ''}
+      
+      Focus on ONE specific benefit or metric that will resonate with this exact reader. No generic words like 'Automate' or 'Transform'. 
+      Examples: "Cut ${emailContext?.painPoints?.[0] || 'data entry'} 80% this month" or "Save ${emailContext?.metrics?.[0] || '15 hours weekly'} guaranteed". 
+      ${toneGuidance}${contextInstructions}`;
       break;
+      
     case 'hook':
-      systemPrompt = `Generate an engaging hook for a cold outreach email about automation. ${lengthInstructions} Start with their specific pain point or current situation. Use natural language and contractions. No corporate jargon. ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate an engaging hook for a cold outreach email about automation. ${lengthInstructions} 
+      
+      ${emailContext?.personas?.length ? `PERSONA: You're writing to a ${emailContext.personas.join(' or ')}. Speak their language.` : ''}
+      ${emailContext?.painPoints?.length ? `PAIN FOCUS: Start with their specific pain: "${emailContext.painPoints[0]}". Make them feel understood.` : ''}
+      ${emailContext?.industries?.length ? `INDUSTRY: Reference common ${emailContext.industries[0]} challenges or tools.` : ''}
+      
+      Start with their specific pain point or current situation. Paint a picture of their daily struggle. Use natural language and contractions. 
+      Example structure: "I noticed [specific observation about their pain]... [vivid description of the problem]... [hint at the solution]"
+      ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
+      
     case 'cta':
-      systemPrompt = `Generate a clear call-to-action that references ROI data and leads to PDF download. ${lengthInstructions} Be specific about what's in the PDF. Use concrete numbers naturally. Make it inviting (e.g., "Want to see the breakdown?" or "Here's your custom ROI snapshot:"). ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a clear call-to-action that references ROI data and leads to PDF download. ${lengthInstructions} 
+      
+      ${emailContext?.metrics?.length ? `METRICS: Emphasize the ${emailContext.metrics.join(', ')} improvements` : ''}
+      ${emailContext?.valueProps?.length ? `VALUE: Highlight "${emailContext.valueProps[0]}" as the key benefit` : ''}
+      
+      Be specific about what's in the PDF. Use concrete numbers naturally. Make it inviting and conversational.
+      Structure: "[Transition from hook]... [What they'll find in the PDF]... [Specific metrics/benefits]"
+      Examples: "Want to see how this saves ${emailContext?.metrics?.[0] || 'time'}?" or "Here's your custom ${emailContext?.industries?.[0] || 'workflow'} ROI breakdown:"
+      ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
+      
     case 'offer':
-      systemPrompt = `Generate a soft offer suggesting a pilot, demo, or consultation. ${lengthInstructions} Make it feel helpful, not salesy. Use phrases like "happy to show you" or "let's walk through it together". Focus on next steps. ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a soft offer suggesting a pilot, demo, or consultation. ${lengthInstructions} 
+      
+      ${emailContext?.objections?.length ? `OBJECTIONS: Address their concern: "${emailContext.objections[0]}" subtly` : ''}
+      ${emailContext?.socialProofs?.length ? `CREDIBILITY: Weave in: "${emailContext.socialProofs[0]}"` : ''}
+      
+      Make it feel helpful, not salesy. Position yourself as a guide who's done this before. Remove all friction.
+      Use phrases like "happy to show you" or "let's walk through it together". Focus on their success, not your service.
+      ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
+      
     case 'ps':
-      systemPrompt = `Generate a PS line. ONE short sentence only. Under 15 words. Add a surprising fact or create urgency. Examples: "PS. Your competitor automated this last month" or "PS. Setup takes under 30 minutes". ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a PS line. ONE short sentence only. Under 15 words. 
+      
+      ${emailContext?.urgencyFactors?.length ? `URGENCY: Reference "${emailContext.urgencyFactors[0]}"` : ''}
+      ${emailContext?.socialProofs?.length ? `SOCIAL PROOF: Could mention "${emailContext.socialProofs[0]}"` : ''}
+      ${emailContext?.valueProps?.length ? `SURPRISE BENEFIT: Highlight an unexpected value like "${emailContext.valueProps[emailContext.valueProps.length - 1]}"` : ''}
+      
+      Add a surprising fact, create urgency, or share social proof. Make it memorable and action-inducing.
+      Examples: "PS. Your competitor [specific company] automated this last month" or "PS. ${emailContext?.urgencyFactors?.[0] || 'Q4 slots'} filling fast"
+      ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
+      
     case 'testimonial':
-      systemPrompt = `Generate a brief testimonial quote. ONE sentence with specific metrics. Include attribution. Example: "Cut reporting time by 85% in week one" - Sarah Chen, Ops Manager. ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a brief testimonial quote. ONE sentence with specific metrics. 
+      
+      ${emailContext?.personas?.length ? `PERSONA MATCH: Quote should be from a similar role: ${emailContext.personas[0]}` : ''}
+      ${emailContext?.industries?.length ? `INDUSTRY: From a ${emailContext.industries[0]} company` : ''}
+      ${emailContext?.metrics?.length ? `METRICS: Show improvement in ${emailContext.metrics[0]}` : ''}
+      
+      Make it specific and believable. Include a real-sounding name and title that matches their industry/role.
+      Example: "${emailContext?.painPoints?.[0] ? `Eliminated ${emailContext.painPoints[0]}` : 'Cut reporting time'} by 85% in week one" - Sarah Chen, ${emailContext?.personas?.[0] || 'Ops Manager'}
+      ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
+      
     case 'urgency':
-      systemPrompt = `Generate a subtle urgency line. ONE short sentence. Create FOMO without being pushy. Examples: "Three competitors started last quarter" or "Q4 calendars filling fast". ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
+      systemPrompt = `Generate a subtle urgency line. ONE short sentence. 
+      
+      ${emailContext?.urgencyFactors?.length ? `URGENCY FOCUS: Build on "${emailContext.urgencyFactors.join('" or "')}"` : ''}
+      ${emailContext?.industries?.length ? `INDUSTRY CONTEXT: Reference ${emailContext.industries[0]} timing or cycles` : ''}
+      
+      Create FOMO without being pushy. Make it about their opportunity cost, not your sales quota.
+      Examples: "${emailContext?.industries?.[0] || 'Three'} competitors started last quarter" or "${emailContext?.urgencyFactors?.[0] || 'Q1 calendars'} filling fast"
+      ${globalFormattingRules} ${toneGuidance}${contextInstructions}`;
       break;
   }
   

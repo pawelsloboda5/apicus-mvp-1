@@ -113,16 +113,9 @@ export function EmailNodePropertiesPanel({
   // Initialize selected context nodes with smart defaults
   useEffect(() => {
     if (emailContextNodes && emailContextNodes.length > 0 && selectedContextNodes.size === 0) {
-      const smartDefaults = new Set<string>();
-      
-      // Add one of each type by default (if available)
-      const typePriority = ['persona', 'painpoint', 'value', 'urgency'];
-      typePriority.forEach(type => {
-        const node = emailContextNodes.find(n => n.type === type);
-        if (node) smartDefaults.add(node.id);
-      });
-      
-      setSelectedContextNodes(smartDefaults);
+      // Select ALL email context nodes by default
+      const allNodeIds = new Set<string>(emailContextNodes.map(n => n.id));
+      setSelectedContextNodes(allNodeIds);
     }
   }, [emailContextNodes, selectedContextNodes.size]);
 
@@ -544,13 +537,9 @@ export function EmailNodePropertiesPanel({
                           size="sm"
                           className="text-xs"
                           onClick={() => {
-                            const smartDefaults = new Set<string>();
-                            const typePriority = ['persona', 'painpoint', 'value', 'urgency'];
-                            typePriority.forEach(type => {
-                              const node = emailContextNodes.find(n => n.type === type);
-                              if (node) smartDefaults.add(node.id);
-                            });
-                            setSelectedContextNodes(smartDefaults);
+                            // Select all nodes as the new smart default
+                            const allIds = new Set(emailContextNodes.map(n => n.id));
+                            setSelectedContextNodes(allIds);
                           }}
                         >
                           Smart Selection

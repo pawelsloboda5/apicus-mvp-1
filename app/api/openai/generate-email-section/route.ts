@@ -45,7 +45,9 @@ export async function POST(req: Request) {
       textToRewrite, 
       systemPrompt, 
       lengthOption = 'standard',
-      previousSections = {}
+      previousSections = {},
+      section,
+      toneOption = 'professional_warm'
     } = await req.json();
 
     if (!roiData || !textToRewrite || !systemPrompt) {
@@ -53,11 +55,67 @@ export async function POST(req: Request) {
     }
 
     const lengthInstructions = getLengthInstructions(lengthOption);
+    
+    // Extract email context from roiData if present
+    let contextInstructions = '';
+    if (roiData.emailContext) {
+      const contextParts = [];
+      const emailContext = roiData.emailContext;
+      
+      if (emailContext.personas?.length) {
+        contextParts.push(`TARGET PERSONAS: ${emailContext.personas.join(', ')} - Write specifically for these roles using their terminology.`);
+      }
+      if (emailContext.industries?.length) {
+        contextParts.push(`INDUSTRIES: ${emailContext.industries.join(', ')} - Use industry-specific language and references.`);
+      }
+      if (emailContext.painPoints?.length) {
+        contextParts.push(`PAIN POINTS: ${emailContext.painPoints.join(', ')} - Address these specific problems directly.`);
+      }
+      if (emailContext.metrics?.length) {
+        contextParts.push(`KEY METRICS: ${emailContext.metrics.join(', ')} - Emphasize improvements in these areas.`);
+      }
+      if (emailContext.urgencyFactors?.length) {
+        contextParts.push(`URGENCY: ${emailContext.urgencyFactors.join(', ')} - Reference these time-sensitive factors.`);
+      }
+      if (emailContext.socialProofs?.length) {
+        contextParts.push(`SOCIAL PROOF: ${emailContext.socialProofs.join(', ')} - Weave in these credibility elements.`);
+      }
+      if (emailContext.objections?.length) {
+        contextParts.push(`OBJECTIONS: ${emailContext.objections.join(', ')} - Subtly address these concerns.`);
+      }
+      if (emailContext.valueProps?.length) {
+        contextParts.push(`VALUE PROPS: ${emailContext.valueProps.join(', ')} - Highlight these specific benefits.`);
+      }
+      
+      if (contextParts.length > 0) {
+        contextInstructions = `\n\nEMAIL CONTEXT TO INCORPORATE:\n${contextParts.join('\n')}\n\nUse these context elements creatively - don't just list them.`;
+      }
+    }
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: "system",
-        content: `${systemPrompt} ${lengthInstructions} Current ROI Data: ${JSON.stringify(roiData)}. The user wants to rewrite the following text: "${textToRewrite}". Provide only the rewritten text. Ensure the output is suitable for direct injection into an HTML email template, meaning if you use markdown like bold or italics, use <strong> or <em> tags respectively. Do not use markdown asterisks or underscores for emphasis. Retain HTML entities like &nbsp; if present in the original text. Do not add any introductory or concluding phrases beyond the rewritten text itself.`,
+        content: `${systemPrompt} ${lengthInstructions}${contextInstructions}
+        
+Current ROI Data for reference: ${JSON.stringify({
+  scenarioName: roiData.scenarioName,
+  platform: roiData.platform,
+  netROI: roiData.netROI,
+  roiRatio: roiData.roiRatio,
+  paybackPeriod: roiData.paybackPeriod,
+  totalHoursSaved: roiData.totalHoursSaved,
+  runsPerMonth: roiData.runsPerMonth
+})}
+
+The user wants to rewrite the following text: "${textToRewrite}". 
+
+IMPORTANT FORMATTING RULES:
+- Provide only the rewritten text, no explanations
+- Use <strong> and <em> HTML tags instead of markdown
+- Keep &nbsp; HTML entities if present
+- Be conversational and natural
+- Match the tone: ${toneOption}
+- For section type "${section || 'general'}": focus on making it compelling and specific to the context provided`,
       },
     ];
 
