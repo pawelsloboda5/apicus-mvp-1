@@ -369,15 +369,9 @@ export function FlowCanvas({
         preventScrolling={true}
         minZoom={0.1}
         maxZoom={4}
+        proOptions={{ hideAttribution: true }}
       >
         <Background gap={16} color="var(--border)" />
-        <Controls 
-          position="bottom-right" 
-          className={isMobile ? "scale-110" : ""}
-          showZoom={false}
-          showFitView={true}
-          showInteractive={false}
-        />
       </ReactFlow>
 
       {/* Floating Node Selector - shows current selection from Toolbox */}
