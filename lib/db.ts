@@ -90,10 +90,36 @@ export interface FlowEdge {
   data: unknown;
 }
 
+export interface MetricSnapshot {
+  id?: number;
+  scenarioId: number;
+  timestamp: number; // Using number for consistency with existing timestamps
+  metrics: {
+    netROI: number;
+    roiRatio: number;
+    timeValue: number;
+    riskValue?: number;
+    revenueValue?: number;
+    platformCost: number;
+    runsPerMonth: number;
+    minutesPerRun: number;
+    hourlyRate: number;
+    taskMultiplier: number;
+    taskType: string;
+    // Additional computed metrics
+    totalValue: number;
+    paybackPeriod?: string;
+    breakEvenRuns?: number;
+  };
+  // Metadata about what triggered this snapshot
+  trigger: 'manual' | 'save' | 'platform_change' | 'major_edit' | 'scheduled';
+}
+
 class ApicusDB extends Dexie {
   scenarios!: Table<Scenario, number>;
   nodes!: Table<FlowNode, number>;
   edges!: Table<FlowEdge, number>;
+  metrics!: Table<MetricSnapshot, number>;
 
   constructor() {
     super("ApicusDB");
@@ -190,6 +216,15 @@ class ApicusDB extends Dexie {
           if (!sc.emailUrgencyText) sc.emailUrgencyText = "";
         });
       });
+      
+    // Version 7 – Add metrics table for historical ROI tracking
+    this.version(7)
+      .stores({
+        scenarios: "++id, slug, name, updatedAt, platform, originalTemplateId, searchQuery, emailYourName",
+        nodes: "++id, scenarioId, reactFlowId, type",
+        edges: "++id, scenarioId, reactFlowId",
+        metrics: "++id, scenarioId, timestamp, [scenarioId+timestamp]", // Compound index for efficient queries
+      });
   }
 }
 
@@ -245,4 +280,69 @@ export async function createScenario(name: string): Promise<number> {
 export function useScenario(id?: number) {
   // Dynamic import to avoid including Dexie hooks in server bundles
   return useLiveQuery(() => (id ? db.scenarios.get(id) : undefined), [id]);
+}
+
+/**
+ * Helper to create a metric snapshot for a scenario
+ */
+export async function createMetricSnapshot(
+  scenarioId: number, 
+  metrics: MetricSnapshot['metrics'],
+  trigger: MetricSnapshot['trigger'] = 'manual'
+): Promise<number> {
+  return db.metrics.add({
+    scenarioId,
+    timestamp: Date.now(),
+    metrics,
+    trigger,
+  });
+}
+
+/**
+ * Helper to get recent metrics for a scenario
+ * @param scenarioId - The scenario to get metrics for
+ * @param limit - Maximum number of snapshots to return (default: 30)
+ * @param daysBack - How many days back to look (default: 30)
+ */
+export async function getRecentMetrics(
+  scenarioId: number, 
+  limit: number = 30,
+  daysBack: number = 30
+): Promise<MetricSnapshot[]> {
+  const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
+  
+  return db.metrics
+    .where('[scenarioId+timestamp]')
+    .between([scenarioId, cutoffDate], [scenarioId, Date.now()])
+    .reverse()
+    .limit(limit)
+    .toArray();
+}
+
+/**
+ * Cleanup old metrics to maintain performance
+ * Keeps detailed metrics for 30 days, then aggregates to daily summaries for 30-90 days
+ */
+export async function cleanupOldMetrics(): Promise<void> {
+  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+  const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+  
+  // Delete metrics older than 90 days
+  await db.metrics
+    .where('timestamp')
+    .below(ninetyDaysAgo)
+    .delete();
+  
+  // TODO: Implement aggregation for 30-90 day old metrics
+  // This would involve grouping by day and keeping only one summary per day
+}
+
+/**
+ * Hook to subscribe to metrics for a scenario
+ */
+export function useScenarioMetrics(scenarioId?: number, limit: number = 30) {
+  return useLiveQuery(
+    () => (scenarioId ? getRecentMetrics(scenarioId, limit) : undefined),
+    [scenarioId, limit]
+  );
 } 

@@ -4,6 +4,9 @@
 
 import { Node, Edge } from "@xyflow/react";
 
+export {default as ResponsiveChart} from '@/app/chart-kit/ResponsiveChart';
+export {colors} from '@/app/chart-kit/colors';
+
 /**
  * Node data structure
  */

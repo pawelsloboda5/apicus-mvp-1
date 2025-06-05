@@ -35,6 +35,7 @@ import {
   pricing, 
   formatROIRatio 
 } from "@/lib/roi";
+import { RoiGaugeFixed } from "@/app/chart-kit/RoiGauge";
 
 interface StatsBarProps {
   platform: PlatformType;
@@ -59,6 +60,9 @@ interface StatsBarProps {
   selectedIds?: string[];
   selectedGroupId?: string | null;
   isMultiSelectionActive?: boolean;
+  
+  // Chart options
+  showROIGauge?: boolean;
 }
 
 // Platform configurations
@@ -130,6 +134,7 @@ export function StatsBar({
   selectedIds = [],
   selectedGroupId,
   isMultiSelectionActive = false,
+  showROIGauge = true,
 }: StatsBarProps) {
   const screenSize = useScreenSize();
   const [timeValue, setTimeValue] = useState(0);

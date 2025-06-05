@@ -142,4 +142,60 @@ export interface Scenario {
   emailCtaText?: string;
   emailSubjectLine?: string;
   emailOfferText?: string;
+  emailPsText?: string;
+  emailTestimonialText?: string;
+  emailUrgencyText?: string;
+}
+
+// Email Preview Node Data
+export interface EmailPreviewNodeData {
+  nodeTitle?: string;
+  firstName?: string;
+  yourName?: string;
+  yourCompany?: string;
+  yourEmail?: string;
+  calendlyLink?: string;
+  pdfLink?: string;
+  subjectLine?: string;
+  hookText?: string;
+  ctaText?: string;
+  offerText?: string;
+  psText?: string;
+  testimonialText?: string;
+  urgencyText?: string;
+  showPS?: boolean;
+  showTestimonial?: boolean;
+  showUrgency?: boolean;
+  stats?: {
+    roiX: number;
+    payback: string;
+    runs: number;
+  };
+  isLoading?: boolean;
+  lengthOption?: 'concise' | 'standard' | 'detailed';
+  toneOption?: string;
+}
+
+// Analytics Types
+export interface MetricSnapshot {
+  id?: number;
+  scenarioId: number;
+  timestamp: number;
+  metrics: {
+    netROI: number;
+    roiRatio: number;
+    timeValue: number;
+    riskValue?: number;
+    revenueValue?: number;
+    platformCost: number;
+    runsPerMonth: number;
+    minutesPerRun: number;
+    hourlyRate: number;
+    taskMultiplier: number;
+    taskType: string;
+    totalValue: number;
+    paybackPeriod?: string;
+    breakEvenRuns?: number;
+  };
+  trigger: 'manual' | 'save' | 'platform_change' | 'major_edit' | 'scheduled';
 }

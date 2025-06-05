@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import { Sparkles, GitBranch, PlayCircle, Zap, PlusCircle, Trash2, Edit3, Check, X, MailOpen, Menu, ChevronLeft, ChevronRight, GripVertical, Workflow, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem } from "lucide-react";
+import { Sparkles, GitBranch, PlayCircle, Zap, PlusCircle, Trash2, Edit3, Check, X, MailOpen, Menu, ChevronLeft, ChevronRight, GripVertical, Workflow, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, BarChart3, FileText, Download, Filter, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NodeType, PlatformType } from "@/lib/types";
 import { db, Scenario, createScenario } from "@/lib/db";
@@ -29,6 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AlternativeTemplateForDisplay } from "./AlternativeTemplatesSheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ITEMS: { type: NodeType; label: string }[] = [
   { type: "trigger", label: "Trigger" },
@@ -103,6 +104,15 @@ const EMAIL_CONTEXT_ITEMS: {
   }
 ];
 
+// Analytics toolbox items placeholder
+const ANALYTICS_ITEMS = [
+  { icon: BarChart3, label: "Export Chart", description: "Export chart as PNG/SVG" },
+  { icon: FileText, label: "Generate Report", description: "Create PDF report" },
+  { icon: Download, label: "Export Data", description: "Download CSV data" },
+  { icon: Filter, label: "Filter Options", description: "Filter metrics by date" },
+  { icon: Palette, label: "Chart Themes", description: "Customize chart colors" },
+];
+
 const typeIcon = {
   trigger: PlayCircle,
   action: Sparkles,
@@ -126,6 +136,8 @@ interface ToolboxProps {
   isMobile?: boolean;
   selectedNodeType?: NodeType;
   onNodeTypeSelect?: (type: NodeType) => void;
+  activeTab?: 'canvas' | 'analytics';
+  onActiveTabChange?: (tab: 'canvas' | 'analytics') => void;
 }
 
 // Mobile Toolbox Trigger Button Component
@@ -176,7 +188,9 @@ export function Toolbox({
   emailNodes, 
   onFocusNode,
   selectedNodeType,
-  onNodeTypeSelect 
+  onNodeTypeSelect,
+  activeTab = 'canvas',
+  onActiveTabChange
 }: ToolboxProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [width, setWidth] = useState(280); // Default width - increased from 240
@@ -235,6 +249,18 @@ export function Toolbox({
         </div>
       )}
 
+      {/* Tabs - Always visible at top */}
+      {!isCollapsed && onActiveTabChange && (
+        <div className="p-4 pb-2">
+          <Tabs value={activeTab} onValueChange={(value) => onActiveTabChange(value as 'canvas' | 'analytics')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="canvas">Canvas</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
+
       {/* Content */}
       <div className={`flex-1 overflow-hidden ${isCollapsed ? 'hidden' : 'block'}`}>
         <ToolboxContent 
@@ -245,11 +271,12 @@ export function Toolbox({
           isMobile={false}
           selectedNodeType={selectedNodeType}
           onNodeTypeSelect={onNodeTypeSelect}
+          activeTab={activeTab}
         />
       </div>
 
       {/* Collapsed Icons */}
-      {isCollapsed && (
+      {isCollapsed && activeTab === 'canvas' && (
         <div className="flex flex-col items-center py-4 gap-4">
           {ITEMS.map((item) => {
             const Icon = typeIcon[item.type];
@@ -273,6 +300,25 @@ export function Toolbox({
           })}
         </div>
       )}
+
+      {/* Collapsed Analytics Icons */}
+      {isCollapsed && activeTab === 'analytics' && (
+        <div className="flex flex-col items-center py-4 gap-4">
+          {ANALYTICS_ITEMS.slice(0, 3).map((item) => {
+            const Icon = item.icon;
+            
+            return (
+              <div 
+                key={item.label}
+                className="p-2 rounded-md border cursor-pointer transition-colors bg-background hover:bg-muted"
+                title={item.label}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </aside>
   );
 }
@@ -286,7 +332,8 @@ function ToolboxContent({
   isMobile = false,
   onClose,
   selectedNodeType,
-  onNodeTypeSelect 
+  onNodeTypeSelect,
+  activeTab
 }: ToolboxProps & { onClose?: () => void }) {
   const savedScenarios = useLiveQuery(() => db.scenarios.orderBy('updatedAt').reverse().toArray(), []);
   const router = useRouter();
@@ -398,55 +445,109 @@ function ToolboxContent({
         </SheetHeader>
       )}
       
-      {/* Section 1: Node Types - Fixed height, always visible */}
-      <div className="shrink-0 mb-4">
-        {!isMobile && <h2 className="mb-3 text-base font-semibold tracking-tight px-1">Node Types</h2>}
-        <ul className={cn("space-y-2", isMobile && "grid grid-cols-3 gap-3")}>
-          {ITEMS.map((item) => (
-            <ToolboxItem 
-              key={item.type} 
-              {...item} 
-              isMobile={isMobile}
-              isSelected={selectedNodeType === item.type}
-              onSelect={onNodeTypeSelect}
-            />
-          ))}
-        </ul>
-      </div>
-      
-      {/* NEW Section: Email Context Nodes - Desktop only */}
-      {!isMobile && (
-        <div className="border-t pt-4 mb-4">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-base font-semibold tracking-tight">Email Context Nodes</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowEmailContextNodes(!showEmailContextNodes)}
-              className="h-6 px-2 text-xs"
-            >
-              {showEmailContextNodes ? 'Hide' : 'Show'}
-            </Button>
+      {/* Canvas Mode Content */}
+      {activeTab === 'canvas' && (
+        <>
+          {/* Section 1: Node Types - Fixed height, always visible */}
+          <div className="shrink-0 mb-4">
+            {!isMobile && <h2 className="mb-3 text-base font-semibold tracking-tight px-1">Node Types</h2>}
+            <ul className={cn("space-y-2", isMobile && "grid grid-cols-3 gap-3")}>
+              {ITEMS.map((item) => (
+                <ToolboxItem 
+                  key={item.type} 
+                  {...item} 
+                  isMobile={isMobile}
+                  isSelected={selectedNodeType === item.type}
+                  onSelect={onNodeTypeSelect}
+                />
+              ))}
+            </ul>
           </div>
           
-          {showEmailContextNodes && (
-            <>
-              <p className="text-xs text-muted-foreground mb-3 px-1">
-                Add these special nodes to influence how emails are generated
-              </p>
-              <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
-                {EMAIL_CONTEXT_ITEMS.map((item) => (
-                  <EmailContextToolboxItem
-                    key={item.type}
-                    {...item}
-                    isSelected={selectedNodeType === item.type}
-                    onSelect={onNodeTypeSelect}
-                  />
-                ))}
+          {/* NEW Section: Email Context Nodes - Desktop only */}
+          {!isMobile && (
+            <div className="border-t pt-4 mb-4">
+              <div className="flex items-center justify-between mb-3 px-1">
+                <h2 className="text-base font-semibold tracking-tight">Email Context Nodes</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowEmailContextNodes(!showEmailContextNodes)}
+                  className="h-6 px-2 text-xs"
+                >
+                  {showEmailContextNodes ? 'Hide' : 'Show'}
+                </Button>
               </div>
-            </>
+              
+              {showEmailContextNodes && (
+                <>
+                  <p className="text-xs text-muted-foreground mb-3 px-1">
+                    Add these special nodes to influence how emails are generated
+                  </p>
+                  <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                    {EMAIL_CONTEXT_ITEMS.map((item) => (
+                      <EmailContextToolboxItem
+                        key={item.type}
+                        {...item}
+                        isSelected={selectedNodeType === item.type}
+                        onSelect={onNodeTypeSelect}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           )}
-        </div>
+        </>
+      )}
+      
+      {/* Analytics Mode Content */}
+      {activeTab === 'analytics' && (
+        <>
+          {/* Analytics Tools */}
+          <div className="shrink-0 mb-4">
+            <h2 className="mb-3 text-base font-semibold tracking-tight px-1">Analytics Tools</h2>
+            <div className="space-y-2">
+              {ANALYTICS_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Button
+                    key={item.label}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-sm h-auto py-3 px-3"
+                    disabled
+                  >
+                    <Icon className="h-4 w-4 mr-3 shrink-0" />
+                    <div className="flex-1 text-left">
+                      <div className="font-medium">{item.label}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{item.description}</div>
+                    </div>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+          
+          {/* Metrics Summary - Placeholder */}
+          <div className="border-t pt-4 mb-4">
+            <h2 className="mb-3 text-base font-semibold tracking-tight px-1">Quick Stats</h2>
+            <div className="space-y-2 px-1">
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm text-muted-foreground">Snapshots Taken</span>
+                <span className="text-sm font-medium">0</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm text-muted-foreground">Charts Created</span>
+                <span className="text-sm font-medium">2</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm text-muted-foreground">Last Export</span>
+                <span className="text-sm font-medium">Never</span>
+              </div>
+            </div>
+          </div>
+        </>
       )}
       
       {/* Section 2: My Scenarios - Fixed height with scrolling */}
@@ -536,8 +637,8 @@ function ToolboxContent({
         )}
       </div>
 
-      {/* Section 3: Generated Emails - Fixed height with scrolling, always shown on desktop */}
-      {!isMobile && (
+      {/* Section 3: Generated Emails - Fixed height with scrolling, always shown on desktop - Only in Canvas mode */}
+      {!isMobile && activeTab === 'canvas' && (
         <div className="border-t pt-4 flex flex-col flex-shrink-0">
           <h2 className="mb-3 text-base font-semibold tracking-tight px-1 shrink-0">
             Generated Emails
@@ -575,8 +676,8 @@ function ToolboxContent({
         </div>
       )}
       
-      {/* Section 3: Generated Emails - Mobile version only shows when emails exist */}
-      {isMobile && emailNodes && emailNodes.length > 0 && (
+      {/* Section 3: Generated Emails - Mobile version only shows when emails exist - Only in Canvas mode */}
+      {isMobile && emailNodes && emailNodes.length > 0 && activeTab === 'canvas' && (
         <div className="border-t pt-4 flex flex-col min-h-0">
           <h2 className="mb-3 text-base font-semibold tracking-tight px-1 shrink-0">
             Generated Emails

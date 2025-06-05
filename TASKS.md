@@ -434,3 +434,138 @@ const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('action');
 - [ ] Create performance optimization guide
 - [ ] Add troubleshooting section for common issues
 - [ ] Update contributing guidelines with performance best practices
+
+## Data & Analytics Dashboard (NEW) 8-10hrs ⭐
+
+### Phase 1: Core Infrastructure & Setup (2hrs) ✅ COMPLETED
+- [x] **Package Installation & Setup**:
+  - [x] Install visx packages and dependencies
+  - [x] Create `/app/chart-kit/` directory structure
+  - [x] Set up color system and responsive wrapper components
+  - [x] Configure chart theme to match app aesthetic
+
+- [x] **Navigation Integration**:
+  - [x] Add Analytics tab to build page navigation
+  - [x] Implement tab switching logic with proper state management
+  - [x] Create route structure (`/build/[id]/analytics` or tab-based)
+  - [x] Add keyboard shortcuts for quick switching (Cmd+1/2/3)
+
+- [x] **Data Layer Enhancement**:
+  - [x] Add `metrics` table to Dexie schema for historical tracking
+  - [x] Create data aggregation utilities for chart consumption
+  - [x] Implement `useRoiMetrics` hook for real-time updates
+  - [x] Set up data caching strategy for performance
+
+### Phase 2: Core Charts (3hrs)
+- [x] **ROI Gauge Component**:
+  - [x] Implement animated gauge showing ROI ratio
+  - [x] Add color coding (green >1x, yellow 1-2x, red <1x)
+  - [x] Include quick stats below gauge
+  - [x] Make it embeddable in both dashboard and StatsBar
+
+- [ ] **ROI Breakdown Waterfall**:
+  - [ ] Create waterfall chart showing value sources vs costs
+  - [ ] Implement hover tooltips with detailed breakdowns
+  - [ ] Add animation on data changes
+  - [ ] Include export functionality
+
+- [ ] **Node Time Sankey Diagram**:
+  - [ ] Map React Flow nodes to Sankey visualization
+  - [ ] Show time flow through automation steps
+  - [ ] Highlight bottlenecks and optimization opportunities
+  - [ ] Sync with canvas selection state
+
+### Phase 3: Comparison & Analysis Charts (2hrs)
+- [ ] **Scenario Comparison Sparklines**:
+  - [ ] Create mini sparklines for scenario list
+  - [ ] Implement scenario comparison view
+  - [ ] Add trend indicators (up/down/stable)
+  - [ ] Enable quick scenario switching
+
+- [ ] **Benchmark Radar Chart**:
+  - [ ] Display user metrics vs industry benchmarks
+  - [ ] Make benchmarks configurable
+  - [ ] Add recommendations based on deviations
+  - [ ] Include tooltip explanations
+
+- [ ] **Platform Cost Comparison**:
+  - [ ] Bar chart comparing costs across platforms
+  - [ ] Include break-even analysis visualization
+  - [ ] Show cost per run metrics
+  - [ ] Add platform switching simulation
+
+### Phase 4: Chart-to-Canvas Integration (2hrs)
+- [ ] **Analytics Node Type**:
+  - [ ] Create new `AnalyticsNode` component
+  - [ ] Implement chart thumbnail generation
+  - [ ] Add chart configuration serialization
+  - [ ] Enable drag-from-dashboard functionality
+
+- [ ] **Import/Export Mechanism**:
+  - [ ] Add "Add to Canvas" button on each chart
+  - [ ] Implement chart-to-node conversion logic
+  - [ ] Create node property panel for analytics nodes
+  - [ ] Handle data updates for embedded charts
+
+- [ ] **Interaction Design**:
+  - [ ] Double-click analytics node to view full chart
+  - [ ] Right-click context menu for chart options
+  - [ ] Hover preview of chart data
+  - [ ] Connect analytics nodes to workflow data
+
+### Phase 5: Dashboard Layout & Customization (1hr)
+- [ ] **Grid Layout System**:
+  - [ ] Implement CSS Grid-based dashboard layout
+  - [ ] Add responsive breakpoints
+  - [ ] Create widget size options (1x1, 2x1, 2x2)
+  - [ ] Save layout preferences to Dexie
+
+- [ ] **Dashboard Templates**:
+  - [ ] Create "Executive Summary" template
+  - [ ] Design "Detailed Analysis" template
+  - [ ] Build "Multi-Scenario Comparison" template
+  - [ ] Allow custom template creation
+
+- [ ] **Mobile Optimization**:
+  - [ ] Design swipeable card interface for mobile
+  - [ ] Prioritize key metrics for small screens
+  - [ ] Implement gesture controls
+  - [ ] Add fullscreen chart viewing
+
+### Technical Implementation Notes:
+```typescript
+// Chart node data structure
+interface AnalyticsNodeData {
+  chartType: 'gauge' | 'waterfall' | 'sankey' | 'sparkline' | 'radar';
+  chartConfig: {
+    dataSource: string; // scenario ID or 'current'
+    timeRange?: 'current' | '7d' | '30d' | '90d';
+    comparison?: string[]; // scenario IDs for comparison
+  };
+  lastSnapshot?: any; // Cached data for thumbnail
+}
+
+// Dashboard layout structure
+interface DashboardLayout {
+  widgets: Array<{
+    id: string;
+    type: string;
+    position: { x: number; y: number };
+    size: { w: number; h: number };
+    config: any;
+  }>;
+  name: string;
+  isDefault?: boolean;
+}
+```
+
+### Success Criteria:
+- [ ] Users can switch seamlessly between Canvas and Analytics views
+- [ ] All charts load within 100ms with smooth animations
+- [ ] Charts can be dragged into canvas as functional nodes
+- [ ] Dashboard is fully responsive across all devices
+- [ ] Historical data tracking enables trend analysis
+- [ ] Performance remains smooth with 10+ charts visible
+- [ ] Export functionality works for individual charts and full dashboard
+
+---

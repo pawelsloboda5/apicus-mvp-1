@@ -33,6 +33,9 @@ import { Loader2, PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, 
 import { nanoid } from "nanoid";
 import { useDroppable } from "@dnd-kit/core";
 
+// Import tab components
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 // Import custom components
 import { StatsBar } from "@/components/flow/StatsBar";
 import { NodePropertiesPanel } from "@/components/flow/NodePropertiesPanel";
@@ -44,6 +47,7 @@ import { GroupPropertiesPanel } from "@/components/flow/GroupPropertiesPanel";
 import { AlternativeTemplatesSheet, type AlternativeTemplateForDisplay } from "@/components/flow/AlternativeTemplatesSheet";
 import { EmailPreviewNode, type EmailPreviewNodeData } from "@/components/flow/EmailPreviewNode";
 import { EmailNodePropertiesPanel } from "@/components/flow/EmailNodePropertiesPanel";
+import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 
 // Import utility functions
 import { snapToGrid } from "@/lib/flow-utils";
@@ -60,6 +64,7 @@ import {
   formatPaybackPeriod
 } from "@/lib/roi-utils";
 import { PlatformType as LibPlatformType, NodeType, NodeData } from "@/lib/types";
+import { captureROISnapshot, shouldCaptureSnapshot } from "@/lib/metrics-utils";
 
 
 // Disable SSR for Toolbox because dnd-kit generates ids non-deterministically, which causes hydration mismatch warnings.
@@ -213,6 +218,16 @@ function BuildPageContent() {
   // Add state for selected node type
   const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('action');
 
+  // Add state for active tab
+  const [activeTab, setActiveTab] = useState<'canvas' | 'analytics'>('canvas');
+  
+  // Add state for tracking previous scenario for metric comparison
+  const [previousScenario, setPreviousScenario] = useState<Scenario | null>(null);
+  const [previousNodeCount, setPreviousNodeCount] = useState<number>(0);
+  
+  // Track previous scenario ID for preventing unnecessary reloads
+  const prevScenarioIdRef = useRef<number | null>(null);
+
   // State for drag and drop
   const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: string } | null>(null);
   // State for screen size detection for responsive header
@@ -252,6 +267,30 @@ function BuildPageContent() {
     document.addEventListener('emailNodePropertiesClick', handleEmailNodePropertiesClick);
     return () => {
       document.removeEventListener('emailNodePropertiesClick', handleEmailNodePropertiesClick);
+    };
+  }, []);
+  
+  // Add keyboard shortcuts for tab switching
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check for Cmd/Ctrl + number combinations
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
+        switch (event.key) {
+          case '1':
+            event.preventDefault();
+            setActiveTab('canvas');
+            break;
+          case '2':
+            event.preventDefault();
+            setActiveTab('analytics');
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
@@ -335,16 +374,38 @@ function BuildPageContent() {
 
   // Persist relevant parts of currentScenario when ROI inputs change
   const updateCurrentScenarioROI = useCallback(
-    (partial: Partial<Scenario>) => {
+    async (partial: Partial<Scenario>) => {
       if (!currentScenario || !currentScenario.id) return;
+      
+      // Check if we should capture a snapshot
+      const updatedScenario = { ...currentScenario, ...partial };
+      const currentNodeCount = nodes.length;
+      
+      if (shouldCaptureSnapshot(previousScenario, updatedScenario, previousNodeCount, currentNodeCount)) {
+        // Determine trigger type
+        let trigger: 'manual' | 'save' | 'platform_change' | 'major_edit' = 'major_edit';
+        if (partial.platform && partial.platform !== currentScenario.platform) {
+          trigger = 'platform_change';
+        }
+        
+        // Capture the snapshot
+        await captureROISnapshot(updatedScenario, nodes, trigger);
+      }
+      
+      // Update state
       const updatedFields = { ...partial, updatedAt: Date.now() };
-      setCurrentScenario(prev => prev ? { ...prev, ...updatedFields } : null);
-      // Add type guard here too
+      setCurrentScenario(prev => {
+        setPreviousScenario(prev); // Track previous state
+        return prev ? { ...prev, ...updatedFields } : null;
+      });
+      setPreviousNodeCount(currentNodeCount);
+      
+      // Persist to database
       if (currentScenario.id) {
         db.scenarios.update(currentScenario.id, updatedFields);
       }
     },
-    [currentScenario]
+    [currentScenario, nodes, previousScenario, previousNodeCount]
   );
 
   // Ensure a Scenario exists (or load existing one)
@@ -549,7 +610,37 @@ function BuildPageContent() {
       if (isManipulatingNodesProgrammatically) {
         return;
       }
-      loadScenarioDataToState(currentScenario);
+      
+      // Check if this is just an ROI update (not a scenario switch or initial load)
+      const isScenarioSwitch = prevScenarioIdRef.current !== currentScenario.id;
+      prevScenarioIdRef.current = currentScenario.id || null;
+      
+      // Only load scenario data if:
+      // 1. It's a scenario switch (different ID)
+      // 2. Or nodes are empty (initial load)
+      // 3. Or there's no nodes/edges in memory but scenario has them
+      const shouldLoadFromDb = isScenarioSwitch || 
+        (nodes.length === 0 && edges.length === 0 && currentScenario.nodesSnapshot && currentScenario.nodesSnapshot.length > 0);
+      
+      if (shouldLoadFromDb) {
+        loadScenarioDataToState(currentScenario);
+      } else {
+        // Just update ROI parameters without touching nodes/edges
+        setPlatform(currentScenario.platform || "zapier");
+        setRunsPerMonth(currentScenario.runsPerMonth || 250);
+        setMinutesPerRun(currentScenario.minutesPerRun || 3);
+        setHourlyRate(currentScenario.hourlyRate || 30);
+        setTaskMultiplier(currentScenario.taskMultiplier || 1.5);
+        setTaskType(currentScenario.taskType || "general");
+        setComplianceEnabled(currentScenario.complianceEnabled || false);
+        setRevenueEnabled(currentScenario.revenueEnabled || false);
+        setRiskLevel(currentScenario.riskLevel || 3);
+        setRiskFrequency(currentScenario.riskFrequency || 5);
+        setErrorCost(currentScenario.errorCost || 500);
+        setMonthlyVolume(currentScenario.monthlyVolume || 100);
+        setConversionRate(currentScenario.conversionRate || 5);
+        setValuePerConversion(currentScenario.valuePerConversion || 200);
+      }
     } else if (rfInstance && !currentScenario && scenarioId) {
       if (isManipulatingNodesProgrammatically) {
         return; // Guard against re-loading while programmatically changing nodes
@@ -564,7 +655,7 @@ function BuildPageContent() {
         }
       });
     }
-  }, [rfInstance, currentScenario, scenarioId, loadScenarioDataToState, router, isManipulatingNodesProgrammatically]);
+  }, [rfInstance, currentScenario, scenarioId, loadScenarioDataToState, router, isManipulatingNodesProgrammatically, nodes.length, edges.length]);
 
   // Canvas State Sync Effect (Saving nodes/edges/viewport to Dexie for the currentScenario.id)
   useEffect(() => {
@@ -614,6 +705,12 @@ function BuildPageContent() {
 
         // Update local state immediately to prevent stale data issues
         setCurrentScenario(prev => prev ? { ...prev, ...updatePayload } : null);
+        
+        // Capture metric snapshot for significant changes
+        if (nodesChanged || edgesChanged) {
+          const updatedScenario = { ...currentScenario, ...updatePayload };
+          captureROISnapshot(updatedScenario, cleanedNodes, 'save').catch(console.error);
+        }
         
         // Persist to database
         db.scenarios.update(currentScenario.id, updatePayload).catch(() => {
@@ -1977,8 +2074,8 @@ function BuildPageContent() {
             isMultiSelectionActive={isMultiSelectionActive}
           />
 
-          {/* Main content row */}
-          <div className={`flex flex-grow relative ${isOver ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}>
+          {/* Main layout with toolbox and content */}
+          <div className="flex-1 flex overflow-hidden">
             {/* Desktop Toolbox */}
             <div className="hidden lg:block">
               <Toolbox 
@@ -1988,71 +2085,84 @@ function BuildPageContent() {
                 onFocusNode={focusOnNode}
                 selectedNodeType={selectedNodeType}
                 onNodeTypeSelect={setSelectedNodeType}
+                activeTab={activeTab}
+                onActiveTabChange={setActiveTab}
               />
             </div>
             
-            <FlowCanvas
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onNodeClick={handleNodeClick}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              defaultViewport={currentScenario?.viewport as Viewport || { x:0, y:0, zoom:1}}
-              onMoveEnd={handleMoveEnd}
-              onInit={(instance) => setRfInstance(instance as ReactFlowInstance)}
-              setWrapperRef={(node) => {
-                reactFlowWrapper.current = node;
-              }}
-              setDroppableRef={setDroppableRef}
-              isOver={isOver}
-              currentScenarioName={currentScenario?.name}
-              isEditingTitle={isEditingTitle}
-              editingScenarioName={editingScenarioName}
-              onToggleEditTitle={setIsEditingTitle}
-              onScenarioNameChange={setEditingScenarioName}
-              onSaveScenarioName={saveScenarioName}
-              onScenarioNameKeyDown={handleScenarioNameKeyDown}
-              titleInputRef={titleInputRef}
-              selectedNodeType={selectedNodeType}
-              onNodeTypeChange={setSelectedNodeType}
-            />
+            {/* Content area */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {activeTab === 'canvas' ? (
+                <div className={`flex h-full relative ${isOver ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}>
+                  <FlowCanvas
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onNodeClick={handleNodeClick}
+                    nodeTypes={nodeTypes}
+                    edgeTypes={edgeTypes}
+                    defaultViewport={currentScenario?.viewport as Viewport || { x:0, y:0, zoom:1}}
+                    onMoveEnd={handleMoveEnd}
+                    onInit={(instance) => setRfInstance(instance as ReactFlowInstance)}
+                    setWrapperRef={(node) => {
+                      reactFlowWrapper.current = node;
+                    }}
+                    setDroppableRef={setDroppableRef}
+                    isOver={isOver}
+                    currentScenarioName={currentScenario?.name}
+                    isEditingTitle={isEditingTitle}
+                    editingScenarioName={editingScenarioName}
+                    onToggleEditTitle={setIsEditingTitle}
+                    onScenarioNameChange={setEditingScenarioName}
+                    onSaveScenarioName={saveScenarioName}
+                    onScenarioNameKeyDown={handleScenarioNameKeyDown}
+                    titleInputRef={titleInputRef}
+                    selectedNodeType={selectedNodeType}
+                    onNodeTypeChange={setSelectedNodeType}
+                  />
 
-            {/* Property Panels - existing code... */}
-            <NodePropertiesPanel
-              selectedNode={selectedNode}
-              onClose={() => setSelectedId(null)}
-              platform={platform}
-              nodes={nodes}
-              setNodes={setNodes}
-              runsPerMonth={runsPerMonth}
-              minutesPerRun={minutesPerRun}
-              hourlyRate={hourlyRate}
-              taskMultiplier={taskMultiplier}
-            />
-            <GroupPropertiesPanel
-              selectedGroup={selectedGroup}
-              onClose={() => setSelectedGroupId(null)}
-              platform={platform}
-              nodes={nodes}
-              setNodes={setNodes}
-              runsPerMonth={runsPerMonth}
-              minutesPerRun={minutesPerRun}
-              hourlyRate={hourlyRate}
-              taskMultiplier={taskMultiplier}
-            />
-            <EmailNodePropertiesPanel
-              selectedNode={selectedEmailNode}
-              onClose={() => setSelectedEmailNodeId(null)}
-              onUpdateNodeData={handleUpdateEmailNodeData}
-              onGenerateSection={handleGenerateEmailSectionAI}
-              isGeneratingAIContent={isGeneratingAIContent}
-              emailContextNodes={emailContextNodes}
-            />
+                  {/* Property Panels - existing code... */}
+                  <NodePropertiesPanel
+                    selectedNode={selectedNode}
+                    onClose={() => setSelectedId(null)}
+                    platform={platform}
+                    nodes={nodes}
+                    setNodes={setNodes}
+                    runsPerMonth={runsPerMonth}
+                    minutesPerRun={minutesPerRun}
+                    hourlyRate={hourlyRate}
+                    taskMultiplier={taskMultiplier}
+                  />
+                  <GroupPropertiesPanel
+                    selectedGroup={selectedGroup}
+                    onClose={() => setSelectedGroupId(null)}
+                    platform={platform}
+                    nodes={nodes}
+                    setNodes={setNodes}
+                    runsPerMonth={runsPerMonth}
+                    minutesPerRun={minutesPerRun}
+                    hourlyRate={hourlyRate}
+                    taskMultiplier={taskMultiplier}
+                  />
+                  <EmailNodePropertiesPanel
+                    selectedNode={selectedEmailNode}
+                    onClose={() => setSelectedEmailNodeId(null)}
+                    onUpdateNodeData={handleUpdateEmailNodeData}
+                    onGenerateSection={handleGenerateEmailSectionAI}
+                    isGeneratingAIContent={isGeneratingAIContent}
+                    emailContextNodes={emailContextNodes}
+                  />
+                </div>
+              ) : (
+                <AnalyticsDashboard scenario={currentScenario} nodes={nodes} />
+              )}
+            </div>
           </div>
+        </div>
 
-          {/* Mobile Bottom Toolbox */}
+        {/* Mobile Bottom Toolbox */}
+        {activeTab === 'canvas' && (
           <div className="lg:hidden">
             <MobileToolboxTrigger
               onLoadScenario={handleLoadScenario} 
@@ -2063,8 +2173,10 @@ function BuildPageContent() {
               onNodeTypeSelect={setSelectedNodeType}
             />
           </div>
+        )}
 
-          {/* Mobile Alternative Templates Button */}
+        {/* Mobile Alternative Templates Button */}
+        {activeTab === 'canvas' && (
           <div className="lg:hidden">
             <MobileAlternativeTemplatesButton
               alternatives={alternativeTemplates.map(altScenario => ({
@@ -2081,9 +2193,9 @@ function BuildPageContent() {
               isLoadingAlternatives={isLoadingAlternatives}
             />
           </div>
-        </div>
+        )}
 
-        {/* Desktop Alternative Templates Sheet */}
+        {/* Desktop Alternative Templates Sheet - Outside tabs */}
         <div className="hidden lg:block">
           <AlternativeTemplatesSheet 
             alternatives={alternativeTemplates.map(altScenario => ({
