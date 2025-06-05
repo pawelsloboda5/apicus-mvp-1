@@ -1,24 +1,95 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Scenario } from '@/lib/types';
-import { Node } from '@xyflow/react';
+import { Node, Edge } from '@xyflow/react';
 import { useScenarioMetrics } from '@/lib/db';
-import { RoiGauge, WaterfallChart, TrendChart } from '@/app/chart-kit';
+import { RoiGauge, WaterfallChart, TrendChart, FlowTimeChart } from '@/app/chart-kit';
 import { useRoiMetrics } from '@/app/chart-kit/hooks';
+import { transformToFlowTimeData } from '@/lib/chart-utils';
+import { captureROISnapshot, shouldCaptureSnapshot } from '@/lib/metrics-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Download, Camera } from 'lucide-react';
 
 interface AnalyticsDashboardProps {
   scenario: Scenario | null;
   nodes: Node[];
+  edges: Edge[];
+  onNodeClick?: (nodeId: string) => void;
 }
 
-export function AnalyticsDashboard({ scenario, nodes }: AnalyticsDashboardProps) {
+export function AnalyticsDashboard({ scenario, nodes, edges, onNodeClick }: AnalyticsDashboardProps) {
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | undefined>();
+  const [previousMetrics, setPreviousMetrics] = useState<typeof metrics | null>(null);
+  const [previousNodeCount, setPreviousNodeCount] = useState(0);
+  
   // Get historical metrics for the scenario
   const historicalMetrics = useScenarioMetrics(scenario?.id);
   
   // Get real-time ROI calculations
   const metrics = useRoiMetrics(scenario, nodes);
+  
+  // Track metric changes for automatic snapshots
+  useEffect(() => {
+    if (!scenario || !metrics) return;
+    
+    const nodeCount = nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || '')).length;
+    
+    // Check if we should capture a snapshot
+    if (previousMetrics && shouldCaptureSnapshot(
+      previousMetrics ? { ...scenario, netROI: previousMetrics.netROI } as Scenario : null,
+      { ...scenario, netROI: metrics.netROI } as Scenario,
+      previousNodeCount,
+      nodeCount
+    )) {
+      captureROISnapshot(scenario, nodes, 'major_edit');
+    }
+    
+    setPreviousMetrics(metrics);
+    setPreviousNodeCount(nodeCount);
+  }, [scenario, metrics, nodes, previousMetrics, previousNodeCount]);
+  
+  // Manual snapshot handler
+  const handleCaptureSnapshot = async () => {
+    if (!scenario) return;
+    await captureROISnapshot(scenario, nodes, 'manual');
+  };
+  
+  // Export data handler
+  const handleExportData = () => {
+    if (!metrics || !scenario) return;
+    
+    const exportData = {
+      scenario: {
+        name: scenario.name,
+        platform: scenario.platform,
+        createdAt: new Date(scenario.createdAt).toISOString(),
+      },
+      metrics: {
+        netROI: metrics.netROI,
+        roiRatio: metrics.roiRatio,
+        timeValue: metrics.timeValue,
+        platformCost: metrics.platformCost,
+        paybackPeriod: metrics.paybackPeriod,
+        breakEvenRuns: metrics.breakEvenRuns,
+      },
+      workflow: {
+        nodeCount: nodes.length,
+        steps: nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || '')).length,
+      }
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${scenario.name}-roi-analysis-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
   
   // Prepare waterfall data
   const waterfallData = useMemo(() => {
@@ -100,6 +171,30 @@ export function AnalyticsDashboard({ scenario, nodes }: AnalyticsDashboardProps)
       .reverse(); // Show oldest first
   }, [historicalMetrics]);
   
+  // Prepare Flow Time data
+  const flowTimeData = useMemo(() => {
+    if (!scenario || nodes.length === 0) return null;
+    
+    // Filter to only include workflow nodes (not email context nodes)
+    const workflowNodes = nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || ''));
+    if (workflowNodes.length === 0) return null;
+    
+    try {
+      const data = transformToFlowTimeData(nodes, scenario.minutesPerRun || 0);
+      // Validate the returned data
+      if (!data || !data.nodes || data.nodes.length === 0) return null;
+      return data;
+    } catch (error) {
+      console.error('Error transforming flow time data:', error);
+      return null;
+    }
+  }, [nodes, scenario]);
+  
+  const handleFlowNodeClick = (nodeId: string) => {
+    setHighlightedNodeId(nodeId);
+    onNodeClick?.(nodeId);
+  };
+  
   if (!scenario || !metrics) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -113,11 +208,48 @@ export function AnalyticsDashboard({ scenario, nodes }: AnalyticsDashboardProps)
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="container mx-auto p-6 space-y-6 pb-12 min-h-full">
           {/* Header */}
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h2>
-            <p className="text-muted-foreground">
-              Track and analyze your automation ROI over time
-            </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h2>
+              <p className="text-muted-foreground">
+                Track and analyze your automation ROI over time
+              </p>
+            </div>
+            {/* Scenario Quick Stats */}
+            <div className="hidden xl:flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Platform</p>
+                <p className="font-medium capitalize">{scenario.platform}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Runs/Month</p>
+                <p className="font-medium">{scenario.runsPerMonth?.toLocaleString()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Workflow Steps</p>
+                <p className="font-medium">{nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || '')).length}</p>
+              </div>
+              <div className="flex items-center gap-2 ml-4 pl-4 border-l">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCaptureSnapshot}
+                  className="gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  Capture
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleExportData}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </div>
+            </div>
           </div>
           
           {/* Main Metrics Grid */}
@@ -292,8 +424,26 @@ export function AnalyticsDashboard({ scenario, nodes }: AnalyticsDashboardProps)
               <CardDescription>Time savings by automation step</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[400px] flex items-center justify-center bg-muted rounded-lg">
-                <p className="text-muted-foreground">Sankey Diagram - Coming Soon</p>
+              <div className="h-[400px]">
+                {flowTimeData ? (
+                  <FlowTimeChart 
+                    data={flowTimeData} 
+                    animate 
+                    onNodeClick={handleFlowNodeClick}
+                    highlightedNodeId={highlightedNodeId}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center bg-muted rounded-lg">
+                    <p className="text-muted-foreground">
+                      {nodes.length === 0 
+                        ? 'Add nodes to see workflow analysis'
+                        : nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || '')).length === 0
+                        ? 'Add workflow nodes (triggers, actions, or decisions) to see analysis'
+                        : 'No workflow data available'
+                      }
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

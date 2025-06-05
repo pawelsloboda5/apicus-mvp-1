@@ -2155,7 +2155,7 @@ function BuildPageContent() {
                   />
                 </div>
               ) : (
-                <AnalyticsDashboard scenario={currentScenario} nodes={nodes} />
+                <AnalyticsDashboard scenario={currentScenario} nodes={nodes} edges={edges} />
               )}
             </div>
           </div>

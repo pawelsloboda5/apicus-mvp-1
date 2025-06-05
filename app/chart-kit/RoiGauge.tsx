@@ -90,7 +90,7 @@ export function RoiGauge({
                   <text
                     y={0}
                     textAnchor="middle"
-                    fill={colors.fg}
+                    fill={colors.text}
                     fontSize={config.fontSize}
                     fontWeight="600"
                     dominantBaseline="middle"
@@ -165,7 +165,7 @@ export function RoiGaugeFixed({
           <text
             y={0}
             textAnchor="middle"
-            fill={colors.fg}
+            fill={colors.text}
             fontSize={config.fontSize}
             fontWeight="600"
             dominantBaseline="middle"
