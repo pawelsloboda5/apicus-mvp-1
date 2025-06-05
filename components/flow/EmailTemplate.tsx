@@ -25,6 +25,10 @@ export interface EmailTemplateProps {
   urgencyText?: string; // New: Urgency line
   
   // Section visibility flags
+  showSubject?: boolean;
+  showHook?: boolean;
+  showCTA?: boolean;
+  showOffer?: boolean;
   showPS?: boolean;
   showTestimonial?: boolean;
   showUrgency?: boolean;
@@ -53,6 +57,10 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
   psText = "PS - Most teams see results within the first 48 hours of setup.",
   testimonialText = '"We saved 20 hours per week in the first month" - Alex Chen, Ops Director',
   urgencyText = "Our calendar is filling up fast for Q1 implementations.",
+  showSubject = true,
+  showHook = true,
+  showCTA = true,
+  showOffer = true,
   showPS = true,
   showTestimonial = false,
   showUrgency = false,
@@ -66,16 +74,19 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
   <tr>
     <td align="center" style="padding:20px 0;">
       <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e1e1e1;">
+        ${showSubject && subjectLine ? `
         <tr>
           <td style="background:#3B82F6;color:#ffffff;padding:16px 20px;border-top-left-radius:8px;border-top-right-radius:8px;">
             <h2 style="margin:0;font-size:18px;font-weight:bold;">${subjectLine}</h2>
           </td>
         </tr>
+        ` : ''}
         <tr>
           <td style="padding:20px 20px 4px 20px;">
             <p style="margin:0;font-size:14px;color:#333333;">Hi ${firstName},</p>
           </td>
         </tr>
+        ${showHook && hookText ? `
         <tr>
           <td style="padding:4px 20px 14px 20px;">
             <p style="margin:0;font-size:14px;color:#333333;line-height:1.4;">
@@ -83,6 +94,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
             </p>
           </td>
         </tr>
+        ` : ''}
         ${showTestimonial && testimonialText ? `
         <tr>
           <td style="padding:0 20px 14px 20px;">
@@ -116,6 +128,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
             </table>
           </td>
         </tr>
+        ${showCTA && ctaText ? `
         <tr>
           <td style="padding:14px 20px;">
             <p style="margin:0;font-size:14px;color:#333333;line-height:1.4;">
@@ -124,6 +137,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
             </p>
           </td>
         </tr>
+        ` : ''}
         ${showUrgency && urgencyText ? `
         <tr>
           <td style="padding:0 20px 14px 20px;">
@@ -133,6 +147,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
           </td>
         </tr>
         ` : ''}
+        ${showOffer && offerText ? `
         <tr>
           <td style="padding:4px 20px 14px 20px;">
             <p style="margin:0;font-size:14px;color:#333333;line-height:1.4;">
@@ -140,6 +155,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
             </p>
           </td>
         </tr>
+        ` : ''}
         <tr>
           <td style="padding:6px 20px 20px 20px;">
             <p style="margin:0;font-size:14px;color:#333333;">
@@ -169,7 +185,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
   </tr>
 </table>
 <!-- === End email === -->`;
-  }, [firstName, yourName, yourCompany, yourEmail, calendlyLink, pdfLink, hookText, ctaText, subjectLine, offerText, psText, testimonialText, urgencyText, showPS, showTestimonial, showUrgency, stats]);
+  }, [firstName, yourName, yourCompany, yourEmail, calendlyLink, pdfLink, hookText, ctaText, subjectLine, offerText, psText, testimonialText, urgencyText, showSubject, showHook, showCTA, showOffer, showPS, showTestimonial, showUrgency, stats]);
 
   // Copy helper
   const copyToClipboard = () => {

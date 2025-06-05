@@ -153,7 +153,7 @@ export function EmailNodePropertiesPanel({
     fieldKey: 'subjectLine' | 'hookText' | 'ctaText' | 'offerText' | 'psText' | 'testimonialText' | 'urgencyText',
     promptKey: 'subject' | 'hook' | 'cta' | 'offer' | 'ps' | 'testimonial' | 'urgency',
     showToggle: boolean = false,
-    toggleKey?: 'showPS' | 'showTestimonial' | 'showUrgency'
+    toggleKey?: 'showSubject' | 'showHook' | 'showCTA' | 'showOffer' | 'showPS' | 'showTestimonial' | 'showUrgency'
   ) => {
     const isEnabled = !toggleKey || formData[toggleKey] !== false;
     
@@ -551,10 +551,10 @@ export function EmailNodePropertiesPanel({
                 
                 <div className="space-y-6">
                   {/* Core sections */}
-                  {renderAISection('Subject Line', 'subjectLine', 'subject')}
-                  {renderAISection('Hook Text', 'hookText', 'hook')}
-                  {renderAISection('CTA Text', 'ctaText', 'cta')}
-                  {renderAISection('Offer Text', 'offerText', 'offer')}
+                  {renderAISection('Subject Line', 'subjectLine', 'subject', true, 'showSubject')}
+                  {renderAISection('Hook Text', 'hookText', 'hook', true, 'showHook')}
+                  {renderAISection('CTA Text', 'ctaText', 'cta', true, 'showCTA')}
+                  {renderAISection('Offer Text', 'offerText', 'offer', true, 'showOffer')}
                   
                   {/* Optional sections with toggles */}
                   <div className="pt-4 border-t">
