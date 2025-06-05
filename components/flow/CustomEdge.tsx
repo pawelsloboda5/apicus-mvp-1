@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { BaseEdge, EdgeProps, getBezierPath } from "@xyflow/react";
+import { BaseEdge, EdgeProps, getSmoothStepPath } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 
 export function CustomEdge({
@@ -15,7 +15,7 @@ export function CustomEdge({
   data,
   style = {},
 }: EdgeProps) {
-  const [edgePath] = getBezierPath({
+  const [edgePath] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
