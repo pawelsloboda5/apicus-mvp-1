@@ -102,6 +102,39 @@
   "overrides": {
     "next-auth": {
       "next": "$next"
+    },
+    "@visx/axis": {
+      "react": "$react"
+    },
+    "@visx/gradient": {
+      "react": "$react"
+    },
+    "@visx/group": {
+      "react": "$react"
+    },
+    "@visx/legend": {
+      "react": "$react"
+    },
+    "@visx/responsive": {
+      "react": "$react"
+    },
+    "@visx/sankey": {
+      "react": "$react"
+    },
+    "@visx/scale": {
+      "react": "$react"
+    },
+    "@visx/shape": {
+      "react": "$react"
+    },
+    "@visx/tooltip": {
+      "react": "$react"
+    },
+    "@visx/xychart": {
+      "react": "$react"
+    },
+    "@visx/react-spring": {
+      "react": "$react"
     }
   }
 }
