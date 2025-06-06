@@ -189,7 +189,7 @@ export default function Home() {
       </section>
 
       {/* Target Audience Section */}
-      <section className="relative z-10 py-16 min-h-[50vh] flex items-center justify-center" style={{ backgroundColor: 'var(--section-bg)' }}>
+      <section className="relative z-10 py-16 flex items-center justify-center" style={{ backgroundColor: 'var(--section-bg)' }}>
         <div className="mx-auto max-w-6xl px-4 text-center">
           <h2 className="text-3xl font-bold mb-6 text-foreground">
             The first ROI platform built for
