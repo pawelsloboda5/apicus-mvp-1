@@ -32,9 +32,7 @@ import { pricing } from "../api/data/pricing";
 import { Loader2, PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useDroppable } from "@dnd-kit/core";
-
-// Import tab components
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTheme } from "next-themes";
 
 // Import custom components
 import { StatsBar } from "@/components/flow/StatsBar";
@@ -111,6 +109,12 @@ function BuildPageContent() {
   const scenarioIdParam = params.get("sid");
   const templateIdParam = params.get("tid");
   const queryParam = params.get("q");
+  const { setTheme } = useTheme();
+
+  // Force light mode when entering the canvas
+  useEffect(() => {
+    setTheme("light");
+  }, [setTheme]);
 
   const [scenarioId, setScenarioId] = useState<number | null>(null);
   const [currentScenario, setCurrentScenario] = useState<Scenario | null>(null);
@@ -2155,7 +2159,7 @@ function BuildPageContent() {
                   />
                 </div>
               ) : (
-                <AnalyticsDashboard scenario={currentScenario} nodes={nodes} edges={edges} />
+                <AnalyticsDashboard scenario={currentScenario} nodes={nodes} />
               )}
             </div>
           </div>

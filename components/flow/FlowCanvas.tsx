@@ -4,7 +4,6 @@ import React, { useState, useEffect, useOptimistic, startTransition } from "reac
 import {
   ReactFlow,
   Background,
-  Controls,
   Connection,
   IsValidConnection,
   SelectionMode,

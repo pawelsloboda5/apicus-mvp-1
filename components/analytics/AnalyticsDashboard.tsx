@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { Scenario } from '@/lib/types';
-import { Node, Edge } from '@xyflow/react';
+import { Node } from '@xyflow/react';
 import { useScenarioMetrics } from '@/lib/db';
 import { RoiGauge, WaterfallChart, TrendChart, FlowTimeChart } from '@/app/chart-kit';
 import { useRoiMetrics } from '@/app/chart-kit/hooks';
@@ -15,11 +15,10 @@ import { Download, Camera } from 'lucide-react';
 interface AnalyticsDashboardProps {
   scenario: Scenario | null;
   nodes: Node[];
-  edges: Edge[];
   onNodeClick?: (nodeId: string) => void;
 }
 
-export function AnalyticsDashboard({ scenario, nodes, edges, onNodeClick }: AnalyticsDashboardProps) {
+export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDashboardProps) {
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | undefined>();
   const [previousMetrics, setPreviousMetrics] = useState<typeof metrics | null>(null);
   const [previousNodeCount, setPreviousNodeCount] = useState(0);

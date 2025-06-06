@@ -1,7 +1,6 @@
 "use client";
 
 import React from 'react';
-import { BarStack } from '@visx/shape';
 import { Group } from '@visx/group';
 import { AxisBottom, AxisLeft } from '@visx/axis';
 import { scaleBand, scaleLinear } from '@visx/scale';
@@ -23,6 +22,8 @@ interface WaterfallChartProps {
   data: WaterfallDataPoint[];
   animate?: boolean;
 }
+
+
 
 const tooltipStyles = {
   ...defaultStyles,

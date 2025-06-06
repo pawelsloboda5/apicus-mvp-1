@@ -12,7 +12,6 @@ export interface RoiGaugeProps {
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
   animate?: boolean;
-  onThresholdCross?: (threshold: number) => void;
 }
 
 const sizeConfig = {
@@ -26,7 +25,6 @@ export function RoiGauge({
   size = 'md',
   showLabel = true,
   animate = true,
-  onThresholdCross
 }: RoiGaugeProps) {
   const config = sizeConfig[size];
   
@@ -72,7 +70,7 @@ export function RoiGauge({
               />
               
               {/* Animated value arc */}
-              {transitions((style, item) => (
+              {transitions((style) => (
                 <animated.g>
                   <Arc
                     innerRadius={innerRadius}
@@ -122,7 +120,6 @@ export function RoiGaugeFixed({
   width,
   height,
   showLabel = true,
-  animate = true,
 }: RoiGaugeProps & { width: number; height: number }) {
   const config = sizeConfig.sm; // Use small size for fixed dimensions
   

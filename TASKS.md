@@ -569,3 +569,110 @@ interface DashboardLayout {
 - [ ] Export functionality works for individual charts and full dashboard
 
 ---
+
+## Workflow JSON Import Feature (NEW) 6-8hrs
+
+### Overview
+Enable users to import their existing automation workflows from Make.com, n8n, and Zapier directly into Apicus by drag-and-drop or file upload. This feature will parse platform-specific JSON exports and convert them into our React Flow node/edge format.
+
+### Phase 1: Research & Schema Analysis (1-2hrs)
+- [ ] **Platform Export Analysis**:
+  - [ ] Document Make.com blueprint structure (`modules[]`, `connections[]`)
+  - [ ] Analyze n8n workflow JSON format (`nodes[]`, `connections{}`)
+  - [ ] Study Zapier export format (`zaps[]` with `steps[]`)
+  - [ ] Create type definitions for each platform's schema
+  - [ ] Identify common patterns and differences
+
+- [ ] **Mapping Strategy**:
+  - [ ] Map platform-specific node types to our types (trigger/action/decision)
+  - [ ] Define position calculation algorithms for each platform
+  - [ ] Plan metadata preservation strategy
+  - [ ] Design fallback handling for unknown node types
+
+### Phase 2: Parser Implementation (2-3hrs)
+- [ ] **Core Parser Infrastructure**:
+  - [ ] Create `/lib/import/` directory structure
+  - [ ] Implement `detectPlatform()` function with robust detection
+  - [ ] Create base `ImportedWorkflow` interface
+  - [ ] Add validation using Zod schemas
+
+- [ ] **Platform-Specific Parsers**:
+  - [ ] Implement `parseMakeBlueprint()` with module mapping
+  - [ ] Create `parseN8nWorkflow()` with connection handling
+  - [ ] Build `parseZapierExport()` with step sequencing
+  - [ ] Add error handling and validation for each parser
+
+- [ ] **Position & Layout**:
+  - [ ] Implement auto-layout for missing coordinates
+  - [ ] Add Dagre layout integration
+  - [ ] Create position normalization utilities
+  - [ ] Handle overlapping nodes
+
+### Phase 3: UI Components (2hrs)
+- [ ] **Import Modal**:
+  - [ ] Create `ImportWorkflowModal` component
+  - [ ] Implement drag-and-drop with react-dropzone
+  - [ ] Add file picker as fallback
+  - [ ] Show platform detection result
+  - [ ] Display import progress/status
+
+- [ ] **Preview Interface**:
+  - [ ] Create read-only preview canvas
+  - [ ] Show node/edge count statistics
+  - [ ] Display platform-specific metadata
+  - [ ] Add "Import" and "Cancel" actions
+
+- [ ] **Landing Page Integration**:
+  - [ ] Update hero CTA to include import option
+  - [ ] Add import button to navigation
+  - [ ] Create import success routing
+  - [ ] Update marketing copy
+
+### Phase 4: Data Integration (1-2hrs)
+- [ ] **Dexie Integration**:
+  - [ ] Create import transaction handling
+  - [ ] Implement bulk node/edge insertion
+  - [ ] Add import history tracking
+  - [ ] Handle duplicate detection
+
+- [ ] **Scenario Management**:
+  - [ ] Auto-generate scenario names from import
+  - [ ] Preserve original platform metadata
+  - [ ] Add import source tracking
+  - [ ] Update scenario list UI
+
+### Phase 5: Polish & Edge Cases (1hr)
+- [ ] **Error Handling**:
+  - [ ] Invalid JSON format detection
+  - [ ] Unsupported platform handling
+  - [ ] Large file size limits
+  - [ ] Malformed workflow structures
+
+- [ ] **UX Enhancements**:
+  - [ ] Loading states during parsing
+  - [ ] Success animations
+  - [ ] Helpful error messages
+  - [ ] Import statistics display
+
+- [ ] **Testing**:
+  - [ ] Unit tests for each parser
+  - [ ] Integration tests with real exports
+  - [ ] Edge case testing
+  - [ ] Performance testing with large workflows
+
+### Technical Specifications:
+- File size limit: 10MB
+- Supported formats: `.json` files only
+- Platforms: Make.com, n8n, Zapier
+- Client-side only processing
+- Auto-save after successful import
+
+### Success Criteria:
+- [ ] Users can drag-drop JSON files from any supported platform
+- [ ] Import completes in <3 seconds for typical workflows
+- [ ] 95%+ accuracy in node/edge conversion
+- [ ] Clear error messages for unsupported formats
+- [ ] Imported workflows are fully editable
+- [ ] Original platform metadata is preserved
+
+---

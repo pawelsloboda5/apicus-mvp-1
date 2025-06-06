@@ -1,14 +1,16 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Group } from '@visx/group';
 import { scaleOrdinal } from '@visx/scale';
-import { Sankey, SankeyExtraProperties } from '@visx/sankey';
-import { withTooltip, Tooltip, TooltipWithBounds, defaultStyles } from '@visx/tooltip';
+import { withTooltip, TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import type { WithTooltipProvidedProps } from '@visx/tooltip/lib/enhancers/withTooltip';
 import { NodeType } from '@/lib/types';
 import ResponsiveChart from './ResponsiveChart';
 import { colors } from './colors';
+
+// Import the proper sankey types and functions
+import { sankey as d3Sankey, sankeyLinkHorizontal, SankeyLink as D3SankeyLink, SankeyNode as D3SankeyNode } from 'd3-sankey';
 
 export interface SankeyNode {
   id: string;
@@ -107,118 +109,125 @@ export const SankeyChartBase = withTooltip<SankeyChartProps, TooltipData>(
           const xMax = width - margin.left - margin.right;
           const yMax = height - margin.top - margin.bottom;
 
+          // Create the sankey generator
+          const sankeyGenerator = useMemo(
+            () =>
+              d3Sankey<SankeyNode, SankeyLink>()
+                .nodeId((d) => d.id)
+                .nodeWidth(15)
+                .nodePadding(10)
+                .extent([[0, 0], [xMax, yMax]]),
+            [xMax, yMax]
+          );
+
+          // Generate the sankey layout
+          const { nodes: sankeyNodes, links: sankeyLinks } = useMemo(() => {
+            const graph = {
+              nodes: data.nodes.map(d => ({ ...d })),
+              links: data.links.map(d => ({ ...d }))
+            };
+            return sankeyGenerator(graph);
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+          }, [data, sankeyGenerator]);
+
+          // Create path generator
+          const linkPath = sankeyLinkHorizontal();
+
           return (
             <svg width={width} height={height}>
               <Group left={margin.left} top={margin.top}>
-                <Sankey
-                  nodeId={(d) => d.id}
-                  nodeWidth={15}
-                  nodePadding={10}
-                  extent={[[0, 0], [xMax, yMax]]}
-                  graph={data}
-                >
-                  {({ graph, createPath }) => {
-                    const allNodes = graph.nodes || [];
-                    const allLinks = graph.links || [];
-                    
-                    return (
-                      <>
-                        {/* Links */}
-                        {allLinks.map((link, i) => {
-                          const path = createPath(link);
-                          const linkSourceNode = link.source as any;
-                          const linkTargetNode = link.target as any;
-                          
-                          return (
-                            <path
-                              key={`link-${i}`}
-                              d={path || ''}
-                              stroke={colors.neutral}
-                              strokeWidth={Math.max(1, link.width || 1)}
-                              strokeOpacity={0.3}
-                              fill="none"
-                              className={animate ? "transition-all duration-300" : ""}
-                              onMouseMove={(event) => {
-                                showTooltip({
-                                  tooltipData: {
-                                    name: `${linkSourceNode.name || 'Unknown'} → ${linkTargetNode.name || 'Unknown'}`,
-                                    value: link.value || 0,
-                                    type: 'link',
-                                    source: linkSourceNode.name,
-                                    target: linkTargetNode.name,
-                                  },
-                                  tooltipTop: event.clientY,
-                                  tooltipLeft: event.clientX,
-                                });
-                              }}
-                              onMouseLeave={hideTooltip}
-                            />
-                          );
-                        })}
+                {/* Links */}
+                {sankeyLinks.map((link, i) => {
+                  const linkSourceNode = link.source as D3SankeyNode<SankeyNode, SankeyLink>;
+                  const linkTargetNode = link.target as D3SankeyNode<SankeyNode, SankeyLink>;
+                  const path = linkPath(link as D3SankeyLink<SankeyNode, SankeyLink>);
+                  
+                  return (
+                    <path
+                      key={`link-${i}`}
+                      d={path || ''}
+                      stroke={colors.neutral}
+                      strokeWidth={Math.max(1, (link as D3SankeyLink<SankeyNode, SankeyLink>).width || 1)}
+                      strokeOpacity={0.3}
+                      fill="none"
+                      className={animate ? "transition-all duration-300" : ""}
+                      onMouseMove={(event) => {
+                        showTooltip({
+                          tooltipData: {
+                            name: `${linkSourceNode.name || 'Unknown'} → ${linkTargetNode.name || 'Unknown'}`,
+                            value: link.value || 0,
+                            type: 'link',
+                            source: linkSourceNode.name,
+                            target: linkTargetNode.name,
+                          },
+                          tooltipTop: event.clientY,
+                          tooltipLeft: event.clientX,
+                        });
+                      }}
+                      onMouseLeave={hideTooltip}
+                    />
+                  );
+                })}
 
-                        {/* Nodes */}
-                        {allNodes.map((node, i) => {
-                          const sankeyNode = node as any;
-                          const isHighlighted = highlightedNodeId === sankeyNode.id;
-                          const nodeColor = sankeyNode.color || colorScale(sankeyNode.nodeType);
-                          
-                          return (
-                            <Group key={`node-${i}`}>
-                              <rect
-                                x={node.x0 || 0}
-                                y={node.y0 || 0}
-                                width={(node.x1 || 0) - (node.x0 || 0)}
-                                height={(node.y1 || 0) - (node.y0 || 0)}
-                                fill={nodeColor}
-                                fillOpacity={isHighlighted ? 1 : 0.8}
-                                stroke={isHighlighted ? colors.accent : 'transparent'}
-                                strokeWidth={isHighlighted ? 2 : 0}
-                                rx={4}
-                                className={animate ? "transition-all duration-300 cursor-pointer" : "cursor-pointer"}
-                                onClick={() => onNodeClick?.(sankeyNode.id)}
-                                onMouseMove={(event) => {
-                                  showTooltip({
-                                    tooltipData: {
-                                      name: sankeyNode.name,
-                                      value: sankeyNode.value,
-                                      type: 'node',
-                                    },
-                                    tooltipTop: event.clientY,
-                                    tooltipLeft: event.clientX,
-                                  });
-                                }}
-                                onMouseLeave={hideTooltip}
-                              />
-                              
-                              {/* Node labels */}
-                              <text
-                                x={(node.x1 || 0) + 6}
-                                y={((node.y0 || 0) + (node.y1 || 0)) / 2}
-                                dy="0.35em"
-                                fontSize={11}
-                                fill={colors.text}
-                                className="select-none"
-                              >
-                                {sankeyNode.name}
-                              </text>
-                              
-                              {/* Time value */}
-                              <text
-                                x={(node.x1 || 0) + 6}
-                                y={((node.y0 || 0) + (node.y1 || 0)) / 2 + 14}
-                                fontSize={10}
-                                fill={colors.muted}
-                                className="select-none"
-                              >
-                                {sankeyNode.value?.toFixed(1) || '0'} min
-                              </text>
-                            </Group>
-                          );
-                        })}
-                      </>
-                    );
-                  }}
-                </Sankey>
+                {/* Nodes */}
+                {sankeyNodes.map((node, i) => {
+                  const sankeyNode = node as D3SankeyNode<SankeyNode, SankeyLink>;
+                  const isHighlighted = highlightedNodeId === sankeyNode.id;
+                  const nodeColor = sankeyNode.color || colorScale(sankeyNode.nodeType);
+                  
+                  return (
+                    <Group key={`node-${i}`}>
+                      <rect
+                        x={sankeyNode.x0 || 0}
+                        y={sankeyNode.y0 || 0}
+                        width={(sankeyNode.x1 || 0) - (sankeyNode.x0 || 0)}
+                        height={(sankeyNode.y1 || 0) - (sankeyNode.y0 || 0)}
+                        fill={nodeColor}
+                        fillOpacity={isHighlighted ? 1 : 0.8}
+                        stroke={isHighlighted ? colors.accent : 'transparent'}
+                        strokeWidth={isHighlighted ? 2 : 0}
+                        rx={4}
+                        className={animate ? "transition-all duration-300 cursor-pointer" : "cursor-pointer"}
+                        onClick={() => onNodeClick?.(sankeyNode.id)}
+                        onMouseMove={(event) => {
+                          showTooltip({
+                            tooltipData: {
+                              name: sankeyNode.name,
+                              value: sankeyNode.value,
+                              type: 'node',
+                            },
+                            tooltipTop: event.clientY,
+                            tooltipLeft: event.clientX,
+                          });
+                        }}
+                        onMouseLeave={hideTooltip}
+                      />
+                      
+                      {/* Node labels */}
+                      <text
+                        x={(sankeyNode.x1 || 0) + 6}
+                        y={((sankeyNode.y0 || 0) + (sankeyNode.y1 || 0)) / 2}
+                        dy="0.35em"
+                        fontSize={11}
+                        fill={colors.text}
+                        className="select-none"
+                      >
+                        {sankeyNode.name}
+                      </text>
+                      
+                      {/* Time value */}
+                      <text
+                        x={(sankeyNode.x1 || 0) + 6}
+                        y={((sankeyNode.y0 || 0) + (sankeyNode.y1 || 0)) / 2 + 14}
+                        fontSize={10}
+                        fill={colors.muted}
+                        className="select-none"
+                      >
+                        {sankeyNode.value?.toFixed(1) || '0'} min
+                      </text>
+                    </Group>
+                  );
+                })}
               </Group>
 
               {tooltipOpen && tooltipData && (

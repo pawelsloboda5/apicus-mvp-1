@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { BadgeCheck, Wand2, BarChart3, Sparkles, Loader2, Calculator, TrendingUp, ArrowRight, Lightbulb, Target, Rocket } from "lucide-react";
+import { Wand2, BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Rocket, Users, Zap,Crown, ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-// Simple Badge component since it doesn't exist
+// Simple Badge component
 function Badge({ 
   variant = "default", 
   className, 
@@ -21,11 +21,11 @@ function Badge({
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
         {
-          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80": variant === "default",
+          "border-transparent bg-primary text-primary-foreground hover:bg-primary/90": variant === "default",
           "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80": variant === "secondary",
-          "text-foreground": variant === "outline",
+          "text-foreground border-border": variant === "outline",
         },
         className
       )}
@@ -39,12 +39,36 @@ function Badge({
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [currentBenefit, setCurrentBenefit] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   
+  const benefits = [
+    {
+      title: "Compare ROI across Zapier, Make, and n8n to strengthen your pitch",
+      icon: <BarChart3 className="h-12 w-12" />,
+    },
+    {
+      title: "Deliver a polished ROI summary that elevates your proposal above your competition",
+      icon: <Crown className="h-12 w-12" />,
+    },
+    {
+      title: "Turn client use cases into automation-ready outlines for Zapier, Make, and n8n",
+      icon: <Target className="h-12 w-12" />,
+    },
+    {
+      title: "Project automation ROI with a model designed to handle real-world variables",
+      icon: <Calculator className="h-12 w-12" />,
+    },
+  ];
+  
   useEffect(() => {
     setMounted(true);
-  }, []);
+    const interval = setInterval(() => {
+      setCurrentBenefit((prev) => (prev + 1) % benefits.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [benefits.length]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,294 +100,341 @@ export default function Home() {
     }
   };
 
+  const nextBenefit = () => {
+    setCurrentBenefit((prev) => (prev + 1) % benefits.length);
+  };
+
+  const prevBenefit = () => {
+    setCurrentBenefit((prev) => (prev - 1 + benefits.length) % benefits.length);
+  };
+
   return (
-    <main className="min-h-screen overflow-x-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute inset-0 grid-pattern opacity-40" />
-      <GradientBlob className="bg-primary/20 top-[-10rem] left-1/4 animate-float" />
-      <GradientBlob className="bg-accent/20 bottom-[-12rem] right-1/4 animate-float" style={{ animationDelay: '1s' }} />
-
+    <main className="min-h-screen overflow-x-hidden bg-background">
       {/* Hero Section */}
-      <section className="relative z-10 px-4 py-20 md:py-32">
-        <div className="mx-auto max-w-6xl text-center">
-          {/* Badge */}
-          <Badge 
-            variant="secondary" 
-            className={cn(
-              "mb-6 font-mono text-xs tracking-wider animate-pixel-shimmer",
-              mounted && "animate-fade-in"
-            )}
-          >
-            <Sparkles className="mr-2 h-3 w-3" />
-            AI-Powered ROI Calculator
-          </Badge>
+      <section className="relative bg-background min-h-screen">
+        <div className="relative z-10 px-4 py-20 md:py-32">
+          <div className="mx-auto max-w-6xl text-center">
+           
 
-          {/* Main Headline */}
-          <h1
-            className={cn(
-              "mx-auto max-w-4xl text-4xl font-black leading-[1.1] tracking-tight md:text-6xl lg:text-7xl",
-              mounted && "animate-fade-in"
-            )}
-          >
-            Prove Automation ROI{" "}
-            <span className="text-gradient font-mono font-bold">in Minutes</span>
-          </h1>
+            <h1
+              className={cn(
+                "mx-auto my-15 max-w-4xl text-5xl font-black leading-[1.1] tracking-tight text-foreground md:text-7xl lg:text-8xl",
+                mounted && "animate-fade-in"
+              )}
+            >
+              Close More Clients with{" "}
+              <span className="text-gradient-orange">ROI-Backed</span>{" "}
+              Proposals.
+            </h1>
 
-          {/* ROI Examples */}
-          <div className={cn(
-            "mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-4 text-sm font-medium",
-            mounted && "animate-fade-in"
-          )} style={{ animationDelay: '200ms' }}>
-            <div className="rounded-lg bg-success/10 border border-success/20 px-3 py-2">
-              <span className="font-mono font-bold text-success">6,700× ROI</span> <span className="text-success/80">in 30 days</span>
-            </div>
-            <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2">
-              <span className="text-foreground">Save </span><span className="font-mono font-bold text-primary">33 hrs/month</span>
-            </div>
-            <div className="rounded-lg bg-warning/10 border border-warning/20 px-3 py-2">
-              <span className="font-mono font-bold text-warning">$2,100</span> <span className="text-warning/80">monthly value</span>
+            <p className={cn(
+              "mx-auto mt-8 max-w-3xl text-xl leading-relaxed text-muted-foreground md:text-2xl",
+              mounted && "animate-fade-in"
+            )} style={{ animationDelay: '200ms' }}>
+              <span className="text-gradient-orange font-bold">Apicus</span> turns your workflow ideas into ROI reports that help you{" "}
+              <span className="text-foreground font-semibold">win clients</span>
+            </p>
+
+            {/* CTA Section */}
+            <div className={cn(
+              "mt-12  flex flex-col items-center gap-6",
+              mounted && "animate-fade-in"
+            )} style={{ animationDelay: '400ms' }}>
+
+              {/* Primary CTA - Import Workflow */}
+              <Button 
+                size="lg" 
+                asChild
+                className="animate-pulse-glow px-12 py-6 text-xl font-bold shadow-lg"
+              >
+                <Link href="/build?import=true">
+                  <Upload className="mr-3 h-6 w-6" />
+                  Import from Make, n8n, or Zapier
+                </Link>
+              </Button>
+
+              <span className="text-sm font-medium text-muted-foreground">or</span>
+
+              {/* Secondary CTA – Generate */}
+              <form onSubmit={handleGenerate} className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-md">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Describe your client's automation need..."
+                  className="flex-1 rounded-xl border-2 border-input bg-background px-4 py-3 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-40"
+                  disabled={searching}
+                />
+                <Button 
+                  type="submit" 
+                  disabled={searching} 
+                  variant="outline"
+                  className="px-6 py-3 font-semibold"
+                >
+                  {searching ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="mr-2 h-4 w-4" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </form>
             </div>
           </div>
+        </div>
+      </section>
 
-          <p className={cn(
-            "mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl",
-            mounted && "animate-fade-in"
-          )} style={{ animationDelay: '400ms' }}>
-            Build visual workflows, calculate precise ROI, and justify automation projects with AI-powered insights. No spreadsheets, no guesswork.
-          </p>
+      {/* Target Audience Section */}
+      <section className="relative z-10 py-16 min-h-[50vh] flex items-center justify-center" style={{ backgroundColor: 'var(--section-bg)' }}>
+        <div className="mx-auto max-w-6xl px-4 text-center">
+          <h2 className="text-3xl font-bold mb-6 text-foreground">
+            The first ROI platform built for
+          </h2>
+          <div className="flex flex-wrap justify-center gap-4 text-2xl font-semibold">
+            <span className="text-gradient-orange">consultants</span>
+            <span className="text-muted-foreground">,</span>
+            <span className="text-gradient-orange">freelancers</span>
+            <span className="text-muted-foreground">and</span>
+            <span className="text-gradient-orange">agencies</span>
+          </div>
+        </div>
+      </section>
 
-          {/* Generate Form */}
-          <form
-            onSubmit={handleGenerate}
-            className={cn(
-              "relative mx-auto mt-10 flex w-full max-w-xl items-center gap-3",
-              mounted && "animate-fade-in"
-            )}
-            style={{ animationDelay: '600ms' }}
-          >
-            <div className="relative flex-1">
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder="Describe your automation (e.g., Invoice processing from email to QuickBooks)"
-                className="w-full rounded-lg border-2 border-input bg-background px-4 py-4 text-base font-medium shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-40"
-                disabled={searching}
-              />
+      {/* Benefits Carousel */}
+      <section className="relative z-10 py-20 min-h-[50vh]" style={{ backgroundColor: 'var(--section-bg)' }}>
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4">
+              <Sparkles className="mr-2 h-3 w-3" />
+              Benefits
+            </Badge>
+            <h2 className="text-4xl font-bold tracking-tight mb-4 text-foreground">
+              Why Choose Apicus?
+            </h2>
+          </div>
+
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={prevBenefit}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 backdrop-blur-sm"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <div className="mx-auto max-w-4xl">
+                <Card className="border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:bg-card/80 hover:shadow-lg min-h-[300px]">
+                  <CardContent className="p-12 text-center">
+                    <div className="mb-8 inline-flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      {benefits[currentBenefit].icon}
+                    </div>
+                    <h3 className="text-2xl font-bold leading-relaxed text-foreground">
+                      {benefits[currentBenefit].title}
+                    </h3>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={nextBenefit}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 backdrop-blur-sm"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-            <Button 
-              type="submit" 
-              size="lg" 
-              disabled={searching} 
-              className="animate-pulse-glow px-8 py-4 text-base font-semibold shadow-lg"
-            >
-              {searching ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Rocket className="mr-2 h-4 w-4" />
-                  Generate
-                </>
-              )}
-            </Button>
-          </form>
 
-          <div className={cn(
-            "mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row",
-            mounted && "animate-fade-in"
-          )} style={{ animationDelay: '800ms' }}>
-            <Button variant="ghost" asChild>
-              <Link href="/build" className="text-muted-foreground hover:text-foreground font-medium">
-                Or start with a blank canvas <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
+            {/* Benefit indicators */}
+            <div className="flex justify-center gap-2 mt-8">
+              {benefits.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentBenefit(index)}
+                  className={cn(
+                    "h-2 w-8 rounded-full transition-all",
+                    index === currentBenefit ? "bg-primary" : "bg-muted-foreground/30"
+                  )}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="relative z-10 py-16">
+      <section className="relative z-10 py-20 min-h-[50vh]" style={{ backgroundColor: 'var(--section-bg)' }}>
         <div className="mx-auto max-w-6xl px-4">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <StatCard
-              icon={<Calculator className="h-8 w-8" />}
               number="1,000+"
-              label="Apps Database"
-              description="Pre-loaded with pricing data from Zapier, Make, and n8n"
+              label="Apps and pricing entries"
+              description="Quickly compare platform costs and uncover cheaper alternatives"
+              icon={<Calculator className="h-8 w-8" />}
             />
             <StatCard
-              icon={<TrendingUp className="h-8 w-8" />}
               number="70%"
-              label="Faster ROI Analysis"
-              description="Skip the spreadsheets. Get precise calculations instantly"
+              label="Faster discovery in live sales moments"
+              description="Figure out what tools to use - plus instant pricing and ROI"
+              icon={<TrendingUp className="h-8 w-8" />}
             />
             <StatCard
-              icon={<Lightbulb className="h-8 w-8" />}
               number="7,000+"
-              label="Workflow Templates"
-              description="Trained on real automations from top platforms"
+              label="Real-world workflows"
+              description="Trained on Zapier, n8n and Make templates to help you automate and pitch faster"
+              icon={<Zap className="h-8 w-8" />}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="relative z-10 py-20 min-h-screen" style={{ backgroundColor: 'var(--section-bg)' }}>
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold tracking-tight mb-4 text-foreground">
+              Apicus Features
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <FeatureCard
+              icon="📥"
+              title="Workflow Import from Make, n8n & Zapier"
+              description="Drag-and-drop import of existing workflows with automatic ROI analysis"
+              variant="highlight"
+            />
+            <FeatureCard
+              icon="🔥"
+              title="Automation ROI Engine"
+              description="Calculate precise ROI with real-world variables and industry benchmarks"
+            />
+            <FeatureCard
+              icon="📊"
+              title="Client-ready ROI summaries"
+              description="Professional reports that win proposals and justify automation investments"
+            />
+            <FeatureCard
+              icon="⚡"
+              title="Proposal-focused cost estimator"
+              description="Instant pricing data for accurate project quotes and budgets"
+            />
+            <FeatureCard
+              icon="🤖"
+              title="Workflow template generator (AI-Powered)"
+              description="Generate automation workflows from natural language descriptions"
+            />
+            <FeatureCard
+              icon="📧"
+              title="Auto-Generate ROI-Backed client emails"
+              description="Turn your ROI analysis into persuasive client communications"
+            />
+            <FeatureCard
+              icon="📋"
+              title="Workflow Versioning for client proposals"
+              description="Track changes and present multiple scenarios to clients"
+            />
+            <FeatureCard
+              icon="💰"
+              title="Live pricing dataset for automation tools"
+              description="Always up-to-date pricing information for accurate cost calculations"
             />
           </div>
         </div>
       </section>
 
       {/* Platform Logos */}
-      <section className="relative z-10 py-12">
-        <div className="mx-auto max-w-4xl px-4 text-center">
+      <section className="relative z-10 py-32" style={{ backgroundColor: 'var(--section-bg)' }}>
+        <div className="mx-auto max-w-6xl px-4 text-center">
           <p className="mb-8 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Built for the tools you already use
+            Import workflows from the tools your clients already use
           </p>
           <div className="flex items-center justify-center gap-12 opacity-60 grayscale transition-all hover:opacity-100 hover:grayscale-0">
-            <div className="text-2xl font-bold font-mono tracking-wider">ZAPIER</div>
-            <div className="text-2xl font-bold font-mono tracking-wider">MAKE</div>
-            <div className="text-2xl font-bold font-mono tracking-wider">N8N</div>
-          </div>
-        </div>
-      </section>
-
-      {/* ROI Case Studies */}
-      <section className="relative z-10 py-20">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-              Real ROI Results
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
-              See how automation projects deliver measurable value
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            <ROICard
-              title="Invoice Processing"
-              time="33 hours/month saved"
-              cost="$25/month"
-              roi="6,700× return"
-              description="Automated invoice data extraction and QuickBooks entry"
-              platform="Make"
-            />
-            <ROICard
-              title="Lead Qualification"
-              time="45 hours/month saved"
-              cost="$50/month"
-              roi="2,340× return"
-              description="Automated lead scoring and CRM updates from web forms"
-              platform="Zapier"
-            />
-            <ROICard
-              title="Report Generation"
-              time="28 hours/month saved"
-              cost="$15/month"
-              roi="4,200× return"
-              description="Automated weekly reports from multiple data sources"
-              platform="n8n"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="relative z-10 py-20">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-              Everything you need for ROI analysis
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
-            <FeatureCard
-              icon={<Wand2 className="h-8 w-8 text-primary" />}
-              title="Visual Workflow Builder"
-              description="Drag-and-drop canvas with pixel-perfect nodes. Design automations visually."
-            />
-            <FeatureCard
-              icon={<BarChart3 className="h-8 w-8 text-primary" />}
-              title="Real-Time ROI Calculation"
-              description="See time saved, costs, and ROI update instantly as you build."
-            />
-            <FeatureCard
-              icon={<Sparkles className="h-8 w-8 text-primary" />}
-              title="AI-Powered Insights"
-              description="Smart defaults, recommendations, and natural language explanations."
-            />
-            <FeatureCard
-              icon={<BadgeCheck className="h-8 w-8 text-primary" />}
-              title="Multi-Platform Support"
-              description="Compare costs across Zapier, Make, and n8n in real-time."
-            />
+            <div className="text-2xl font-bold font-mono tracking-wider text-foreground">ZAPIER</div>
+            <div className="text-2xl font-bold font-mono tracking-wider text-foreground">MAKE</div>
+            <div className="text-2xl font-bold font-mono tracking-wider text-foreground">N8N</div>
           </div>
         </div>
       </section>
 
       {/* How It Works */}
-      <section className="relative z-10 py-20 bg-muted/30">
-        <div className="mx-auto max-w-4xl px-4 text-center">
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl mb-4">
+      <section className="relative z-10 py-20" style={{ backgroundColor: 'var(--section-bg)' }}>
+        <div className="relative z-10 mx-auto max-w-6xl px-4 text-center">
+          <Badge variant="outline" className="mb-6">
+            <Target className="mr-2 h-3 w-3" />
             How It Works
+          </Badge>
+          <h2 className="text-4xl font-bold tracking-tight mb-16 text-foreground">
+            From workflow to signed contract in 4 steps
           </h2>
-          <p className="text-lg text-muted-foreground leading-relaxed mb-16">
-            From idea to ROI report in three simple steps
-          </p>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-5">
             <StepCard
               step="1"
-              title="Describe Your Process"
-              description="Tell our AI what you want to automate, or choose from 7,000+ templates"
-              icon={<Target className="h-6 w-6" />}
+              title="Import your existing workflows"
+              description="Drag & drop JSON exports from Make, n8n, or Zapier. Or generate new ones from descriptions."
+              icon={<Upload className="h-6 w-6" />}
             />
             <StepCard
               step="2"
-              title="Build Visually"
-              description="Design your workflow on our pixel-art canvas with drag-and-drop simplicity"
-              icon={<Wand2 className="h-6 w-6" />}
+              title="Describe your client or workflow goal"
+              description="Tell us what kind of business you're pitching or task you want automated – We'll tell you where to start"
+              icon={<Target className="h-6 w-6" />}
             />
             <StepCard
               step="3"
-              title="Get ROI Results"
-              description="Receive detailed analysis, cost breakdowns, and presentation-ready reports"
+              title="Generate a Workflow & ROI"
+              description="AI suggests automations and calculates ROI instantly."
               icon={<BarChart3 className="h-6 w-6" />}
+            />
+            <StepCard
+              step="4"
+              title="Compare tools & pricing"
+              description="Tailor your stack with live pricing and ROI differences."
+              icon={<Calculator className="h-6 w-6" />}
+            />
+            <StepCard
+              step="5"
+              title="Real-time team collaboration"
+              description="Co-edit visual workflows, cold-email templates, and ROI reports with your team."
+              icon={<Users className="h-6 w-6" />}
             />
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="relative z-10 py-20">
+      {/* Final CTA */}
+      <section className="relative z-10 py-20" style={{ backgroundColor: 'var(--section-bg)' }}>
         <div className="mx-auto max-w-4xl px-4 text-center">
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl mb-4">
-            Ready to prove your automation ROI?
+          <h2 className="text-4xl font-bold tracking-tight mb-4 text-foreground">
+            Ready to win more clients?
           </h2>
-          <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-            Join thousands of automation experts who use Apicus to justify their projects
+          <p className="text-xl text-muted-foreground leading-relaxed mb-8">
+            Start building ROI-backed proposals today.
           </p>
-          <Button size="lg" asChild className="animate-pulse-glow px-8 py-4 text-lg font-semibold">
-            <Link href="/build">
-              <Rocket className="mr-2 h-5 w-5" />
-              Start Building
-            </Link>
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Button size="lg" asChild className="animate-pulse-glow px-12 py-6 text-xl font-bold">
+              <Link href="/build?import=true">
+                <Upload className="mr-3 h-6 w-6" />
+                Import Your Workflow
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild className="px-12 py-6 text-xl font-bold">
+              <Link href="/build">
+                <Rocket className="mr-3 h-6 w-6" />
+                Start from Scratch
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
-
-      {/* Subtle pixel grid background */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,transparent_49%,theme(colors.border)_50%),linear-gradient(to_bottom,transparent_49%,theme(colors.border)_50%)] bg-[size:2rem_2rem] opacity-[0.02] dark:opacity-[0.05]" />
     </main>
-  );
-}
-
-function GradientBlob({ className, ...props }: { className?: string } & React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn(
-        "absolute h-96 w-96 rounded-full blur-3xl filter",
-        className
-      )}
-      {...props}
-    />
   );
 }
 
@@ -374,67 +445,38 @@ function StatCard({ icon, number, label, description }: {
   description: string;
 }) {
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:bg-card/80 hover:shadow-lg">
-      <CardContent className="p-6 text-center">
-        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+    <Card className="border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:bg-card/80 hover:shadow-lg group">
+      <CardContent className="p-8 text-center">
+        <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
           {icon}
         </div>
-        <div className="text-3xl font-bold font-mono text-foreground">{number}</div>
-        <div className="text-sm font-semibold text-muted-foreground">{label}</div>
-        <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{description}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ROICard({ title, time, cost, roi, description, platform }: {
-  title: string;
-  time: string;
-  cost: string;
-  roi: string;
-  description: string;
-  platform: string;
-}) {
-  return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:bg-card/80 hover:shadow-lg">
-      <CardContent className="p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold">{title}</h3>
-          <Badge variant="outline" className="font-mono text-xs">{platform}</Badge>
-        </div>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">{description}</p>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Time Saved:</span>
-            <span className="font-semibold text-success">{time}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Monthly Cost:</span>
-            <span className="font-semibold">{cost}</span>
-          </div>
-          <div className="flex justify-between text-sm border-t pt-2">
-            <span className="text-muted-foreground">ROI:</span>
-            <span className="font-bold font-mono text-success">{roi}</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function FeatureCard({ icon, title, description }: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:bg-card/80 hover:shadow-lg">
-      <CardContent className="p-6 text-center">
-        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-          {icon}
-        </div>
-        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <div className="text-4xl font-black font-mono text-foreground mb-2">{number}</div>
+        <div className="text-lg font-bold text-foreground mb-3">{label}</div>
         <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FeatureCard({ icon, title, description, variant }: {
+  icon: string;
+  title: string;
+  description: string;
+  variant?: "highlight";
+}) {
+  return (
+    <Card className={cn(
+      "border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:bg-card/80 hover:shadow-lg group",
+      variant === "highlight" && "border-primary/50 bg-primary/5"
+    )}>
+      <CardContent className="p-6">
+        <div className="flex items-start gap-4">
+          <div className="text-2xl">{icon}</div>
+          <div>
+            <h3 className="text-lg font-bold mb-2 group-hover:text-primary transition-colors text-foreground">{title}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -447,14 +489,14 @@ function StepCard({ step, title, description, icon }: {
   icon: React.ReactNode;
 }) {
   return (
-    <div className="relative">
-      <div className="mb-4 mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground font-mono text-xl font-bold">
+    <div className="relative group">
+      <div className="mb-6 mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground font-mono text-xl font-bold group-hover:scale-110 transition-transform">
         {step}
       </div>
       <div className="mb-4 mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
         {icon}
       </div>
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <h3 className="text-lg font-bold mb-3 text-foreground">{title}</h3>
       <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
     </div>
   );

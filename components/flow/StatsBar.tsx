@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -24,7 +25,9 @@ import {
   Calculator,
   ChevronDown,
   Code,
-  CheckSquare
+  CheckSquare,
+  Sun,
+  Moon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlatformType, Scenario } from "@/lib/types";
@@ -35,7 +38,6 @@ import {
   pricing, 
   formatROIRatio 
 } from "@/lib/roi";
-import { RoiGaugeFixed } from "@/app/chart-kit/RoiGauge";
 
 interface StatsBarProps {
   platform: PlatformType;
@@ -60,9 +62,6 @@ interface StatsBarProps {
   selectedIds?: string[];
   selectedGroupId?: string | null;
   isMultiSelectionActive?: boolean;
-  
-  // Chart options
-  showROIGauge?: boolean;
 }
 
 // Platform configurations
@@ -134,8 +133,14 @@ export function StatsBar({
   selectedIds = [],
   selectedGroupId,
   isMultiSelectionActive = false,
-  showROIGauge = true,
 }: StatsBarProps) {
+  const { theme, setTheme } = useTheme();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const screenSize = useScreenSize();
   const [timeValue, setTimeValue] = useState(0);
   const [platformCost, setPlatformCost] = useState(0);
@@ -280,6 +285,21 @@ export function StatsBar({
                 <Coins className="h-4 w-4" />
                 ROI Settings
               </Button>
+              {isMounted && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                >
+                  {theme === 'dark' ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
+                  <span>Toggle Theme</span>
+                </Button>
+              )}
               {isMultiSelectionActive && selectedIds.length > 0 && (
                 <Button
                   variant="ghost"
@@ -364,6 +384,26 @@ export function StatsBar({
             <p>ROI Settings</p>
           </TooltipContent>
         </Tooltip>
+
+        {isMounted && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              >
+                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="sr-only">Toggle theme</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Toggle Theme</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         {isMultiSelectionActive && selectedIds.length > 0 && (
           <Tooltip>

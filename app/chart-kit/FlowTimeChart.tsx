@@ -33,6 +33,15 @@ const nodeTypeColors = {
   action: colors.action,
   decision: colors.decision,
   group: colors.group,
+  // Email context nodes
+  persona: colors.neutral,
+  industry: colors.neutral,
+  painpoint: colors.neutral,
+  metric: colors.neutral,
+  urgency: colors.neutral,
+  socialproof: colors.neutral,
+  objection: colors.neutral,
+  value: colors.neutral,
 };
 
 export function FlowTimeChart({ 
@@ -73,7 +82,7 @@ export function FlowTimeChart({
           <svg width={width} height={height}>
             <Group left={margin.left} top={margin.top}>
               {/* Bars */}
-              {data.nodes.map((node, i) => {
+              {data.nodes.map((node) => {
                 const barY = yScale(node.name) || 0;
                 const barHeight = yScale.bandwidth();
                 const barWidth = xScale(node.value);

@@ -324,7 +324,6 @@ export async function getRecentMetrics(
  * Keeps detailed metrics for 30 days, then aggregates to daily summaries for 30-90 days
  */
 export async function cleanupOldMetrics(): Promise<void> {
-  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
   
   // Delete metrics older than 90 days

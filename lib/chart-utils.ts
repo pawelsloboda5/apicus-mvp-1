@@ -1,5 +1,5 @@
 import { Node, Edge } from '@xyflow/react';
-import { SankeyData, SankeyNode, SankeyLink } from '@/app/chart-kit';
+import { SankeyData, SankeyNode, SankeyLink } from '@/app/chart-kit/SankeyChart';
 import { NodeData, NodeType } from '@/lib/types';
 import { calculateNodeTimeSavings } from '@/lib/roi-utils';
 import { FlowTimeData, FlowNode } from '@/app/chart-kit/FlowTimeChart';
