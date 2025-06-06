@@ -24,7 +24,8 @@ export interface ParseResult {
 }
 
 // Make.com (Integromat) schemas
-export const MakeModuleSchema = z.object({
+// Define base schema without recursive reference
+const BaseMakeModuleSchema = z.object({
   id: z.number(),
   module: z.string(),
   version: z.number().optional(),
@@ -36,6 +37,17 @@ export const MakeModuleSchema = z.object({
       y: z.number(),
     }).optional(),
   }).optional(),
+});
+
+// Define the type for TypeScript
+type MakeModule = z.infer<typeof BaseMakeModuleSchema> & {
+  routes?: Array<{
+    flow: MakeModule[];
+  }>;
+};
+
+// Create the recursive schema with explicit type annotation
+export const MakeModuleSchema: z.ZodType<MakeModule> = BaseMakeModuleSchema.extend({
   routes: z.array(z.object({
     flow: z.array(z.lazy(() => MakeModuleSchema)),
   })).optional(),
