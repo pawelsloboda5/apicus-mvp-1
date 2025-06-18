@@ -687,6 +687,136 @@ export function StatsBar({
     ? ['runs', 'minutes', 'value', 'roi']
     : ['runs', 'minutes', 'value', 'cost', 'net', 'roi'];
 
+  // ROI Metrics Display Component
+  const ROIMetricsDisplay = () => {
+    const isPositiveROI = netROI > 0;
+    const paybackDays = platformCost > 0 ? Math.ceil(platformCost / (netROI / 30)) : 0;
+    const paybackPeriod = paybackDays > 30 ? `${Math.ceil(paybackDays / 30)} months` : `${paybackDays} days`;
+    const timeSavedHours = (runsPerMonth * minutesPerRun) / 60;
+    const formattedRoiRatio = formatROIRatio(roiRatio);
+
+    if (isUltraCompact) {
+      return (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-10 px-2",
+                isPositiveROI ? "text-green-600" : "text-red-600"
+              )}
+            >
+              <TrendingUp className="h-4 w-4 mr-1" />
+              <span className="font-mono text-sm">{formattedRoiRatio}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-4">
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm">ROI Metrics</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Time Saved</p>
+                  <p className="font-semibold">{timeSavedHours.toFixed(1)} hrs/mo</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Time Value</p>
+                  <p className="font-semibold text-green-600">${timeValue.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Platform Cost</p>
+                  <p className="font-semibold text-red-600">${platformCost.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Net ROI</p>
+                  <p className={cn("font-semibold", isPositiveROI ? "text-green-600" : "text-red-600")}>
+                    ${netROI.toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">ROI Ratio</p>
+                  <p className={cn("font-semibold", isPositiveROI ? "text-green-600" : "text-red-600")}>
+                    {formattedRoiRatio}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Payback Period</p>
+                  <p className="font-semibold">{paybackPeriod}</p>
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-2">
+        <Separator orientation="vertical" className="h-8" />
+        
+        {/* Time Saved */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1 px-2">
+              <Clock className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-mono">{timeSavedHours.toFixed(1)}h</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Time saved per month</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Net ROI */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={cn(
+              "flex items-center gap-1 px-2",
+              isPositiveROI ? "text-green-600" : "text-red-600"
+            )}>
+              <TrendingUp className="h-4 w-4" />
+              <span className="text-sm font-mono">${Math.abs(netROI).toLocaleString()}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Net monthly ROI</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* ROI Ratio */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge 
+              variant={isPositiveROI ? "default" : "destructive"}
+              className="gap-1"
+            >
+              <Percent className="h-3 w-3" />
+              {formattedRoiRatio}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Return on investment ratio</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Payback Period */}
+        {showFullLabels && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 px-2 text-sm text-muted-foreground">
+                <ShieldCheck className="h-4 w-4" />
+                <span>{paybackPeriod}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Time to break even</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    );
+  };
+
   return (
     <TooltipProvider>
       <div className="flex items-center justify-between gap-3 px-4 py-3 bg-background border-b min-h-[64px]">
@@ -747,53 +877,8 @@ export function StatsBar({
             </>
           )}
 
-          {statsToShow.includes('value') && (
-            <>
-              <StatItem
-                label="Value"
-                value={timeValue.toFixed(0)}
-                isCurrency
-                icon={TrendingUp}
-                color="text-green-600 dark:text-green-400"
-              />
-              {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
-            </>
-          )}
-
-          {statsToShow.includes('cost') && (
-            <>
-              <StatItem
-                label="Cost"
-                value={platformCost.toFixed(0)}
-                isCurrency
-                icon={DollarSign}
-                color="text-red-600 dark:text-red-400"
-              />
-              {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
-            </>
-          )}
-
-          {statsToShow.includes('net') && (
-            <>
-              <StatItem
-                label="Net"
-                value={netROI.toFixed(0)}
-                isCurrency
-                icon={ShieldCheck}
-                color={netROI >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}
-              />
-              {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
-            </>
-          )}
-
-          {statsToShow.includes('roi') && (
-            <StatItem
-              label="ROI"
-              value={formatROIRatio(roiRatio)}
-              icon={Percent}
-              color={roiRatio >= 1 ? "text-green-600 dark:text-green-400" : "text-amber-500"}
-            />
-          )}
+          {/* Replace individual stat items with comprehensive ROI display */}
+          <ROIMetricsDisplay />
         </div>
 
         {/* Right side - Action buttons */}

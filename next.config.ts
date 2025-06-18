@@ -4,15 +4,12 @@ const nextConfig: NextConfig = {
   // Enable React 19 Compiler for automatic optimizations
   experimental: {
     // React Compiler eliminates need for manual memoization
-    reactCompiler: true,
-    // Alternative: Enable in opt-in mode for gradual adoption
-    // reactCompiler: {
-    //   compilationMode: 'annotation',
-    // },
+    reactCompiler: {
+      compilationMode: 'all', // Enable for all components
+    },
 
     // Partial Prerendering for hybrid static/dynamic rendering
     ppr: 'incremental',
-
 
     // Configure client router cache behavior
     staleTimes: {

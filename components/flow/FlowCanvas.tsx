@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useOptimistic, startTransition } from "react";
+import React, { useState, useEffect, useOptimistic, startTransition, useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -12,7 +12,6 @@ import {
   useReactFlow,
   EdgeChange,
   ReactFlowProvider,
-  Controls,
   Viewport,
   NodeTypes,
   EdgeTypes,
@@ -26,93 +25,7 @@ import { nanoid } from "nanoid";
 import { FloatingNodeSelector } from "./FloatingNodeSelector";
 import { addSectionConnection, removeSectionConnection, EmailSectionConnections } from "@/lib/flow-utils";
 
-// Add a component for floating regenerate buttons
-const FloatingRegenerateButtons: React.FC<{
-  emailNode: Node | null;
-  nodes: Node[];
-  onRegenerate: (nodeId: string, section: string) => void;
-}> = ({ emailNode, nodes, onRegenerate }) => {
-  const reactFlowInstance = useReactFlow();
-  const viewport = reactFlowInstance.getViewport();
-  
-  if (!emailNode || emailNode.type !== 'emailPreview') return null;
-
-  const emailData = emailNode.data as { 
-    sectionConnections?: EmailSectionConnections;
-    [key: string]: unknown;
-  };
-  const sectionConnections = emailData.sectionConnections || {};
-
-  const buttons: React.ReactElement[] = [];
-
-  // Process each section that has connections
-  Object.entries(sectionConnections).forEach(([section, connection]) => {
-    if (!connection || !connection.connectedNodeIds || connection.connectedNodeIds.length === 0) {
-      return;
-    }
-
-    // Find the first connected node
-    const firstConnectedNodeId = connection.connectedNodeIds[0];
-    const connectedNode = nodes.find(n => n.id === firstConnectedNodeId);
-    
-    if (!connectedNode) return;
-
-    // Calculate position above the first connected node
-    // Convert flow coordinates to screen coordinates
-    const screenX = connectedNode.position.x * viewport.zoom + viewport.x;
-    const screenY = (connectedNode.position.y - 50) * viewport.zoom + viewport.y; // 50px above in flow coordinates
-
-    buttons.push(
-      <div
-        key={`regen-${emailNode.id}-${section}`}
-        className="absolute z-[100] pointer-events-auto"
-        style={{
-          left: `${screenX + 75 * viewport.zoom}px`, // Center of node accounting for zoom
-          top: `${screenY}px`,
-          transform: 'translate(-50%, -100%)'
-        }}
-      >
-        <Button
-          size="sm"
-          variant="default"
-          onClick={() => onRegenerate(emailNode.id, section)}
-          className="h-8 px-3 animate-pulse shadow-lg bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-1"
-        >
-          <RefreshCcw className="h-3 w-3" />
-          Regenerate {section}
-        </Button>
-      </div>
-    );
-  });
-
-  return <>{buttons}</>;
-};
-
-// Wrapper component for regenerate buttons that accesses React Flow context
-const RegenerateButtonsControls: React.FC<{
-  emailPreviewNodes: Node[];
-  nodes: Node[];
-  handleRegenerateSection?: (nodeId: string, section: string) => void;
-}> = ({ emailPreviewNodes, nodes, handleRegenerateSection }) => {
-  return (
-    <>
-      {emailPreviewNodes.map(emailNode => (
-        <FloatingRegenerateButtons
-          key={emailNode.id}
-          emailNode={emailNode}
-          nodes={nodes}
-          onRegenerate={(nodeId, section) => {
-            if (handleRegenerateSection) {
-              handleRegenerateSection(nodeId, section);
-            } else {
-              console.warn('handleRegenerateSection not provided to FlowCanvas');
-            }
-          }}
-        />
-      ))}
-    </>
-  );
-};
+// Floating regenerate buttons component removed - regenerate functionality is now inline within EmailPreviewNode sections
 
 export function FlowCanvas({
   nodes,
@@ -144,6 +57,13 @@ export function FlowCanvas({
   setDroppableRef?: (ref: HTMLDivElement | null) => void;
   selectedNodeType?: NodeType;
   onNodeTypeChange?: (type: NodeType) => void;
+  handleRegenerateSection?: (
+    nodeId: string, 
+    section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
+    promptType: string,
+    currentText: string,
+    selectedContextNodes?: string[]
+  ) => Promise<void>;
 }) {
   // Local state to track selection mode
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(SelectionMode.Partial);
@@ -206,6 +126,59 @@ export function FlowCanvas({
       if (event.key === 'Shift') {
         setSelectionMode(SelectionMode.Full);
       }
+      
+      // Quick create email node with 'E' key
+      if (event.key === 'e' || event.key === 'E') {
+        // Prevent if user is typing in an input
+        if (event.target instanceof HTMLInputElement || 
+            event.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+        
+        event.preventDefault();
+        
+        // Get center of viewport or use cursor position
+        const position = screenToFlowPosition({
+          x: cursorPosition.x,
+          y: cursorPosition.y,
+        });
+        
+        // Create a new email preview node
+        const newNode: Node = {
+          id: `email-${nanoid(6)}`,
+          type: 'emailPreview',
+          position,
+          data: {
+            nodeTitle: 'Email Template',
+            subjectLine: 'Automate Your [Task] & See ROI',
+            hookText: 'I noticed your team still manages [process] manually...',
+            ctaText: 'I packaged the ROI analysis and implementation plan:',
+            offerText: 'Happy to show you the exact setup in a quick 15-min demo.',
+            psText: 'PS - Most teams see results within 48 hours.',
+            showSubject: true,
+            showHook: true,
+            showCTA: true,
+            showOffer: true,
+            showPS: true,
+            showTestimonial: false,
+            showUrgency: false,
+          },
+        };
+        
+        // Wrap optimistic update in startTransition for React 19 compatibility
+        startTransition(() => {
+          // Optimistically add the node for instant UI feedback
+          addOptimisticNode(newNode);
+          
+          // Actually add the node through onNodesChange
+          onNodesChange([
+            {
+              type: 'add',
+              item: newNode,
+            },
+          ]);
+        });
+      }
     };
     
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -221,7 +194,7 @@ export function FlowCanvas({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isMobile]);
+  }, [isMobile, cursorPosition, screenToFlowPosition, onNodesChange]);
   
   // Function to validate connections - no longer wrapped in useCallback
   const isValidConnection: IsValidConnection = (connection) => {
@@ -527,13 +500,40 @@ export function FlowCanvas({
   // Find email preview nodes
   const emailPreviewNodes = optimisticNodes.filter(n => n.type === 'emailPreview');
 
+  // Enhanced node types with callbacks
+  const enhancedNodeTypes = useMemo(() => {
+    if (!nodeTypes || !handleRegenerateSection) return nodeTypes;
+    
+    return {
+      ...nodeTypes,
+      emailPreview: (props: any) => {
+        const EmailPreviewComponent = nodeTypes?.emailPreview;
+        if (!EmailPreviewComponent) return null;
+        
+        return React.createElement(EmailPreviewComponent, {
+          ...props,
+          data: {
+            ...props.data,
+            onRegenerateSection: (section: string) => handleRegenerateSection(
+              props.id, 
+              section as 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
+              'regenerate', 
+              '', 
+              []
+            ),
+          }
+        });
+      },
+    };
+  }, [nodeTypes, handleRegenerateSection]);
+
   return (
     <div
       ref={(node) => {
         setWrapperRef?.(node);
         setDroppableRef?.(node);
       }}
-      className={`flex-grow relative ${isOver ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+      className={`w-full h-full relative ${isOver ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -589,7 +589,7 @@ export function FlowCanvas({
         onConnect={handleConnect}
         onNodeClick={onNodeClick}
         onPaneClick={handlePaneClick}
-        nodeTypes={nodeTypes}
+        nodeTypes={enhancedNodeTypes}
         edgeTypes={edgeTypes}
         fitView
         defaultViewport={defaultViewport}
@@ -610,15 +610,12 @@ export function FlowCanvas({
         minZoom={0.1}
         maxZoom={4}
         proOptions={{ hideAttribution: true }}
+        style={{ width: '100%', height: '100%' }}
       >
         <Background gap={16} color="var(--border)" />
         
-        {/* Regenerate buttons inside React Flow */}
-        <RegenerateButtonsControls
-          emailPreviewNodes={emailPreviewNodes}
-          nodes={optimisticNodes}
-          handleRegenerateSection={handleRegenerateSection}
-        />
+        {/* Regenerate buttons are now inline within EmailPreviewNode sections */}
+        {/* RegenerateButtonsControls component disabled to prevent external floating buttons */}
       </ReactFlow>
 
       {/* Floating Node Selector - shows current selection from Toolbox */}

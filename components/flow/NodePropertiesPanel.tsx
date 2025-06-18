@@ -22,6 +22,7 @@ import { pricing } from "@/app/api/data/pricing";
 import { NodePropertiesPanelProps, NodeData, NodeType } from "@/lib/types";
 import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio } from "@/lib/roi-utils";
 import { markSectionsWithChanges, EmailSectionConnections } from "@/lib/flow-utils";
+import { NODE_TIME_FACTORS } from "@/lib/utils/constants";
 import { Node, Edge } from "@xyflow/react";
 
 // Template configurations for email context nodes
@@ -166,18 +167,19 @@ export function NodePropertiesPanel({
   ].includes(selectedNode?.type || "");
   
   // Parse stored contextValue for multi-select types
-  const parseContextValue = (value: string | undefined, nodeType: string | undefined): string[] => {
+  const parseContextValue = (value: string | string[] | undefined, nodeType: string | undefined): string[] => {
     if (!value || !nodeType) return [];
     const template = EMAIL_CONTEXT_TEMPLATES[nodeType as keyof typeof EMAIL_CONTEXT_TEMPLATES];
     if (template?.multiSelect) {
       try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [value];
+        if (Array.isArray(value)) return value;
+        const parsed = JSON.parse(value as string);
+        return Array.isArray(parsed) ? parsed : [value as string];
       } catch {
-        return value.split(',').map(v => v.trim()).filter(Boolean);
+        return (value as string).split(',').map(v => v.trim()).filter(Boolean);
       }
     }
-    return [value];
+    return Array.isArray(value) ? value : [value as string];
   };
   
   // Helper function to update email context nodes and mark connected sections
@@ -686,21 +688,7 @@ export function NodePropertiesPanel({
                       selectedNode.type as NodeType, 
                       minutesPerRun,
                       nodes,
-                      {
-                        trigger: 0.5,
-                        action: 1.2,
-                        decision: 0.8,
-                        group: 0,
-                        // Email context nodes
-                        persona: 0,
-                        industry: 0,
-                        painpoint: 0,
-                        metric: 0,
-                        urgency: 0,
-                        socialproof: 0,
-                        objection: 0,
-                        value: 0,
-                      },
+                      NODE_TIME_FACTORS,
                       nodeData?.typeOf
                     );
                     

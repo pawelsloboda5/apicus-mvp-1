@@ -51,100 +51,148 @@ const EmailSection: React.FC<{
 }> = ({ sectionId, title, content, isVisible, isOptional = false, connectedNodes = [], hasChanges = false, regenerateNeeded = false, onRegenerate, className, isSubject = false }) => {
   if (!isVisible || !content) return null;
 
-  // Debug logging
-  console.log(`[EmailSection ${sectionId}]`, {
-    connectedNodes: connectedNodes.length,
-    hasChanges,
-    regenerateNeeded,
-    hasOnRegenerate: !!onRegenerate,
-    showButton: connectedNodes.length > 0 && !!onRegenerate
-  });
+  const showRegenerateButton = connectedNodes.length > 0 && !!onRegenerate;
+  const shouldShowButton = showRegenerateButton && (regenerateNeeded || hasChanges);
 
   const sectionContent = isSubject ? (
     <div className={cn(
-      "relative bg-primary text-primary-foreground p-4 rounded-t-lg overflow-visible",
+      "relative bg-primary text-primary-foreground p-4 rounded-t-lg group",
       hasChanges && "ring-2 ring-orange-400 ring-inset",
+      regenerateNeeded && "ring-2 ring-orange-500 ring-inset bg-orange-600",
       className
     )}>
-      {/* Left handle - positioned to extend outside */}
+      {/* Connection handles positioned within the node */}
       <Handle
         type="target"
         position={Position.Left}
         id={`${sectionId}-left`}
         className={cn(
-          "!absolute !w-6 !h-6 !border-[3px] !-left-3 !z-50",
+          "!absolute !w-4 !h-4 !border-2 !left-2 !z-10",
           isOptional ? "!bg-purple-400 !border-purple-600" : "!bg-purple-500 !border-purple-700",
           connectedNodes.length > 0 && "!bg-purple-600 animate-pulse",
-          "hover:!scale-125 transition-transform cursor-crosshair",
-          "shadow-[0_0_0_3px_rgba(168,85,247,0.2)] hover:shadow-[0_0_0_5px_rgba(168,85,247,0.4)]"
+          "hover:!scale-110 transition-transform cursor-crosshair",
+          "shadow-sm hover:shadow-md"
         )}
         style={{ 
           top: '50%',
           transform: 'translateY(-50%)'
         }}
       />
-      {/* Right handle - positioned to extend outside */}
       <Handle
         type="target"
         position={Position.Right}
         id={`${sectionId}-right`}
         className={cn(
-          "!absolute !w-6 !h-6 !border-[3px] !-right-3 !z-50",
+          "!absolute !w-4 !h-4 !border-2 !right-2 !z-10",
           isOptional ? "!bg-purple-400 !border-purple-600" : "!bg-purple-500 !border-purple-700",
           connectedNodes.length > 0 && "!bg-purple-600 animate-pulse",
-          "hover:!scale-125 transition-transform cursor-crosshair",
-          "shadow-[0_0_0_3px_rgba(168,85,247,0.2)] hover:shadow-[0_0_0_5px_rgba(168,85,247,0.4)]"
+          "hover:!scale-110 transition-transform cursor-crosshair",
+          "shadow-sm hover:shadow-md"
         )}
         style={{ 
           top: '50%',
           transform: 'translateY(-50%)'
         }}
       />
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold">{content}</h2>
+      
+      {/* Content layout with regenerate button inline */}
+      <div className="flex items-center gap-2 pl-8 pr-8">
+        {shouldShowButton && (
+          <button
+            onClick={onRegenerate}
+            className={cn(
+              "flex-shrink-0 transition-all duration-200",
+              "flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md",
+              "bg-white/20 hover:bg-white/30 border border-white/30",
+              "text-white hover:text-white",
+              "shadow-sm hover:shadow-md",
+              regenerateNeeded ? [
+                "opacity-100 bg-orange-500 hover:bg-orange-600 animate-pulse",
+                "border-orange-400 text-white font-bold",
+                "shadow-lg hover:shadow-xl"
+              ] : [
+                "opacity-0 group-hover:opacity-100"
+              ]
+            )}
+            title={regenerateNeeded ? "Section needs updating due to context changes" : "Regenerate this section"}
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {regenerateNeeded ? 'Update Now' : 'Regenerate'}
+          </button>
+        )}
+        <h2 className="text-lg font-bold flex-1">{content}</h2>
       </div>
     </div>
   ) : (
     <div className={cn(
-      "relative p-4 border-l-2 overflow-visible",
+      "relative p-4 border-l-2 group",
       hasChanges ? "border-orange-400 bg-orange-50/50" : "border-transparent",
+      regenerateNeeded && "border-orange-500 bg-orange-100/70",
       className
     )}>
-      {/* Left handle - positioned to extend outside */}
+      {/* Connection handles positioned within the node */}
       <Handle
         type="target"
         position={Position.Left}
         id={`${sectionId}-left`}
         className={cn(
-          "!absolute !w-6 !h-6 !border-[3px] !-left-3 !z-50",
+          "!absolute !w-4 !h-4 !border-2 !left-2 !z-10",
           isOptional ? "!bg-purple-400 !border-purple-600" : "!bg-purple-500 !border-purple-700",
           connectedNodes.length > 0 && "!bg-purple-600 animate-pulse",
-          "hover:!scale-125 transition-transform cursor-crosshair",
-          "shadow-[0_0_0_3px_rgba(168,85,247,0.2)] hover:shadow-[0_0_0_5px_rgba(168,85,247,0.4)]"
+          "hover:!scale-110 transition-transform cursor-crosshair",
+          "shadow-sm hover:shadow-md"
         )}
         style={{ 
-          top: isOptional ? '12px' : '50%',
+          top: isOptional ? '16px' : '50%',
           transform: isOptional ? 'none' : 'translateY(-50%)'
         }}
       />
-      {/* Right handle - positioned to extend outside */}
       <Handle
         type="target"
         position={Position.Right}
         id={`${sectionId}-right`}
         className={cn(
-          "!absolute !w-6 !h-6 !border-[3px] !-right-3 !z-50",
+          "!absolute !w-4 !h-4 !border-2 !right-2 !z-10",
           isOptional ? "!bg-purple-400 !border-purple-600" : "!bg-purple-500 !border-purple-700",
           connectedNodes.length > 0 && "!bg-purple-600 animate-pulse",
-          "hover:!scale-125 transition-transform cursor-crosshair",
-          "shadow-[0_0_0_3px_rgba(168,85,247,0.2)] hover:shadow-[0_0_0_5px_rgba(168,85,247,0.4)]"
+          "hover:!scale-110 transition-transform cursor-crosshair",
+          "shadow-sm hover:shadow-md"
         )}
         style={{ 
-          top: isOptional ? '12px' : '50%',
+          top: isOptional ? '16px' : '50%',
           transform: isOptional ? 'none' : 'translateY(-50%)'
         }}
       />
-      <div className="flex items-start justify-between gap-2">
+      
+      {/* Content layout with regenerate button inline */}
+      <div className="flex items-start gap-2 pl-8 pr-8">
+        {shouldShowButton && (
+          <button
+            onClick={onRegenerate}
+            className={cn(
+              "flex-shrink-0 mt-0.5 transition-all duration-200",
+              "flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md",
+              "bg-secondary hover:bg-secondary/80 border border-border",
+              "text-secondary-foreground hover:text-secondary-foreground",
+              "shadow-sm hover:shadow-md",
+              regenerateNeeded ? [
+                "opacity-100 bg-orange-100 hover:bg-orange-200 border-orange-300",
+                "text-orange-800 animate-pulse font-bold",
+                "shadow-lg hover:shadow-xl"
+              ] : [
+                "opacity-0 group-hover:opacity-100"
+              ]
+            )}
+            title={regenerateNeeded ? "Section needs updating due to context changes" : "Regenerate this section"}
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {regenerateNeeded ? 'Update Now' : 'Regenerate'}
+          </button>
+        )}
         <div className="flex-1">
           {title && <h3 className="text-xs font-semibold text-muted-foreground mb-1">{title}</h3>}
           <div 
@@ -168,6 +216,11 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
     sectionConnections,
     ...emailProps 
   } = data;
+
+  // Check if any sections need regeneration
+  const sectionsNeedingRegeneration = sectionConnections ? 
+    Object.entries(sectionConnections).filter(([_, connection]) => connection?.regenerateNeeded).length 
+    : 0;
 
   // Loading state
   if (isLoading) {
@@ -195,13 +248,27 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
 
   // Email preview with sections
   return (
-    <div className="relative w-[700px] h-[900px] bg-card text-card-foreground border border-border rounded-lg shadow-lg flex flex-col font-sans" style={{ overflow: 'visible' }}>
-      <div className="custom-drag-handle p-3 bg-muted/50 border-b border-border text-sm font-semibold text-foreground cursor-move">
+    <div className="relative w-[700px] h-[900px] bg-card text-card-foreground border border-border rounded-lg shadow-lg flex flex-col font-sans overflow-hidden">
+      <div className="custom-drag-handle p-3 bg-muted/50 border-b border-border text-sm font-semibold text-foreground cursor-move flex items-center justify-between">
         <span>{nodeTitle}</span>
+        
+        {/* Regeneration indicator */}
+        {sectionsNeedingRegeneration > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 border border-orange-300 rounded-md text-orange-800">
+              <svg className="w-3 h-3 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="text-xs font-medium">
+                {sectionsNeedingRegeneration} section{sectionsNeedingRegeneration > 1 ? 's' : ''} need updating
+              </span>
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="flex-grow overflow-y-auto relative">
-        <div className="bg-white relative" style={{ overflow: 'visible' }}>
+        <div className="bg-white relative">
           {/* Subject Line */}
           <EmailSection
             sectionId="subject"
@@ -216,7 +283,7 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
           />
           
           {/* Email Body */}
-          <div className="p-6 space-y-4 overflow-visible">
+          <div className="p-6 space-y-4">
             {/* Greeting */}
             <p className="text-sm">Hi {emailProps.firstName || '[FIRST NAME]'},</p>
             
