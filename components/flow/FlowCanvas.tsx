@@ -10,14 +10,109 @@ import {
   Node,
   Edge,
   useReactFlow,
+  EdgeChange,
+  ReactFlowProvider,
+  Controls,
+  Viewport,
+  NodeTypes,
+  EdgeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { FlowCanvasProps, NodeType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Edit2Icon } from "lucide-react";
+import { Edit2Icon, RefreshCcw } from "lucide-react";
 import { nanoid } from "nanoid";
 import { FloatingNodeSelector } from "./FloatingNodeSelector";
+import { addSectionConnection, removeSectionConnection, EmailSectionConnections } from "@/lib/flow-utils";
+
+// Add a component for floating regenerate buttons
+const FloatingRegenerateButtons: React.FC<{
+  emailNode: Node | null;
+  nodes: Node[];
+  onRegenerate: (nodeId: string, section: string) => void;
+}> = ({ emailNode, nodes, onRegenerate }) => {
+  const reactFlowInstance = useReactFlow();
+  const viewport = reactFlowInstance.getViewport();
+  
+  if (!emailNode || emailNode.type !== 'emailPreview') return null;
+
+  const emailData = emailNode.data as { 
+    sectionConnections?: EmailSectionConnections;
+    [key: string]: unknown;
+  };
+  const sectionConnections = emailData.sectionConnections || {};
+
+  const buttons: React.ReactElement[] = [];
+
+  // Process each section that has connections
+  Object.entries(sectionConnections).forEach(([section, connection]) => {
+    if (!connection || !connection.connectedNodeIds || connection.connectedNodeIds.length === 0) {
+      return;
+    }
+
+    // Find the first connected node
+    const firstConnectedNodeId = connection.connectedNodeIds[0];
+    const connectedNode = nodes.find(n => n.id === firstConnectedNodeId);
+    
+    if (!connectedNode) return;
+
+    // Calculate position above the first connected node
+    // Convert flow coordinates to screen coordinates
+    const screenX = connectedNode.position.x * viewport.zoom + viewport.x;
+    const screenY = (connectedNode.position.y - 50) * viewport.zoom + viewport.y; // 50px above in flow coordinates
+
+    buttons.push(
+      <div
+        key={`regen-${emailNode.id}-${section}`}
+        className="absolute z-[100] pointer-events-auto"
+        style={{
+          left: `${screenX + 75 * viewport.zoom}px`, // Center of node accounting for zoom
+          top: `${screenY}px`,
+          transform: 'translate(-50%, -100%)'
+        }}
+      >
+        <Button
+          size="sm"
+          variant="default"
+          onClick={() => onRegenerate(emailNode.id, section)}
+          className="h-8 px-3 animate-pulse shadow-lg bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-1"
+        >
+          <RefreshCcw className="h-3 w-3" />
+          Regenerate {section}
+        </Button>
+      </div>
+    );
+  });
+
+  return <>{buttons}</>;
+};
+
+// Wrapper component for regenerate buttons that accesses React Flow context
+const RegenerateButtonsControls: React.FC<{
+  emailPreviewNodes: Node[];
+  nodes: Node[];
+  handleRegenerateSection?: (nodeId: string, section: string) => void;
+}> = ({ emailPreviewNodes, nodes, handleRegenerateSection }) => {
+  return (
+    <>
+      {emailPreviewNodes.map(emailNode => (
+        <FloatingRegenerateButtons
+          key={emailNode.id}
+          emailNode={emailNode}
+          nodes={nodes}
+          onRegenerate={(nodeId, section) => {
+            if (handleRegenerateSection) {
+              handleRegenerateSection(nodeId, section);
+            } else {
+              console.warn('handleRegenerateSection not provided to FlowCanvas');
+            }
+          }}
+        />
+      ))}
+    </>
+  );
+};
 
 export function FlowCanvas({
   nodes,
@@ -43,6 +138,7 @@ export function FlowCanvas({
   setDroppableRef,
   selectedNodeType = 'action',
   onNodeTypeChange,
+  handleRegenerateSection,
 }: FlowCanvasProps & { 
   isOver?: boolean; 
   setDroppableRef?: (ref: HTMLDivElement | null) => void;
@@ -143,8 +239,39 @@ export function FlowCanvas({
       return false;
     }
     
+    // Check if this is an email context connection
+    const sourceData = sourceNode.data as { isEmailContext?: boolean; contextType?: string };
+    const isEmailContextConnection = sourceData.isEmailContext === true || 
+      ['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value'].includes(sourceNode.type || '');
+    
+    if (isEmailContextConnection) {
+      // Email context nodes can only connect to email preview nodes
+      if (targetNode.type !== 'emailPreview') {
+        return false;
+      }
+      
+      // Validate that the target handle is a valid email section
+      const validSections = ['subject', 'hook', 'cta', 'offer', 'ps', 'testimonial', 'urgency'];
+      if (connection.targetHandle) {
+        // Handle IDs now have -left or -right suffix, so extract the section name
+        const sectionName = connection.targetHandle.replace(/-left$|-right$/, '');
+        if (!validSections.includes(sectionName)) {
+          return false;
+        }
+      }
+      
+      return true;
+    }
+    
+    // Regular connection validation for non-email nodes
+    
     // Prevent connecting to trigger nodes (they can only be at the start)
     if (targetNode.type === 'trigger') {
+      return false;
+    }
+    
+    // Prevent connecting to email preview nodes from regular nodes
+    if (targetNode.type === 'emailPreview') {
       return false;
     }
     
@@ -158,7 +285,8 @@ export function FlowCanvas({
       edge => 
         edge.source === connection.source && 
         edge.target === connection.target &&
-        edge.sourceHandle === connection.sourceHandle
+        edge.sourceHandle === connection.sourceHandle &&
+        edge.targetHandle === connection.targetHandle
     );
     
     if (isDuplicate) {
@@ -261,13 +389,21 @@ export function FlowCanvas({
       return;
     }
     
+    // Check if this is an email context connection
+    const sourceNode = nodes.find((node) => node.id === connection.source);
+    const targetNode = nodes.find((node) => node.id === connection.target);
+    const sourceData = sourceNode?.data as { isEmailContext?: boolean; contextType?: string };
+    const isEmailContextConnection = sourceData?.isEmailContext === true || 
+      ['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value'].includes(sourceNode?.type || '');
+    
     const newEdge = {
       ...connection,
-      id: `e-${connection.source}-${connection.target}${connection.sourceHandle ? `-${connection.sourceHandle}` : ''}`,
+      id: `e-${connection.source}-${connection.target}${connection.sourceHandle ? `-${connection.sourceHandle}` : ''}${connection.targetHandle ? `-${connection.targetHandle}` : ''}`,
       // Add additional data for rendering decision edges differently if needed
       data: {
         ...(connection.sourceHandle === 'true' ? { isTrue: true } : {}),
         ...(connection.sourceHandle === 'false' ? { isFalse: true } : {}),
+        ...(isEmailContextConnection ? { isEmailContext: true } : {}),
       }
     };
     
@@ -283,8 +419,113 @@ export function FlowCanvas({
           item: newEdge,
         },
       ]);
+      
+      // If this is an email context connection to an email preview node, update the node data
+      if (isEmailContextConnection && targetNode?.type === 'emailPreview' && connection.targetHandle) {
+        const currentConnections = (targetNode.data as { sectionConnections?: EmailSectionConnections }).sectionConnections || {};
+        // Extract section name from handle ID (remove -left or -right suffix)
+        const sectionName = connection.targetHandle.replace(/-left$|-right$/, '');
+        const updatedConnections = addSectionConnection(
+          currentConnections,
+          sectionName as keyof EmailSectionConnections,
+          connection.source!
+        );
+        
+        // Update the email preview node with new connections
+        onNodesChange([{
+          id: targetNode.id,
+          type: 'replace',
+          item: {
+            ...targetNode,
+            data: {
+              ...targetNode.data,
+              sectionConnections: updatedConnections
+            }
+          }
+        }]);
+        
+        // Also update the source node to indicate it's connected
+        onNodesChange([{
+          id: sourceNode!.id,
+          type: 'replace', 
+          item: {
+            ...sourceNode!,
+            data: {
+              ...sourceNode!.data,
+              isConnectedToEmail: true
+            }
+          }
+        }]);
+      }
     });
   };
+  
+  // Enhanced onEdgesChange to handle email context disconnections
+  const handleEdgesChange = (changes: EdgeChange[]) => {
+    // Process each change
+    changes.forEach(change => {
+      if (change.type === 'remove') {
+        const edge = edges.find(e => e.id === change.id);
+        if (edge && edge.data?.isEmailContext) {
+          const targetNode = nodes.find(n => n.id === edge.target);
+          const sourceNode = nodes.find(n => n.id === edge.source);
+          
+          if (targetNode?.type === 'emailPreview' && edge.targetHandle) {
+            // Update email preview node to remove connection
+            const currentConnections = (targetNode.data as { sectionConnections?: EmailSectionConnections }).sectionConnections || {};
+            // Extract section name from handle ID (remove -left or -right suffix)
+            const sectionName = edge.targetHandle.replace(/-left$|-right$/, '');
+            const updatedConnections = removeSectionConnection(
+              currentConnections,
+              sectionName as keyof EmailSectionConnections,
+              edge.source
+            );
+            
+            onNodesChange([{
+              id: targetNode.id,
+              type: 'replace',
+              item: {
+                ...targetNode,
+                data: {
+                  ...targetNode.data,
+                  sectionConnections: updatedConnections
+                }
+              }
+            }]);
+          }
+          
+          // Check if source node still has other email connections
+          if (sourceNode) {
+            const hasOtherEmailConnections = edges.some(e => 
+              e.id !== edge.id && 
+              e.source === sourceNode.id && 
+              e.data?.isEmailContext
+            );
+            
+            if (!hasOtherEmailConnections) {
+              onNodesChange([{
+                id: sourceNode.id,
+                type: 'replace',
+                item: {
+                  ...sourceNode,
+                  data: {
+                    ...sourceNode.data,
+                    isConnectedToEmail: false
+                  }
+                }
+              }]);
+            }
+          }
+        }
+      }
+    });
+    
+    // Call the original onEdgesChange
+    onEdgesChange(changes);
+  };
+
+  // Find email preview nodes
+  const emailPreviewNodes = optimisticNodes.filter(n => n.type === 'emailPreview');
 
   return (
     <div
@@ -344,7 +585,7 @@ export function FlowCanvas({
         nodes={optimisticNodes}
         edges={optimisticEdges}
         onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
+        onEdgesChange={handleEdgesChange}
         onConnect={handleConnect}
         onNodeClick={onNodeClick}
         onPaneClick={handlePaneClick}
@@ -371,6 +612,13 @@ export function FlowCanvas({
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={16} color="var(--border)" />
+        
+        {/* Regenerate buttons inside React Flow */}
+        <RegenerateButtonsControls
+          emailPreviewNodes={emailPreviewNodes}
+          nodes={optimisticNodes}
+          handleRegenerateSection={handleRegenerateSection}
+        />
       </ReactFlow>
 
       {/* Floating Node Selector - shows current selection from Toolbox */}

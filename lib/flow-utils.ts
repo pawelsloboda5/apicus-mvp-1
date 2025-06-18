@@ -76,4 +76,172 @@ export function getNonOverlappingPosition(
   }
   
   return snapToGrid(x, y);
+}
+
+/**
+ * Email Context Connection Management
+ */
+
+export interface EmailSectionConnection {
+  connectedNodeIds: string[];
+  hasChanges?: boolean;
+  regenerateNeeded?: boolean;
+  lastContent?: string;
+}
+
+export interface EmailSectionConnections {
+  subject?: EmailSectionConnection;
+  hook?: EmailSectionConnection;
+  cta?: EmailSectionConnection;
+  offer?: EmailSectionConnection;
+  ps?: EmailSectionConnection;
+  testimonial?: EmailSectionConnection;
+  urgency?: EmailSectionConnection;
+}
+
+/**
+ * Updates section connections when an email context node is connected
+ * @param currentConnections Current section connections
+ * @param section The section being connected to
+ * @param nodeId The ID of the connecting node
+ * @returns Updated section connections
+ */
+export function addSectionConnection(
+  currentConnections: EmailSectionConnections,
+  section: keyof EmailSectionConnections,
+  nodeId: string
+): EmailSectionConnections {
+  const sectionData = currentConnections[section] || { connectedNodeIds: [] };
+  
+  // Check if already connected
+  if (sectionData.connectedNodeIds.includes(nodeId)) {
+    return currentConnections;
+  }
+  
+  return {
+    ...currentConnections,
+    [section]: {
+      ...sectionData,
+      connectedNodeIds: [...sectionData.connectedNodeIds, nodeId],
+      hasChanges: true,
+      regenerateNeeded: true,
+    }
+  };
+}
+
+/**
+ * Removes a section connection when an edge is deleted
+ * @param currentConnections Current section connections
+ * @param section The section to disconnect from
+ * @param nodeId The ID of the disconnecting node
+ * @returns Updated section connections
+ */
+export function removeSectionConnection(
+  currentConnections: EmailSectionConnections,
+  section: keyof EmailSectionConnections,
+  nodeId: string
+): EmailSectionConnections {
+  const sectionData = currentConnections[section];
+  if (!sectionData) return currentConnections;
+  
+  const updatedNodeIds = sectionData.connectedNodeIds.filter(id => id !== nodeId);
+  
+  // If no more connections, remove the section data
+  if (updatedNodeIds.length === 0) {
+    const { [section]: _, ...rest } = currentConnections;
+    return rest;
+  }
+  
+  return {
+    ...currentConnections,
+    [section]: {
+      ...sectionData,
+      connectedNodeIds: updatedNodeIds,
+      hasChanges: true,
+      regenerateNeeded: true,
+    }
+  };
+}
+
+/**
+ * Marks a section as having changes when a connected node is updated
+ * @param currentConnections Current section connections
+ * @param nodeId The ID of the updated node
+ * @returns Updated section connections with marked changes
+ */
+export function markSectionsWithChanges(
+  currentConnections: EmailSectionConnections,
+  nodeId: string
+): EmailSectionConnections {
+  const updatedConnections: EmailSectionConnections = {};
+  
+  // Check each section for the node connection
+  Object.entries(currentConnections).forEach(([section, data]) => {
+    if (data && data.connectedNodeIds.includes(nodeId)) {
+      updatedConnections[section as keyof EmailSectionConnections] = {
+        ...data,
+        hasChanges: true,
+        regenerateNeeded: true,
+      };
+    } else if (data) {
+      updatedConnections[section as keyof EmailSectionConnections] = data;
+    }
+  });
+  
+  return updatedConnections;
+}
+
+/**
+ * Resets the change flag for a section after regeneration
+ * @param currentConnections Current section connections
+ * @param section The section that was regenerated
+ * @param newContent The new content after regeneration
+ * @returns Updated section connections
+ */
+export function resetSectionChanges(
+  currentConnections: EmailSectionConnections,
+  section: keyof EmailSectionConnections,
+  newContent?: string
+): EmailSectionConnections {
+  const sectionData = currentConnections[section];
+  if (!sectionData) return currentConnections;
+  
+  return {
+    ...currentConnections,
+    [section]: {
+      ...sectionData,
+      hasChanges: false,
+      regenerateNeeded: false,
+      lastContent: newContent,
+    }
+  };
+}
+
+/**
+ * Gets all connected email context nodes for a specific section
+ * @param nodes All nodes in the flow
+ * @param sectionConnections The section connections
+ * @param section The specific section to get nodes for
+ * @returns Array of connected email context nodes
+ */
+export function getConnectedContextNodes(
+  nodes: Node[],
+  sectionConnections: EmailSectionConnections,
+  section: keyof EmailSectionConnections
+): Node[] {
+  const sectionData = sectionConnections[section];
+  if (!sectionData) return [];
+  
+  return nodes.filter(node => sectionData.connectedNodeIds.includes(node.id));
+}
+
+/**
+ * Checks if any section needs regeneration
+ * @param sectionConnections The section connections
+ * @returns True if any section needs regeneration
+ */
+export function hasAnyRegenerateNeeded(sectionConnections: EmailSectionConnections): boolean {
+  return Object.values(sectionConnections).some(
+    section => section?.regenerateNeeded === true
+  );
 } 

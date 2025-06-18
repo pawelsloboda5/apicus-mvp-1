@@ -343,6 +343,24 @@ const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('action');
   - Randomly select 70% of remaining fields for each section
   - Ensure variety while maintaining relevance
 
+## Visual Email Context Connection Feature
+- [ ] Enable drag-and-drop connections from email context nodes to email template sections
+  - [x] Phase 1: Foundation - Visual connection system
+    - [x] Modified PixelNode handle positions (left/right for email context)
+    - [x] EmailPreviewNode shows connection handles on sections
+    - [x] CustomEdge styling for email connections
+    - [x] Connection validation logic
+  - [x] Phase 2: Connection tracking and regeneration
+    - [x] Added connection tracking utilities in flow-utils.ts
+    - [x] Regenerate buttons appear on connected sections
+    - [x] Change detection when context nodes are updated
+    - [x] Individual section regeneration API calls
+  - [ ] Phase 3: Polish and edge cases
+    - [ ] Animations and transitions
+    - [ ] Better visual feedback during regeneration
+    - [ ] Handle multiple email preview nodes
+    - [ ] Persist connections in scenario data
+
 ## React 19 & Next.js 15 Performance Optimization (NEW PRIORITY) 4-6hrs
 
 ### React 19 Integration

@@ -334,3 +334,52 @@
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(from var(--primary) l c h / 0.8);
 }
+
+/* React Flow Email Node Handle Overrides */
+.react-flow__node-emailPreview {
+  overflow: visible !important;
+}
+
+.react-flow__node-emailPreview .react-flow__handle {
+  width: 24px !important;
+  height: 24px !important;
+  border: 3px solid !important;
+  z-index: 50 !important;
+  position: absolute !important;
+}
+
+/* Ensure email handles are visible outside node bounds */
+.react-flow__node-emailPreview .react-flow__handle-left {
+  left: -12px !important;
+}
+
+.react-flow__node-emailPreview .react-flow__handle-right {
+  right: -12px !important;
+}
+
+/* Make email handles more prominent */
+.react-flow__node-emailPreview .react-flow__handle {
+  background: rgb(147, 51, 234) !important; /* purple-600 */
+  border-color: rgb(109, 40, 217) !important; /* purple-700 */
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2) !important;
+  transition: all 0.2s ease !important;
+}
+
+.react-flow__node-emailPreview .react-flow__handle:hover {
+  transform: scale(1.25) !important;
+  box-shadow: 0 0 0 5px rgba(168, 85, 247, 0.4) !important;
+}
+
+/* Ensure handles for connected sections pulse */
+.react-flow__node-emailPreview .react-flow__handle.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+/* Override React Flow's default node overflow */
+.react-flow__nodes {
+  overflow: visible !important;
+}
+
+.react-flow__node {
+  overflow: visible !important;
+}

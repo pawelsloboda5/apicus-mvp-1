@@ -990,7 +990,7 @@ function BuildPageContent() {
           db.scenarios.update(currentScenario.id, {
             nodesSnapshot: updatedNodes,
             updatedAt: Date.now(),
-          });
+          }).catch(console.error);
         }
         
         return updatedNodes;
@@ -1406,6 +1406,8 @@ function BuildPageContent() {
               runs: sc.runsPerMonth || 0,
             },
             isLoading: true, // Add loading flag
+            // Remove onRegenerateSection - can't persist functions
+            sectionConnections: {}, // Initialize empty section connections
           },
           draggable: true,
           selectable: true,
@@ -1568,6 +1570,8 @@ function BuildPageContent() {
                 isLoading: false, // Remove loading flag
                 lengthOption: 'standard', // Store current length option
                 toneOption: 'professional_warm', // Store current tone option
+                // Remove onRegenerateSection - can't persist functions
+                sectionConnections: node.data.sectionConnections || {}, // Preserve existing connections
               }
             };
           }
@@ -1949,6 +1953,192 @@ function BuildPageContent() {
     [currentScenario, handleUpdateEmailNodeData, nodes]
   );
 
+  const handleRegenerateSection = useCallback(
+    async (nodeId: string, section: string) => {
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node || node.type !== 'emailPreview' || !currentScenario) {
+        return;
+      }
+      
+      const emailData = node.data as unknown as EmailPreviewNodeData;
+      const sectionConnection = emailData.sectionConnections?.[section as keyof typeof emailData.sectionConnections];
+      
+      if (!sectionConnection?.connectedNodeIds?.length) {
+        return;
+      }
+      
+      // Get the connected context nodes
+      const connectedContextNodes = nodes.filter(n => 
+        sectionConnection.connectedNodeIds.includes(n.id)
+      );
+      
+      if (connectedContextNodes.length === 0) {
+        return;
+      }
+      
+      // Build email context from connected nodes
+      const emailContext: Record<string, string[]> = {
+        personas: [],
+        industries: [],
+        painPoints: [],
+        metrics: [],
+        urgencyFactors: [],
+        socialProofs: [],
+        objections: [],
+        valueProps: [],
+      };
+      
+      connectedContextNodes.forEach(contextNode => {
+        const nodeData = contextNode.data as unknown as NodeData;
+        const contextValue = nodeData.contextValue || nodeData.label || "";
+        const nodeType = contextNode.type || "";
+        
+        // Parse multi-select values
+        let values: string[] = [];
+        try {
+          const parsed = JSON.parse(contextValue as string);
+          values = Array.isArray(parsed) ? parsed : [contextValue as string];
+        } catch {
+          values = [contextValue as string];
+        }
+        
+        switch(nodeType) {
+          case "persona":
+            emailContext.personas.push(...values);
+            break;
+          case "industry":
+            emailContext.industries.push(...values);
+            break;
+          case "painpoint":
+            emailContext.painPoints.push(...values);
+            break;
+          case "metric":
+            emailContext.metrics.push(...values);
+            break;
+          case "urgency":
+            emailContext.urgencyFactors.push(...values);
+            break;
+          case "socialproof":
+            emailContext.socialProofs.push(...values);
+            break;
+          case "objection":
+            emailContext.objections.push(...values);
+            break;
+          case "value":
+            emailContext.valueProps.push(...values);
+            break;
+        }
+      });
+      
+      // Set loading state for the section
+      setNodes(ns => ns.map(n => 
+        n.id === nodeId ? {
+          ...n,
+          data: {
+            ...n.data,
+            [`${section}Loading`]: true
+          }
+        } : n
+      ));
+      
+      try {
+        // Get current length and tone options
+        const lengthOption = emailData.lengthOption || 'standard';
+        const toneOption = emailData.toneOption || 'professional_warm';
+        
+        // Calculate ROI values for context
+        const sc = currentScenario;
+        const timeValue = calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0);
+        const platformCost = calculatePlatformCost(sc.platform || 'zapier', sc.runsPerMonth || 0, pricing, sc.nodesSnapshot?.length || 0);
+        const roiRatio = calculateROIRatio(calculateTotalValue(timeValue, 0, 0), platformCost);
+        
+        // Build request payload with only the specific section
+        const payload = {
+          scenarioName: sc.name,
+          platform: sc.platform,
+          taskType: sc.taskType || 'general',
+          runsPerMonth: sc.runsPerMonth,
+          minutesPerRun: sc.minutesPerRun,
+          hourlyRate: sc.hourlyRate,
+          roiRatio,
+          emailContext,
+          lengthOption,
+          toneOption,
+          enabledSections: {
+            subject: section === 'subject',
+            hook: section === 'hook',
+            cta: section === 'cta',
+            offer: section === 'offer',
+            ps: section === 'ps',
+            testimonial: section === 'testimonial',
+            urgency: section === 'urgency',
+          }
+        };
+        
+        const response = await fetch('/api/openai/generate-email-section', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            section,
+            currentText: emailData[`${section}Text` as keyof EmailPreviewNodeData] || '',
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to regenerate ${section}`);
+        }
+        
+        const result = await response.json();
+        const newText = result[`${section}Text`] || result.text || '';
+        
+        // Update node with new text and reset changes flag
+        setNodes(ns => ns.map(n => 
+          n.id === nodeId ? {
+            ...n,
+            data: {
+              ...n.data,
+              [`${section}Text`]: newText,
+              [`${section}Loading`]: false,
+              sectionConnections: {
+                ...emailData.sectionConnections,
+                [section]: {
+                  ...sectionConnection,
+                  hasChanges: false,
+                  regenerateNeeded: false,
+                  lastContent: newText
+                }
+              }
+            }
+          } : n
+        ));
+        
+        // Update scenario in database
+        if (sc.id) {
+          const updateField = `email${section.charAt(0).toUpperCase() + section.slice(1)}Text` as keyof Scenario;
+          await db.scenarios.update(sc.id, {
+            [updateField]: newText,
+            updatedAt: Date.now()
+          });
+        }
+        
+      } catch (error) {
+        console.error(`Error regenerating ${section}:`, error);
+        // Remove loading state on error
+        setNodes(ns => ns.map(n => 
+          n.id === nodeId ? {
+            ...n,
+            data: {
+              ...n.data,
+              [`${section}Loading`]: false
+            }
+          } : n
+        ));
+      }
+    },
+    [nodes, currentScenario, setNodes]
+  );
+
   // Moved the loading return to before the main return, after all hooks
   if (isLoading && !currentScenario && !scenarioIdParam) {
     return (
@@ -2124,6 +2314,7 @@ function BuildPageContent() {
                     titleInputRef={titleInputRef}
                     selectedNodeType={selectedNodeType}
                     onNodeTypeChange={setSelectedNodeType}
+                    handleRegenerateSection={handleRegenerateSection}
                   />
 
                   {/* Property Panels - existing code... */}
@@ -2137,6 +2328,7 @@ function BuildPageContent() {
                     minutesPerRun={minutesPerRun}
                     hourlyRate={hourlyRate}
                     taskMultiplier={taskMultiplier}
+                    edges={edges}
                   />
                   <GroupPropertiesPanel
                     selectedGroup={selectedGroup}

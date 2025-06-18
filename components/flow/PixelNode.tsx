@@ -2,7 +2,7 @@
 import React from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
-import { PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, MailOpen, Zap, CheckSquare, Code } from "lucide-react";
+import { PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, MailOpen, Zap, CheckSquare, Code, Link2 } from "lucide-react";
 
 export function PixelNode({ data, type, selected }: NodeProps) {
   const Icon = 
@@ -29,12 +29,15 @@ export function PixelNode({ data, type, selected }: NodeProps) {
     contextValue?: string;
     contextType?: string;
     category?: string;
+    isConnectedToEmail?: boolean;
   };
 
   const isEmailContext = nodeData.isEmailContext || [
     "persona", "industry", "painpoint", "metric", 
     "urgency", "socialproof", "objection", "value"
   ].includes(type as string);
+
+  const isConnectedToEmail = nodeData.isConnectedToEmail;
 
   // Platform configurations with better contrast
   const platformConfig = {
@@ -92,6 +95,7 @@ export function PixelNode({ data, type, selected }: NodeProps) {
         "min-w-[170px] max-w-[240px] rounded-lg border-2 shadow-md",
         "transition-all duration-200 hover:shadow-lg",
         selected && "ring-2 ring-primary ring-offset-2",
+        isConnectedToEmail && "animate-pulse-glow",
         isEmailContext 
           ? (category ? categoryColors[category as keyof typeof categoryColors] : "border-slate-400 bg-slate-100 dark:bg-slate-800 dark:border-slate-500")
           : (type === "trigger" 
@@ -102,16 +106,49 @@ export function PixelNode({ data, type, selected }: NodeProps) {
             )
       )}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className={cn(
-          "!w-2 !h-2 !border-2",
-          isEmailContext 
-            ? "!bg-purple-500 !border-purple-700"
-            : "!bg-primary !border-primary-foreground"
-        )}
-      />
+      {/* Handles for email context nodes - positioned left/right */}
+      {isEmailContext ? (
+        <>
+          <Handle
+            type="target"
+            position={Position.Left}
+            className={cn(
+              "!w-3 !h-3 !border-2",
+              "!bg-purple-500 !border-purple-700",
+              isConnectedToEmail && "!bg-purple-600 !animate-pulse"
+            )}
+          />
+          <Handle
+            type="source"
+            position={Position.Right}
+            className={cn(
+              "!w-3 !h-3 !border-2",
+              "!bg-purple-500 !border-purple-700",
+              isConnectedToEmail && "!bg-purple-600 !animate-pulse"
+            )}
+          />
+        </>
+      ) : (
+        <>
+          {/* Regular nodes keep top/bottom handles */}
+          <Handle
+            type="target"
+            position={Position.Top}
+            className={cn(
+              "!w-2 !h-2 !border-2",
+              "!bg-primary !border-primary-foreground"
+            )}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            className={cn(
+              "!w-2 !h-2 !border-2",
+              "!bg-primary !border-primary-foreground"
+            )}
+          />
+        </>
+      )}
       
       {/* Platform indicator badge */}
       {platform && PlatformIcon && !isEmailContext && (
@@ -128,8 +165,11 @@ export function PixelNode({ data, type, selected }: NodeProps) {
 
       {/* Email context indicator */}
       {isEmailContext && (
-        <div className="absolute -top-1.5 -right-1.5 bg-purple-600 text-white rounded-full p-0.5 shadow-md ring-2 ring-white dark:ring-gray-900" title="Email Context Node">
-          <MailOpen className="h-2.5 w-2.5" />
+        <div className={cn(
+          "absolute -top-1.5 -right-1.5 rounded-full p-0.5 shadow-md ring-2 ring-white dark:ring-gray-900",
+          isConnectedToEmail ? "bg-purple-700 animate-pulse" : "bg-purple-600"
+        )} title={isConnectedToEmail ? "Connected to Email" : "Email Context Node"}>
+          {isConnectedToEmail ? <Link2 className="h-2.5 w-2.5 text-white" /> : <MailOpen className="h-2.5 w-2.5 text-white" />}
         </div>
       )}
       
@@ -186,17 +226,6 @@ export function PixelNode({ data, type, selected }: NodeProps) {
           </div>
         )}
       </div>
-      
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className={cn(
-          "!w-2 !h-2 !border-2",
-          isEmailContext 
-            ? "!bg-purple-500 !border-purple-700"
-            : "!bg-primary !border-primary-foreground"
-        )}
-      />
     </div>
   );
 } 
