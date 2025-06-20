@@ -1,6 +1,7 @@
 import Dexie, { Table } from "dexie";
 import { nanoid } from "nanoid";
 import { useLiveQuery } from "dexie-react-hooks";
+import { AppPricingData } from "./types";
 
 /**
  * Dexie database instance for Apicus
@@ -51,6 +52,9 @@ export interface Scenario {
   // This might be better managed in a separate table or transient state depending on exact UX
   // For now, let's consider it might be part of the scenario that holds the primary result.
   alternativeTemplatesCache?: unknown[]; // Simplified: stores full alternative template objects
+
+  // Template pricing data cache from appPricingMap
+  templatePricingData?: Record<string, AppPricingData>; // Cache of AppPricingData objects keyed by appId
 
   /* ---------- Email Generation Details ---------- */
   emailFirstName?: string;
@@ -225,17 +229,55 @@ class ApicusDB extends Dexie {
         edges: "++id, scenarioId, reactFlowId",
         metrics: "++id, scenarioId, timestamp, [scenarioId+timestamp]", // Compound index for efficient queries
       });
+
+    // Version 8 – Add templatePricingData for app pricing information caching
+    this.version(8)
+      .stores({
+        scenarios: "++id, slug, name, updatedAt, platform, originalTemplateId, searchQuery, emailYourName",
+        nodes: "++id, scenarioId, reactFlowId, type",
+        edges: "++id, scenarioId, reactFlowId",
+        metrics: "++id, scenarioId, timestamp, [scenarioId+timestamp]",
+      })
+      .upgrade(tx => {
+        tx.table("scenarios").toCollection().modify((sc: Scenario) => {
+          // Initialize templatePricingData if it doesn't exist
+          if (!sc.templatePricingData) sc.templatePricingData = {};
+        });
+      });
   }
 }
 
-export const db = new ApicusDB();
+export const db: ApicusDB =
+  typeof window !== 'undefined' && typeof indexedDB !== 'undefined'
+    ? new ApicusDB()
+    // Create a dummy object (cast) for server environments to avoid runtime errors during import.
+    : ({} as unknown as ApicusDB);
+
+/** Returns true when the real Dexie instance is available (client side). */
+function isDbReady(): boolean {
+  // Dexie instances have an Observable addon; checking for typical property to detect real instance.
+  return typeof (db as any).open === 'function';
+}
+
+/**
+ * Helper to safely obtain the Dexie instance. Throws if called on the server.
+ */
+function getDb(): ApicusDB {
+  if (!isDbReady()) {
+    throw new Error(
+      'Dexie (IndexedDB) is not available in this environment. Database functions must be used from client-side code only.'
+    );
+  }
+  return db;
+}
 
 /**
  * Helper to create a new scenario skeleton and return its numeric id.
  */
 export async function createScenario(name: string): Promise<number> {
   const now = Date.now();
-  return db.scenarios.add({
+  const dexie = getDb();
+  return dexie.scenarios.add({
     name,
     slug: nanoid(8),
     createdAt: now,
@@ -278,8 +320,8 @@ export async function createScenario(name: string): Promise<number> {
  * Usage: const scenario = useScenario(id);
  */
 export function useScenario(id?: number) {
-  // Dynamic import to avoid including Dexie hooks in server bundles
-  return useLiveQuery(() => (id ? db.scenarios.get(id) : undefined), [id]);
+  const dexie = getDb();
+  return useLiveQuery(() => (id ? dexie.scenarios.get(id) : undefined), [id]);
 }
 
 /**
@@ -290,7 +332,8 @@ export async function createMetricSnapshot(
   metrics: MetricSnapshot['metrics'],
   trigger: MetricSnapshot['trigger'] = 'manual'
 ): Promise<number> {
-  return db.metrics.add({
+  const dexie = getDb();
+  return dexie.metrics.add({
     scenarioId,
     timestamp: Date.now(),
     metrics,
@@ -310,8 +353,8 @@ export async function getRecentMetrics(
   daysBack: number = 30
 ): Promise<MetricSnapshot[]> {
   const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-  
-  return db.metrics
+  const dexie = getDb();
+  return dexie.metrics
     .where('[scenarioId+timestamp]')
     .between([scenarioId, cutoffDate], [scenarioId, Date.now()])
     .reverse()
@@ -325,9 +368,8 @@ export async function getRecentMetrics(
  */
 export async function cleanupOldMetrics(): Promise<void> {
   const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
-  
-  // Delete metrics older than 90 days
-  await db.metrics
+  const dexie = getDb();
+  await dexie.metrics
     .where('timestamp')
     .below(ninetyDaysAgo)
     .delete();

@@ -3,6 +3,121 @@ import { Node, Edge, ReactFlowInstance, NodeChange, EdgeChange, Viewport, NodeTy
 export type NodeType = "trigger" | "action" | "decision" | "group" | "persona" | "industry" | "painpoint" | "metric" | "urgency" | "socialproof" | "objection" | "value";
 export type PlatformType = "zapier" | "make" | "n8n";
 
+// App Pricing Data Structure (from appPricingMap in templates)
+export interface AppPricingData {
+  appId: string;
+  appName: string;
+  appSlug: string;
+  hasFreeTier: boolean;
+  hasFreeTrial: boolean;
+  currency: string;
+  lowestMonthlyPrice: number;
+  highestMonthlyPrice: number;
+  tierCount: number;
+  hasUsageBasedPricing: boolean;
+  hasAIFeatures: boolean;
+  logoUrl?: string;
+  description?: string;
+  limits?: {
+    users?: string;
+    custom_limits?: Record<string, unknown> | null;
+  };
+  ai_specific_pricing?: {
+    has_token_based_pricing: boolean;
+    input_token_price: number | null;
+    output_token_price: number | null;
+    models_pricing: Record<string, {
+      input: number;
+      output: number;
+    }> | null;
+    has_inference_pricing: boolean;
+    has_fine_tuning_pricing: boolean;
+    has_training_pricing: boolean;
+    ai_addon_available: boolean;
+  };
+}
+
+// Template Step from MongoDB
+export interface TemplateStep {
+  index: number;
+  label: string;
+  action: string;
+  typeOf: string;
+  appId: string;
+  appName: string;
+  appSlug: string;
+}
+
+// Template Node (React Flow compatible)
+export interface TemplateNode {
+  reactFlowId: string;
+  type: string;
+  label: string;
+  platformMeta?: {
+    action: string;
+    typeOf: string;
+    appId: string;
+    appSlug: string;
+    appName: string;
+  };
+  data: {
+    index: number;
+    label: string;
+    action: string;
+    typeOf: string;
+    appId: string;
+    appName: string;
+    appSlug: string;
+  };
+  position: {
+    x: number;
+    y: number;
+  };
+}
+
+// Template Edge (React Flow compatible)
+export interface TemplateEdge {
+  reactFlowId: string;
+  label: string | null;
+  data: {
+    source: string;
+    target: string;
+  };
+}
+
+// Complete Template from MongoDB apicus-templates collection
+export interface AutomationTemplate {
+  _id?: string;
+  templateId: string;
+  title: string;
+  url?: string;
+  editorUrl?: string;
+  source: string;
+  platform?: string;
+  richDescription?: string;
+  exampleUserPrompts?: string[];
+  steps: TemplateStep[];
+  appIds: string[];
+  appNames: string[];
+  stepCount: number;
+  firstStepType: string;
+  lastStepType: string;
+  stepSequence: string[];
+  processedAt?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+  nodes: TemplateNode[];
+  edges: TemplateEdge[];
+  embedding?: number[]; // Vector embedding for similarity search (1536 dimensions)
+  appPricingMap?: Record<string, AppPricingData>;
+  pricingEnrichedAt?: Date;
+}
+
+// Template Response (excluding embedding for client responses)
+export interface TemplateResponse extends Omit<AutomationTemplate, 'embedding'> {
+  mongoId?: string;
+}
+
 export interface NodeData {
   label: string;
   appName?: string;
@@ -19,6 +134,11 @@ export interface NodeData {
   contextValue?: string;
   contextDetails?: Record<string, unknown>;
   isEmailContext?: boolean;
+  
+  // Template-derived data
+  appId?: string;
+  appSlug?: string;
+  index?: number;
 }
 
 export interface GroupData {
@@ -91,6 +211,8 @@ export interface FlowCanvasProps {
   edgeTypes?: EdgeTypes;
   defaultViewport?: Viewport;
   setWrapperRef?: (ref: HTMLDivElement | null) => void;
+  setDroppableRef?: (ref: HTMLDivElement | null) => void;
+  isOver?: boolean;
 
   // Props for scenario title editing
   currentScenarioName?: string;
@@ -136,6 +258,11 @@ export interface Scenario {
   originalTemplateId?: string;
   searchQuery?: string;
   alternativeTemplatesCache?: unknown[];
+  
+  // Template pricing data cache
+  templatePricingData?: Record<string, AppPricingData>;
+  
+  // Email personalization fields
   emailFirstName?: string;
   emailYourName?: string;
   emailYourCompany?: string;
@@ -178,6 +305,12 @@ export interface EmailPreviewNodeData {
   isLoading?: boolean;
   lengthOption?: 'concise' | 'standard' | 'detailed';
   toneOption?: string;
+  sectionConnections?: Record<string, {
+    connectedNodeIds: string[];
+    lastContent?: string;
+    hasChanges?: boolean;
+    regenerateNeeded?: boolean;
+  }>;
 }
 
 // Analytics Types
@@ -202,4 +335,18 @@ export interface MetricSnapshot {
     breakEvenRuns?: number;
   };
   trigger: 'manual' | 'save' | 'platform_change' | 'major_edit' | 'scheduled';
+}
+
+// API Response Types
+export interface TemplateSearchResponse {
+  templates: TemplateResponse[];
+  searchType: 'cosmos' | 'atlas';
+  total?: number;
+}
+
+export interface TemplatePricingResponse {
+  templateId: string;
+  appPricingMap: Record<string, AppPricingData>;
+  totalApps: number;
+  pricingEnrichedAt?: Date;
 }

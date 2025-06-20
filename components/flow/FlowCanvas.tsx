@@ -148,6 +148,8 @@ export function FlowCanvas({
   // Local state to track selection mode
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(SelectionMode.Partial);
   const [isMobile, setIsMobile] = useState(false);
+  const [containerReady, setContainerReady] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
   
   // Get React Flow instance for coordinate conversion
   const { screenToFlowPosition } = useReactFlow();
@@ -166,6 +168,32 @@ export function FlowCanvas({
     edges,
     (state, newEdge: Edge) => [...state, newEdge]
   );
+  
+  // Check container dimensions
+  useEffect(() => {
+    const checkContainer = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        if (width > 0 && height > 0) {
+          setContainerReady(true);
+        }
+      }
+    };
+    
+    // Check immediately
+    checkContainer();
+    
+    // Check again after a short delay
+    const timeoutId = setTimeout(checkContainer, 100);
+    
+    // Check on window resize
+    window.addEventListener('resize', checkContainer);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', checkContainer);
+    };
+  }, []);
   
   // Detect mobile device
   useEffect(() => {
@@ -533,7 +561,8 @@ export function FlowCanvas({
         setWrapperRef?.(node);
         setDroppableRef?.(node);
       }}
-      className={`flex-grow relative ${isOver ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+      className={`absolute inset-0 ${isOver ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+      style={{ height: '100%', width: '100%' }}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -581,45 +610,53 @@ export function FlowCanvas({
         </div>
       )}
 
-      <ReactFlow
-        nodes={optimisticNodes}
-        edges={optimisticEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onConnect={handleConnect}
-        onNodeClick={onNodeClick}
-        onPaneClick={handlePaneClick}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        fitView
-        defaultViewport={defaultViewport}
-        onMoveEnd={onMoveEnd}
-        snapToGrid
-        snapGrid={[8, 8]}
-        onInit={onInit}
-        isValidConnection={isValidConnection}
-        selectionMode={selectionMode}
-        multiSelectionKeyCode={isMobile ? null : "Shift"}
-        className="bg-[linear-gradient(to_right,transparent_49%,theme(colors.border)_50%),linear-gradient(to_bottom,transparent_49%,theme(colors.border)_50%)] bg-[size:1rem_1rem]"
-        panOnDrag={isMobile ? [1, 2] : true}
-        zoomOnScroll={true}
-        zoomOnPinch={isMobile}
-        panOnScroll={false}
-        zoomOnDoubleClick={false}
-        preventScrolling={true}
-        minZoom={0.1}
-        maxZoom={4}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background gap={16} color="var(--border)" />
-        
-        {/* Regenerate buttons inside React Flow */}
-        <RegenerateButtonsControls
-          emailPreviewNodes={emailPreviewNodes}
-          nodes={optimisticNodes}
-          handleRegenerateSection={handleRegenerateSection}
-        />
-      </ReactFlow>
+      <div style={{ height: '100%', width: '100%' }} ref={containerRef}>
+        {containerReady ? (
+          <ReactFlow
+            nodes={optimisticNodes}
+            edges={optimisticEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onConnect={handleConnect}
+            onNodeClick={onNodeClick}
+            onPaneClick={handlePaneClick}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            defaultViewport={defaultViewport}
+            onMoveEnd={onMoveEnd}
+            snapToGrid
+            snapGrid={[8, 8]}
+            onInit={onInit}
+            isValidConnection={isValidConnection}
+            selectionMode={selectionMode}
+            multiSelectionKeyCode={isMobile ? null : "Shift"}
+            className="bg-[linear-gradient(to_right,transparent_49%,theme(colors.border)_50%),linear-gradient(to_bottom,transparent_49%,theme(colors.border)_50%)] bg-[size:1rem_1rem]"
+            panOnDrag={isMobile ? [1, 2] : true}
+            zoomOnScroll={true}
+            zoomOnPinch={isMobile}
+            panOnScroll={false}
+            zoomOnDoubleClick={false}
+            preventScrolling={true}
+            minZoom={0.1}
+            maxZoom={4}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background gap={16} color="var(--border)" />
+            
+            {/* Regenerate buttons inside React Flow */}
+            <RegenerateButtonsControls
+              emailPreviewNodes={emailPreviewNodes}
+              nodes={optimisticNodes}
+              handleRegenerateSection={handleRegenerateSection}
+            />
+          </ReactFlow>
+        ) : (
+          <div className="flex items-center justify-center h-full w-full">
+            <div className="text-muted-foreground">Initializing canvas...</div>
+          </div>
+        )}
+      </div>
 
       {/* Floating Node Selector - shows current selection from Toolbox */}
       <FloatingNodeSelector

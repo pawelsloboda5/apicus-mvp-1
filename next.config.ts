@@ -13,16 +13,24 @@ const nextConfig: NextConfig = {
     // Partial Prerendering for hybrid static/dynamic rendering
     ppr: 'incremental',
 
+    // Enable optimizePackageImports for better bundling
+    optimizePackageImports: [
+      '@xyflow/react',
+      'lucide-react',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-sheet',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-accordion',
+    ],
 
     // Configure client router cache behavior
     staleTimes: {
-      dynamic: 0,  // Don't cache dynamic pages by default
+      dynamic: 30,  // Cache dynamic pages for 30 seconds
       static: 180, // Cache static pages for 3 minutes
     },
 
-
-    // Enable Turbopack for development (can also use --turbo flag)
-    // turbo: true,
   },
 
   // Optimize external package bundling
@@ -35,7 +43,9 @@ const nextConfig: NextConfig = {
   // Image optimization configuration
   images: {
     // Use sharp for better performance (default in Next.js 15)
-    formats: ['image/avif', 'image/webp'],
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 768, 1024, 1280, 1600],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 
   // TypeScript and ESLint for better DX
@@ -72,30 +82,41 @@ const nextConfig: NextConfig = {
   },
 
   // Webpack configuration for additional optimizations
-  webpack: (config, { isServer }) => {
+  webpack: (config, { dev, isServer }) => {
     // Enable webpack optimizations
     if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+      };
+    }
+
+    // Remove conflicting optimizations that cause issues with Next.js 15.4
+    // The usedExports option conflicts with Next.js's cacheUnaffected feature
+    
+    // Only apply non-conflicting optimizations
+    if (!dev) {
       config.optimization = {
         ...config.optimization,
-        moduleIds: 'deterministic',
-        runtimeChunk: 'single',
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            default: {
-              minChunks: 2,
-              priority: -20,
-              reuseExistingChunk: true,
-            },
-            vendors: {
-              test: /[\\/]node_modules[\\/]/,
-              priority: -10,
-            },
-          },
-        },
-      }
+        // Remove usedExports as it conflicts with cacheUnaffected
+        // usedExports: true, // REMOVED - causes error
+        sideEffects: false,
+        // Keep module concatenation for smaller bundles
+        concatenateModules: true,
+      };
     }
+
     return config
+  },
+
+  // Enable compression
+  compress: true,
+
+  // Enable modern JS for faster parsing
+  modularizeImports: {
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{member}}',
+    },
   },
 };
 

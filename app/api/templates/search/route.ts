@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import clientPromise from "@/lib/mongo";
 import { Db } from "mongodb";
+import { TemplateSearchResponse, TemplateResponse } from "@/lib/types";
 
 export const runtime = "nodejs"; // Use Node.js runtime for MongoDB driver compatibility
 // This is necessary because the MongoDB driver relies on Node.js core modules
@@ -103,16 +104,73 @@ export async function GET(req: Request) {
           },
         },
         { $limit: 6 },
-        { $project: { templateId: 1, title: 1, nodes: 1, edges: 1, source: 1, platform: 1, description: 1, _id: 0 } },
+        { 
+          $project: { 
+            templateId: 1, 
+            title: 1, 
+            url: 1,
+            editorUrl: 1,
+            nodes: 1, 
+            edges: 1, 
+            source: 1, 
+            platform: 1, 
+            richDescription: 1,
+            exampleUserPrompts: 1,
+            steps: 1,
+            appIds: 1,
+            appNames: 1,
+            stepCount: 1,
+            firstStepType: 1,
+            lastStepType: 1,
+            stepSequence: 1,
+            processedAt: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            appPricingMap: 1,
+            pricingEnrichedAt: 1,
+            _id: 1
+            // Note: embedding field is omitted from results by not including it
+          } 
+        },
       ];
 
       const rawResults = await collection.aggregate(cosmosPipeline).toArray();
       console.log("Cosmos search successful, results:", rawResults.length);
       
-      return NextResponse.json({ 
-        templates: rawResults,
-        searchType: "cosmos"
-      });
+      // Transform results to TemplateResponse format
+      const templates: TemplateResponse[] = rawResults.map(doc => ({
+        mongoId: doc._id?.toString(),
+        templateId: doc.templateId,
+        title: doc.title,
+        url: doc.url,
+        editorUrl: doc.editorUrl,
+        source: doc.source,
+        platform: doc.platform,
+        richDescription: doc.richDescription,
+        exampleUserPrompts: doc.exampleUserPrompts,
+        steps: doc.steps || [],
+        appIds: doc.appIds || [],
+        appNames: doc.appNames || [],
+        stepCount: doc.stepCount || 0,
+        firstStepType: doc.firstStepType,
+        lastStepType: doc.lastStepType,
+        stepSequence: doc.stepSequence || [],
+        processedAt: doc.processedAt,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+        nodes: doc.nodes || [],
+        edges: doc.edges || [],
+        appPricingMap: doc.appPricingMap || {},
+        pricingEnrichedAt: doc.pricingEnrichedAt,
+      }));
+      
+      const response: TemplateSearchResponse = {
+        templates,
+        searchType: "cosmos",
+        total: templates.length
+      };
+      
+      return NextResponse.json(response);
 
     } catch (cosmosError) {
       console.log("Cosmos search failed, trying Atlas:", cosmosError instanceof Error ? cosmosError.message : String(cosmosError));
@@ -129,16 +187,73 @@ export async function GET(req: Request) {
               limit: 6,
             },
           },
-          { $project: { templateId: 1, title: 1, nodes: 1, edges: 1, source: 1, platform: 1, description: 1, _id: 0 } },
+          { 
+                      $project: { 
+            templateId: 1, 
+            title: 1, 
+            url: 1,
+            editorUrl: 1,
+            nodes: 1, 
+            edges: 1, 
+            source: 1, 
+            platform: 1, 
+            richDescription: 1,
+            exampleUserPrompts: 1,
+            steps: 1,
+            appIds: 1,
+            appNames: 1,
+            stepCount: 1,
+            firstStepType: 1,
+            lastStepType: 1,
+            stepSequence: 1,
+            processedAt: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            appPricingMap: 1,
+            pricingEnrichedAt: 1,
+            _id: 1
+            // Note: embedding field is omitted from results by not including it
+          } 
+          },
         ];
 
         const rawResults = await collection.aggregate(atlasPipeline).toArray();
         console.log("Atlas search successful, results:", rawResults.length);
         
-        return NextResponse.json({ 
-          templates: rawResults,
-          searchType: "atlas"
-        });
+        // Transform results to TemplateResponse format
+        const templates: TemplateResponse[] = rawResults.map(doc => ({
+          mongoId: doc._id?.toString(),
+          templateId: doc.templateId,
+          title: doc.title,
+          url: doc.url,
+          editorUrl: doc.editorUrl,
+          source: doc.source,
+          platform: doc.platform,
+          richDescription: doc.richDescription,
+          exampleUserPrompts: doc.exampleUserPrompts,
+          steps: doc.steps || [],
+          appIds: doc.appIds || [],
+          appNames: doc.appNames || [],
+          stepCount: doc.stepCount || 0,
+          firstStepType: doc.firstStepType,
+          lastStepType: doc.lastStepType,
+          stepSequence: doc.stepSequence || [],
+          processedAt: doc.processedAt,
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+          nodes: doc.nodes || [],
+          edges: doc.edges || [],
+          appPricingMap: doc.appPricingMap || {},
+          pricingEnrichedAt: doc.pricingEnrichedAt,
+        }));
+        
+        const response: TemplateSearchResponse = {
+          templates,
+          searchType: "atlas",
+          total: templates.length
+        };
+        
+        return NextResponse.json(response);
 
       } catch (atlasError) {
         console.error("Both vector search methods failed:", atlasError);
