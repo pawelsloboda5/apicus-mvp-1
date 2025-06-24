@@ -275,6 +275,11 @@ function getDb(): ApicusDB {
  * Helper to create a new scenario skeleton and return its numeric id.
  */
 export async function createScenario(name: string): Promise<number> {
+  // Ensure we're on the client side
+  if (typeof window === 'undefined') {
+    throw new Error('createScenario can only be called on the client side');
+  }
+  
   const now = Date.now();
   const dexie = getDb();
   return dexie.scenarios.add({

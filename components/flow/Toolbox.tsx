@@ -140,7 +140,6 @@ interface ToolboxProps {
   onActiveTabChange?: (tab: 'canvas' | 'analytics') => void;
 }
 
-// Mobile Toolbox Trigger Button Component
 // Mobile Toolbox Trigger - Bottom positioned with fixed height
 export function MobileToolboxTrigger({ 
   onLoadScenario, 
@@ -158,7 +157,7 @@ export function MobileToolboxTrigger({
         <Button
           size="sm"
           variant="default"
-          className="fixed bottom-4 left-4 z-50 lg:hidden shadow-lg px-4"
+          className="fixed bottom-4 left-4 z-50 lg:hidden shadow-lg px-4 font-medium"
           title="Open Toolbox"
         >
           <Menu className="h-4 w-4 mr-2" />
@@ -193,16 +192,17 @@ export function Toolbox({
   onActiveTabChange
 }: ToolboxProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [width, setWidth] = useState(280); // Default width - increased from 240
+  const [width, setWidth] = useState(300); // Increased default width
   const [isResizing, setIsResizing] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);
     e.preventDefault();
   };
+  
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing) return;
-    const newWidth = Math.min(Math.max(200, e.clientX), 500); // Min 200px, Max 500px
+    const newWidth = Math.min(Math.max(240, e.clientX), 500); // Min 240px, Max 500px
     setWidth(newWidth);
   }, [isResizing]);
 
@@ -223,16 +223,17 @@ export function Toolbox({
 
   return (
     <aside 
-      className={`border-r bg-muted/40 flex flex-col transition-all duration-300 relative ${
+      className={cn(
+        "border-r bg-muted/30 flex flex-col transition-all duration-300 relative",
         isCollapsed ? 'w-12' : ''
-      }`}
+      )}
       style={{ width: isCollapsed ? '48px' : `${width}px` }}
     >
       {/* Collapse/Expand Button */}
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-2 right-2 z-10 h-6 w-6"
+        className="absolute top-3 right-3 z-10 h-7 w-7 bg-background/80 backdrop-blur-sm border border-border/50"
         onClick={() => setIsCollapsed(!isCollapsed)}
         title={isCollapsed ? "Expand Toolbox" : "Collapse Toolbox"}
       >
@@ -242,7 +243,7 @@ export function Toolbox({
       {/* Resize Handle */}
       {!isCollapsed && (
         <div
-          className="absolute right-0 top-0 bottom-0 w-1 bg-border hover:bg-primary cursor-col-resize flex items-center justify-center group"
+          className="absolute right-0 top-0 bottom-0 w-1 bg-border hover:bg-primary cursor-col-resize flex items-center justify-center group transition-colors duration-200"
           onMouseDown={handleMouseDown}
         >
           <GripVertical className="h-4 w-4 text-muted-foreground group-hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -251,18 +252,18 @@ export function Toolbox({
 
       {/* Tabs - Always visible at top */}
       {!isCollapsed && onActiveTabChange && (
-        <div className="p-4 pb-2">
+        <div className="p-4 pb-3">
           <Tabs value={activeTab} onValueChange={(value) => onActiveTabChange(value as 'canvas' | 'analytics')}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="canvas">Canvas</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="canvas" className="font-medium">Canvas</TabsTrigger>
+              <TabsTrigger value="analytics" className="font-medium">Analytics</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
       )}
 
       {/* Content */}
-      <div className={`flex-1 overflow-hidden ${isCollapsed ? 'hidden' : 'block'}`}>
+      <div className={cn("flex-1 overflow-hidden", isCollapsed ? 'hidden' : 'block')}>
         <ToolboxContent 
           onLoadScenario={onLoadScenario}
           activeScenarioId={activeScenarioId}
@@ -277,7 +278,7 @@ export function Toolbox({
 
       {/* Collapsed Icons */}
       {isCollapsed && activeTab === 'canvas' && (
-        <div className="flex flex-col items-center py-4 gap-4">
+        <div className="flex flex-col items-center py-4 gap-3">
           {ITEMS.map((item) => {
             const Icon = typeIcon[item.type];
             const isSelected = selectedNodeType === item.type;
@@ -286,10 +287,10 @@ export function Toolbox({
               <div 
                 key={item.type}
                 className={cn(
-                  "p-2 rounded-md border cursor-pointer transition-colors",
+                  "p-2.5 rounded-lg border cursor-pointer transition-all duration-200 hover:scale-105",
                   isSelected 
-                    ? "bg-primary border-primary text-primary-foreground" 
-                    : "bg-background hover:bg-muted"
+                    ? "bg-primary border-primary text-primary-foreground shadow-md" 
+                    : "bg-background hover:bg-muted border-border"
                 )}
                 onClick={() => onNodeTypeSelect?.(item.type)}
                 title={item.label}
@@ -303,14 +304,14 @@ export function Toolbox({
 
       {/* Collapsed Analytics Icons */}
       {isCollapsed && activeTab === 'analytics' && (
-        <div className="flex flex-col items-center py-4 gap-4">
+        <div className="flex flex-col items-center py-4 gap-3">
           {ANALYTICS_ITEMS.slice(0, 3).map((item) => {
             const Icon = item.icon;
             
             return (
               <div 
                 key={item.label}
-                className="p-2 rounded-md border cursor-pointer transition-colors bg-background hover:bg-muted"
+                className="p-2.5 rounded-lg border cursor-pointer transition-all duration-200 hover:scale-105 bg-background hover:bg-muted border-border"
                 title={item.label}
               >
                 <Icon className="h-5 w-5" />
@@ -333,7 +334,7 @@ function ToolboxContent({
   onClose,
   selectedNodeType,
   onNodeTypeSelect,
-  activeTab
+  activeTab = 'canvas'
 }: ToolboxProps & { onClose?: () => void }) {
   const savedScenarios = useLiveQuery(() => db.scenarios.orderBy('updatedAt').reverse().toArray(), []);
   const router = useRouter();
@@ -345,9 +346,9 @@ function ToolboxContent({
   const getPlatformColor = (platform?: PlatformType) => {
     switch (platform) {
       case "zapier": return "bg-orange-500";
-      case "make": return "bg-purple-600";
+      case "make": return "bg-purple-500";
       case "n8n": return "bg-red-500";
-      default: return "bg-gray-400";
+      default: return "bg-muted-foreground";
     }
   };
 
@@ -437,11 +438,11 @@ function ToolboxContent({
     }
   };
 
-  const content = (
-    <div className={cn("flex flex-col h-full overflow-hidden", isMobile ? "p-4" : "p-4")}>
+  return (
+    <div className={cn("flex flex-col h-full overflow-hidden", isMobile ? "p-4" : "px-4 pb-4")}>
       {isMobile && (
         <SheetHeader className="px-0 pb-4 shrink-0">
-          <SheetTitle className="text-lg">Toolbox</SheetTitle>
+          <SheetTitle className="text-lg font-display">Toolbox</SheetTitle>
         </SheetHeader>
       )}
       
@@ -449,9 +450,9 @@ function ToolboxContent({
       {activeTab === 'canvas' && (
         <>
           {/* Section 1: Node Types - Fixed height, always visible */}
-          <div className="shrink-0 mb-4">
-            {!isMobile && <h2 className="mb-3 text-base font-semibold tracking-tight px-1">Node Types</h2>}
-            <ul className={cn("space-y-2", isMobile && "grid grid-cols-3 gap-3")}>
+          <div className="shrink-0 mb-6">
+            {!isMobile && <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1">Node Types</h2>}
+            <ul className={cn("space-y-3", isMobile && "grid grid-cols-3 gap-3")}>
               {ITEMS.map((item) => (
                 <ToolboxItem 
                   key={item.type} 
@@ -466,14 +467,14 @@ function ToolboxContent({
           
           {/* NEW Section: Email Context Nodes - Desktop only */}
           {!isMobile && (
-            <div className="border-t pt-4 mb-4">
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-base font-semibold tracking-tight">Email Context Nodes</h2>
+            <div className="border-t pt-6 mb-6">
+              <div className="flex items-center justify-between mb-4 px-1">
+                <h2 className="text-base font-display font-semibold tracking-tight">Email Context Nodes</h2>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowEmailContextNodes(!showEmailContextNodes)}
-                  className="h-6 px-2 text-xs"
+                  className="h-7 px-3 text-xs font-medium"
                 >
                   {showEmailContextNodes ? 'Hide' : 'Show'}
                 </Button>
@@ -481,10 +482,10 @@ function ToolboxContent({
               
               {showEmailContextNodes && (
                 <>
-                  <p className="text-xs text-muted-foreground mb-3 px-1">
+                  <p className="text-xs text-muted-foreground mb-4 px-1 leading-relaxed">
                     Add these special nodes to influence how emails are generated
                   </p>
-                  <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                     {EMAIL_CONTEXT_ITEMS.map((item) => (
                       <EmailContextToolboxItem
                         key={item.type}
@@ -505,8 +506,8 @@ function ToolboxContent({
       {activeTab === 'analytics' && (
         <>
           {/* Analytics Tools */}
-          <div className="shrink-0 mb-4">
-            <h2 className="mb-3 text-base font-semibold tracking-tight px-1">Analytics Tools</h2>
+          <div className="shrink-0 mb-6">
+            <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1">Analytics Tools</h2>
             <div className="space-y-2">
               {ANALYTICS_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -515,7 +516,7 @@ function ToolboxContent({
                     key={item.label}
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start text-sm h-auto py-3 px-3"
+                    className="w-full justify-start text-sm h-auto py-3 px-3 hover:bg-muted/80"
                     disabled
                   >
                     <Icon className="h-4 w-4 mr-3 shrink-0" />
@@ -530,20 +531,20 @@ function ToolboxContent({
           </div>
           
           {/* Metrics Summary - Placeholder */}
-          <div className="border-t pt-4 mb-4">
-            <h2 className="mb-3 text-base font-semibold tracking-tight px-1">Quick Stats</h2>
-            <div className="space-y-2 px-1">
-              <div className="flex justify-between items-center py-1">
+          <div className="border-t pt-6 mb-6">
+            <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1">Quick Stats</h2>
+            <div className="space-y-3 px-1">
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
                 <span className="text-sm text-muted-foreground">Snapshots Taken</span>
-                <span className="text-sm font-medium">0</span>
+                <span className="text-sm font-semibold font-mono">0</span>
               </div>
-              <div className="flex justify-between items-center py-1">
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
                 <span className="text-sm text-muted-foreground">Charts Created</span>
-                <span className="text-sm font-medium">2</span>
+                <span className="text-sm font-semibold font-mono">2</span>
               </div>
-              <div className="flex justify-between items-center py-1">
+              <div className="flex justify-between items-center py-2">
                 <span className="text-sm text-muted-foreground">Last Export</span>
-                <span className="text-sm font-medium">Never</span>
+                <span className="text-sm font-semibold font-mono">Never</span>
               </div>
             </div>
           </div>
@@ -551,10 +552,10 @@ function ToolboxContent({
       )}
       
       {/* Section 2: My Scenarios - Fixed height with scrolling */}
-      <div className={cn("border-t pt-4 flex flex-col h-[40vh]", isMobile ? "flex-grow min-h-0" : "flex-shrink-0")}>
-        <h2 className="mb-3 text-base font-semibold tracking-tight px-1 flex justify-between items-center shrink-0">
+      <div className={cn("border-t pt-6 flex flex-col h-[40vh]", isMobile ? "flex-grow min-h-0" : "flex-shrink-0")}>
+        <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1 flex justify-between items-center shrink-0">
           My Scenarios
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAddNewScenario} title="Add new scenario">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleAddNewScenario} title="Add new scenario">
             <PlusCircle className="h-4 w-4" />
           </Button>
         </h2>
@@ -563,9 +564,9 @@ function ToolboxContent({
             <ScrollArea className="h-full pr-1">
               <ul className="space-y-2 pb-2">
                 {filteredScenarios.map((scenario) => (
-                  <li key={scenario.id} className="flex items-center group relative rounded-md hover:bg-muted/80">
+                  <li key={scenario.id} className="flex items-center group relative rounded-lg hover:bg-muted/60 transition-colors duration-200">
                     {editingScenarioId === scenario.id ? (
-                      <div className="flex items-center w-full p-1">
+                      <div className="flex items-center w-full p-2">
                         <Input
                           ref={inputRef}
                           type="text"
@@ -575,12 +576,12 @@ function ToolboxContent({
                             if (e.key === 'Enter') handleSaveRename(scenario.id!);
                             if (e.key === 'Escape') handleCancelRename();
                           }}
-                          className="h-8 text-sm flex-grow px-2 py-1 mr-1"
+                          className="h-8 text-sm flex-grow px-2 py-1 mr-2"
                         />
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleSaveRename(scenario.id!)} title="Save name">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleSaveRename(scenario.id!)} title="Save name">
                           <Check className="h-4 w-4 text-green-600" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCancelRename} title="Cancel edit">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCancelRename} title="Cancel edit">
                           <X className="h-4 w-4 text-red-600" />
                         </Button>
                       </div>
@@ -588,17 +589,17 @@ function ToolboxContent({
                       <Button
                         variant={activeScenarioId === scenario.id ? "secondary" : "ghost"}
                         size="sm"
-                        className="w-full justify-start text-sm h-auto py-2 px-3 truncate flex-grow"
+                        className="w-full justify-start text-sm h-auto py-3 px-3 truncate flex-grow font-medium hover:bg-muted/80"
                         onClick={() => handleScenarioClick(scenario.id!)}
                         title={scenario.name}
                       >
-                        <span className={cn("mr-3 h-2.5 w-2.5 rounded-full shrink-0", getPlatformColor(scenario.platform))} />
+                        <span className={cn("mr-3 h-3 w-3 rounded-full shrink-0", getPlatformColor(scenario.platform))} />
                         <span className="truncate flex-grow text-left group-hover:mr-16 transition-all duration-200 ease-in-out">{scenario.name}</span>
                       </Button>
                     )}
                     
                     {editingScenarioId !== scenario.id && (
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-muted/80 rounded-r-md">
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-background/90 backdrop-blur-sm rounded-md">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRenameScenario(scenario)} title="Rename scenario">
                           <Edit3 className="h-4 w-4" />
                         </Button>
@@ -639,8 +640,8 @@ function ToolboxContent({
 
       {/* Section 3: Generated Emails - Fixed height with scrolling, always shown on desktop - Only in Canvas mode */}
       {!isMobile && activeTab === 'canvas' && (
-        <div className="border-t pt-4 flex flex-col flex-shrink-0">
-          <h2 className="mb-3 text-base font-semibold tracking-tight px-1 shrink-0">
+        <div className="border-t pt-6 flex flex-col flex-shrink-0">
+          <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1 shrink-0">
             Generated Emails
           </h2>
           <div className="overflow-hidden h-[20vh]">
@@ -648,15 +649,15 @@ function ToolboxContent({
               {emailNodes && emailNodes.length > 0 ? (
                 <ul className="space-y-2 pb-2">
                   {emailNodes.map((emailNode) => (
-                    <li key={emailNode.id} className="flex items-center group relative rounded-md hover:bg-muted/80">
+                    <li key={emailNode.id} className="flex items-center group relative rounded-lg hover:bg-muted/60 transition-colors duration-200">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full justify-start text-sm h-auto py-2 px-3 truncate flex-grow"
+                        className="w-full justify-start text-sm h-auto py-3 px-3 truncate flex-grow font-medium hover:bg-muted/80"
                         onClick={() => handleEmailNodeClick(emailNode.id)}
                         title={emailNode.title}
                       >
-                        <MailOpen className="mr-3 h-4 w-4 shrink-0 text-blue-500" />
+                        <MailOpen className="mr-3 h-4 w-4 shrink-0 text-primary" />
                         <span className="truncate flex-grow text-left">
                           {emailNode.title}
                         </span>
@@ -678,23 +679,23 @@ function ToolboxContent({
       
       {/* Section 3: Generated Emails - Mobile version only shows when emails exist - Only in Canvas mode */}
       {isMobile && emailNodes && emailNodes.length > 0 && activeTab === 'canvas' && (
-        <div className="border-t pt-4 flex flex-col min-h-0">
-          <h2 className="mb-3 text-base font-semibold tracking-tight px-1 shrink-0">
+        <div className="border-t pt-6 flex flex-col min-h-0">
+          <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1 shrink-0">
             Generated Emails
           </h2>
           <div className="overflow-hidden max-h-24">
             <ScrollArea className="h-full pr-1">
               <ul className="space-y-2 pb-2">
                 {emailNodes.map((emailNode) => (
-                  <li key={emailNode.id} className="flex items-center group relative rounded-md hover:bg-muted/80">
+                  <li key={emailNode.id} className="flex items-center group relative rounded-lg hover:bg-muted/60 transition-colors duration-200">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full justify-start text-sm h-auto py-2 px-3 truncate flex-grow"
+                      className="w-full justify-start text-sm h-auto py-3 px-3 truncate flex-grow font-medium hover:bg-muted/80"
                       onClick={() => handleEmailNodeClick(emailNode.id)}
                       title={emailNode.title}
                     >
-                      <MailOpen className="mr-3 h-4 w-4 shrink-0 text-blue-500" />
+                      <MailOpen className="mr-3 h-4 w-4 shrink-0 text-primary" />
                       <span className="truncate flex-grow text-left">
                         {emailNode.title}
                       </span>
@@ -708,8 +709,6 @@ function ToolboxContent({
       )}
     </div>
   );
-
-  return content;
 }
 
 // Props for ToolboxItem component
@@ -721,7 +720,7 @@ interface ToolboxItemProps {
   onSelect?: (type: NodeType) => void;
 }
 
-// Update ToolboxItem for larger desktop size
+// Updated ToolboxItem for better visual design
 function ToolboxItem({ type, label, isMobile = false, isSelected = false, onSelect }: ToolboxItemProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `tool-${type}`,
@@ -770,35 +769,41 @@ function ToolboxItem({ type, label, isMobile = false, isSelected = false, onSele
       {...attributes}
       {...enhancedListeners}
       className={cn(
-        "flex cursor-grab items-center gap-2 rounded-md border shadow-sm hover:shadow-md transition-all duration-200 relative",
-        isMobile ? "p-3 text-base justify-center flex-col" : "p-3 text-sm",
-        isDragging && "opacity-50",
+        "flex cursor-grab items-center gap-3 rounded-xl border-2 shadow-sm hover:shadow-md transition-all duration-200 relative group",
+        isMobile ? "p-4 text-base justify-center flex-col" : "p-4 text-sm",
+        isDragging && "opacity-50 scale-95",
         isSelected 
-          ? "bg-primary/10 border-primary text-primary shadow-md" 
-          : "bg-background hover:bg-muted"
+          ? "bg-primary/10 border-primary text-primary shadow-md scale-[1.02]" 
+          : "bg-background hover:bg-muted/60 border-border hover:border-primary/30"
       )}
       data-testid={`toolbox-item-${type}`}
       onClick={handleClick}
     >
-      <Icon className={cn(
-        isMobile ? "h-6 w-6" : "h-5 w-5",
-        isSelected && "text-primary"
-      )} />
+      <div className={cn(
+        "p-2 rounded-lg transition-colors duration-200",
+        isSelected ? "bg-primary/20" : "bg-muted/60 group-hover:bg-muted"
+      )}>
+        <Icon className={cn(
+          isMobile ? "h-6 w-6" : "h-5 w-5",
+          isSelected && "text-primary"
+        )} />
+      </div>
       <span className={cn(
+        "font-medium",
         isMobile && "text-center mt-1",
-        isSelected && "text-primary font-medium"
+        isSelected && "text-primary font-semibold"
       )}>
         {label}
       </span>
       
       {isSelected && !isDragging && (
-        <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background" />
       )}
     </li>
   );
 }
 
-// New component for Email Context nodes
+// New component for Email Context nodes with improved design
 interface EmailContextToolboxItemProps {
   type: NodeType;
   label: string;
@@ -858,11 +863,11 @@ function EmailContextToolboxItem({
   }, [listeners, onSelect, type]);
 
   const categoryColors = {
-    audience: "border-purple-500/50 bg-purple-50 dark:bg-purple-950/20",
-    problem: "border-red-500/50 bg-red-50 dark:bg-red-950/20",
-    value: "border-green-500/50 bg-green-50 dark:bg-green-950/20",
-    timing: "border-orange-500/50 bg-orange-50 dark:bg-orange-950/20",
-    trust: "border-blue-500/50 bg-blue-50 dark:bg-blue-950/20",
+    audience: "border-purple-300 bg-purple-50 dark:bg-purple-950/30 dark:border-purple-500/50",
+    problem: "border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-500/50",
+    value: "border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-500/50",
+    timing: "border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-500/50",
+    trust: "border-blue-300 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500/50",
   };
 
   const iconColors = {
@@ -879,33 +884,37 @@ function EmailContextToolboxItem({
       {...attributes}
       {...enhancedListeners}
       className={cn(
-        "flex cursor-grab items-start gap-3 rounded-md border p-3 shadow-sm hover:shadow-md transition-all duration-200 relative",
+        "flex cursor-grab items-start gap-3 rounded-xl border-2 p-4 shadow-sm hover:shadow-md transition-all duration-200 relative group",
         categoryColors[category as keyof typeof categoryColors] || "bg-background",
-        isDragging && "opacity-50",
-        isSelected && "ring-2 ring-primary"
+        isDragging && "opacity-50 scale-95",
+        isSelected && "ring-2 ring-primary scale-[1.02]"
       )}
       onClick={handleClick}
     >
-      <Icon className={cn(
-        "h-5 w-5 mt-0.5 flex-shrink-0",
-        iconColors[category as keyof typeof iconColors] || "text-foreground"
-      )} />
+      <div className={cn(
+        "p-2 rounded-lg transition-colors duration-200 bg-white/60 dark:bg-gray-900/60"
+      )}>
+        <Icon className={cn(
+          "h-5 w-5 flex-shrink-0",
+          iconColors[category as keyof typeof iconColors] || "text-foreground"
+        )} />
+      </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-sm">{label}</div>
-        <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
-        <div className="text-xs text-foreground/70 mt-1 font-mono bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-sm inline-block">
+        <div className="font-semibold text-sm">{label}</div>
+        <div className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</div>
+        <div className="text-xs text-foreground/80 mt-2 font-mono bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md inline-block">
           &quot;{defaultValue}&quot;
         </div>
       </div>
       
       {isSelected && !isDragging && (
-        <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background" />
       )}
     </li>
   );
 }
 
-// Add this new component to Toolbox.tsx
+// Updated mobile alternative templates button
 export function MobileAlternativeTemplatesButton({ 
   alternatives, 
   currentSearchQuery, 
@@ -927,11 +936,11 @@ export function MobileAlternativeTemplatesButton({
         <Button
           size="sm"
           variant="outline"
-          className="fixed bottom-4 right-4 z-50 lg:hidden shadow-lg px-3 py-2 h-auto flex flex-col items-center gap-1"
+          className="fixed bottom-4 right-4 z-50 lg:hidden shadow-lg px-3 py-2 h-auto flex flex-col items-center gap-1 font-medium"
           title="Alternative Templates"
         >
           <Workflow className="h-4 w-4" />
-          <span className="text-xs font-medium">
+          <span className="text-xs">
             {alternatives.length > 0 ? `${alternatives.length} Alt` : 'Alt'}
           </span>
         </Button>
@@ -940,7 +949,7 @@ export function MobileAlternativeTemplatesButton({
         <div className="flex flex-col h-full">
           {/* Add proper SheetHeader and SheetTitle for accessibility */}
           <SheetHeader className="pb-4">
-            <SheetTitle className="text-lg">Alternative Templates</SheetTitle>
+            <SheetTitle className="text-lg font-display">Alternative Templates</SheetTitle>
             {currentSearchQuery && (
               <p className="text-sm text-muted-foreground">
                 Based on your search: &apos;{currentSearchQuery}&apos;
@@ -950,7 +959,8 @@ export function MobileAlternativeTemplatesButton({
           
           {alternatives.length > 0 ? (
             <ScrollArea className="flex-1">
-              <div className="grid grid-cols-1 gap-4">                {alternatives.map((alt, index) => {
+              <div className="grid grid-cols-1 gap-4">
+                {alternatives.map((alt, index) => {
                   // Extract key information
                   const triggerNode = alt.nodesSnapshot?.find((n: Record<string, unknown>) => n.type === 'trigger');
                   const uniqueApps = [...new Set(alt.nodesSnapshot?.map((n: Record<string, unknown>) => (n.data as Record<string, unknown>)?.appName).filter(Boolean))];
@@ -958,20 +968,20 @@ export function MobileAlternativeTemplatesButton({
                   return (
                     <div
                       key={alt.templateId || index}
-                      className="bg-card border rounded-lg p-4 space-y-3"
+                      className="bg-card border rounded-xl p-4 space-y-3 hover:bg-muted/30 transition-colors duration-200"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="font-semibold text-base mb-1 line-clamp-2">
+                          <h4 className="font-display font-semibold text-base mb-1 line-clamp-2">
                             {alt.title || 'Untitled Alternative'}
                           </h4>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                            <span>{alt.nodesCount ?? 0} nodes</span>
+                            <span className="font-mono">{alt.nodesCount ?? 0} nodes</span>
                             <span className="capitalize">{alt.platform || 'Unknown'}</span>
                           </div>
                         </div>
                         <div className="flex-shrink-0">
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs font-medium">
                             {(alt.platform || 'Unknown').toUpperCase()}
                           </Badge>
                         </div>
@@ -979,7 +989,8 @@ export function MobileAlternativeTemplatesButton({
                       
                       <div className="space-y-2">
                         {triggerNode && (
-                          <div className="text-xs">                            <span className="font-medium text-muted-foreground">Trigger: </span>
+                          <div className="text-xs">
+                            <span className="font-medium text-muted-foreground">Trigger: </span>
                             <span>
                               {`${(triggerNode.data as Record<string, unknown>)?.appName || 'Unknown'} - ${(triggerNode.data as Record<string, unknown>)?.label || 'Unknown Trigger'}`}
                             </span>
@@ -999,7 +1010,7 @@ export function MobileAlternativeTemplatesButton({
                       <Button
                         variant="default"
                         size="sm"
-                        className="w-full"
+                        className="w-full font-medium"
                         onClick={() => {
                           onSelectAlternative(alt);
                           setIsOpen(false);
@@ -1026,7 +1037,7 @@ export function MobileAlternativeTemplatesButton({
             <Button 
               variant="outline" 
               size="sm" 
-              className="w-full"
+              className="w-full font-medium"
               onClick={() => currentSearchQuery && onFindNewAlternatives(currentSearchQuery)}
               disabled={!currentSearchQuery || isLoadingAlternatives}
             >

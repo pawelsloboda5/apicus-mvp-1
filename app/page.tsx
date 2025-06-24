@@ -6,6 +6,13 @@ import { Wand2, BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Ro
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
+// Dynamic import to prevent SSR issues with sessionStorage
+const ImportWorkflowDialog = dynamic(
+  () => import("@/components/flow/ImportWorkflowDialog").then(mod => mod.ImportWorkflowDialog),
+  { ssr: false }
+);
 
 // Simple Badge component
 function Badge({ 
@@ -40,6 +47,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [searching, setSearching] = useState(false);
   const [currentBenefit, setCurrentBenefit] = useState(0);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   
@@ -146,13 +154,11 @@ export default function Home() {
               {/* Primary CTA - Import Workflow */}
               <Button 
                 size="lg" 
-                asChild
+                onClick={() => setImportDialogOpen(true)}
                 className="animate-pulse-glow px-12 py-6 text-xl font-bold shadow-lg"
               >
-                <Link href="/build?import=true">
-                  <Upload className="mr-3 h-6 w-6" />
-                  Import from Make, n8n, or Zapier
-                </Link>
+                <Upload className="mr-3 h-6 w-6" />
+                Import from Make, n8n, or Zapier
               </Button>
 
               <span className="text-sm font-medium text-muted-foreground">or</span>
@@ -421,11 +427,9 @@ export default function Home() {
             Start building ROI-backed proposals today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button size="lg" asChild className="animate-pulse-glow px-12 py-6 text-xl font-bold">
-              <Link href="/build?import=true">
-                <Upload className="mr-3 h-6 w-6" />
-                Import Your Workflow
-              </Link>
+            <Button size="lg" onClick={() => setImportDialogOpen(true)} className="animate-pulse-glow px-12 py-6 text-xl font-bold">
+              <Upload className="mr-3 h-6 w-6" />
+              Import Your Workflow
             </Button>
             <Button size="lg" variant="outline" asChild className="px-12 py-6 text-xl font-bold">
               <Link href="/build">
@@ -436,6 +440,12 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Import Dialog */}
+      <ImportWorkflowDialog 
+        isOpen={importDialogOpen} 
+        onClose={() => setImportDialogOpen(false)} 
+      />
     </main>
   );
 }

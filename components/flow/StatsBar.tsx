@@ -27,7 +27,8 @@ import {
   Code,
   CheckSquare,
   Sun,
-  Moon
+  Moon,
+  Timer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlatformType, Scenario } from "@/lib/types";
@@ -44,7 +45,8 @@ interface StatsBarProps {
   runsPerMonth: number;
   minutesPerRun: number;
   hourlyRate: number;
-  taskMultiplier: number;  onUpdateRuns: (runs: number) => void;
+  taskMultiplier: number;
+  onUpdateRuns: (runs: number) => void;
   onUpdateMinutes: (minutes: number) => void;
   nodes?: Node[];
   currentScenario?: Scenario | null;
@@ -120,7 +122,8 @@ export function StatsBar({
   runsPerMonth,
   minutesPerRun,
   hourlyRate,
-  taskMultiplier,  onUpdateRuns,
+  taskMultiplier,
+  onUpdateRuns,
   onUpdateMinutes,
   nodes,
   onPlatformChange,
@@ -177,7 +180,6 @@ export function StatsBar({
   const isCompact = screenSize === 'xs' || screenSize === 'sm';
   const isUltraCompact = screenSize === 'xs';
   const showFullLabels = screenSize === 'lg' || screenSize === 'xl';
-  const showIcons = !showFullLabels;
 
   // Platform switcher component
   const PlatformSwitcher = () => {
@@ -212,10 +214,10 @@ export function StatsBar({
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="h-10 gap-2">
+          <Button variant="outline" size="sm" className="h-10 gap-2 font-medium">
             <PlatformIcon className="h-4 w-4" />
             {!isCompact && <span className="text-sm">{config.name}</span>}
-            <ChevronDown className="h-3 w-3" />
+            <ChevronDown className="h-3 w-3 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-40 p-1">
@@ -415,7 +417,7 @@ export function StatsBar({
                 onClick={onCreateGroup}
               >
                 <Calculator className="h-4 w-4" />
-                {!isCompact && <span className="text-sm">Group ({selectedIds.length})</span>}
+                {!isCompact && <span className="text-sm font-medium">Group ({selectedIds.length})</span>}
                 {isCompact && <Badge variant="secondary" className="text-xs px-2">{selectedIds.length}</Badge>}
               </Button>
             </TooltipTrigger>
@@ -431,7 +433,7 @@ export function StatsBar({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-10"
+                className="h-10 font-medium"
                 onClick={onUngroup}
               >
                 {isCompact ? "Ungroup" : "Ungroup"}
@@ -445,6 +447,7 @@ export function StatsBar({
       </div>
     );
   };
+
   // Stat item component
   const StatItem = ({
     label,
@@ -491,7 +494,7 @@ export function StatsBar({
           <TooltipTrigger asChild>
             <div className="flex flex-col items-center min-w-0">
               {IconComponent && <IconComponent className={cn("h-4 w-4 mb-1", color)} />}
-              <span className={cn("text-xs font-mono tabular-nums", color)}>
+              <span className={cn("text-xs font-mono tabular-nums font-semibold", color)}>
                 {displayValue}
               </span>
             </div>
@@ -505,13 +508,14 @@ export function StatsBar({
 
     return (
       <div className="flex flex-col items-center text-center min-w-0">
-        {showIcons && IconComponent && (
+        {!showFullLabels && IconComponent && (
           <IconComponent className={cn("h-4 w-4 mb-1", color)} />
         )}
-          {showFullLabels && (
+        
+        {showFullLabels && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="text-xs text-muted-foreground whitespace-nowrap mb-1 cursor-help">
+              <div className="text-xs text-muted-foreground whitespace-nowrap mb-1 cursor-help font-medium">
                 {label}
               </div>
             </TooltipTrigger>
@@ -564,7 +568,8 @@ export function StatsBar({
                 )}
               </PopoverContent>
             </Popover>
-          ) : (            <span className={cn("font-mono text-base font-semibold tabular-nums", color)}>
+          ) : (
+            <span className={cn("font-mono text-base font-semibold tabular-nums", color)}>
               {displayValue}
             </span>
           )}
@@ -681,17 +686,11 @@ export function StatsBar({
     onUpdateRuns(newValue);
   };
 
-  const statsToShow = isUltraCompact 
-    ? ['runs', 'minutes', 'roi'] 
-    : isCompact 
-    ? ['runs', 'minutes', 'value', 'roi']
-    : ['runs', 'minutes', 'value', 'cost', 'net', 'roi'];
-
-  // ROI Metrics Display Component
+  // ROI Metrics Display Component - Redesigned for consistency
   const ROIMetricsDisplay = () => {
     const isPositiveROI = netROI > 0;
     const paybackDays = platformCost > 0 ? Math.ceil(platformCost / (netROI / 30)) : 0;
-    const paybackPeriod = paybackDays > 30 ? `${Math.ceil(paybackDays / 30)} months` : `${paybackDays} days`;
+    const paybackPeriod = paybackDays > 30 ? `${Math.ceil(paybackDays / 30)}mo` : `${paybackDays}d`;
     const timeSavedHours = (runsPerMonth * minutesPerRun) / 60;
     const formattedRoiRatio = formatROIRatio(roiRatio);
 
@@ -703,8 +702,8 @@ export function StatsBar({
               variant="ghost"
               size="sm"
               className={cn(
-                "h-10 px-2",
-                isPositiveROI ? "text-green-600" : "text-red-600"
+                "h-10 px-2 font-semibold",
+                isPositiveROI ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
               )}
             >
               <TrendingUp className="h-4 w-4 mr-1" />
@@ -713,34 +712,34 @@ export function StatsBar({
           </PopoverTrigger>
           <PopoverContent className="w-80 p-4">
             <div className="space-y-3">
-              <h3 className="font-semibold text-sm">ROI Metrics</h3>
+              <h3 className="font-display font-semibold text-sm">ROI Metrics</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Time Saved</p>
+                  <p className="text-muted-foreground font-medium">Time Saved</p>
                   <p className="font-semibold">{timeSavedHours.toFixed(1)} hrs/mo</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Time Value</p>
+                  <p className="text-muted-foreground font-medium">Time Value</p>
                   <p className="font-semibold text-green-600">${timeValue.toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Platform Cost</p>
+                  <p className="text-muted-foreground font-medium">Platform Cost</p>
                   <p className="font-semibold text-red-600">${platformCost.toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Net ROI</p>
+                  <p className="text-muted-foreground font-medium">Net ROI</p>
                   <p className={cn("font-semibold", isPositiveROI ? "text-green-600" : "text-red-600")}>
                     ${netROI.toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">ROI Ratio</p>
+                  <p className="text-muted-foreground font-medium">ROI Ratio</p>
                   <p className={cn("font-semibold", isPositiveROI ? "text-green-600" : "text-red-600")}>
                     {formattedRoiRatio}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Payback Period</p>
+                  <p className="text-muted-foreground font-medium">Payback Period</p>
                   <p className="font-semibold">{paybackPeriod}</p>
                 </div>
               </div>
@@ -750,69 +749,72 @@ export function StatsBar({
       );
     }
 
+    // Desktop view - uniform metrics display
+    const metrics = [
+      {
+        icon: Timer,
+        value: `${timeSavedHours.toFixed(1)}h`,
+        label: "Time saved per month",
+        color: "text-blue-600 dark:text-blue-400"
+      },
+      {
+        icon: DollarSign,
+        value: `$${Math.abs(netROI).toLocaleString()}`,
+        label: "Net monthly ROI",
+        color: isPositiveROI ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+      },
+      {
+        icon: TrendingUp,
+        value: formattedRoiRatio,
+        label: "Return on investment ratio",
+        color: isPositiveROI ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+      },
+      ...(showFullLabels ? [{
+        icon: ShieldCheck,
+        value: paybackPeriod,
+        label: "Time to break even",
+        color: "text-muted-foreground"
+      }] : [])
+    ];
+
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <Separator orientation="vertical" className="h-8" />
         
-        {/* Time Saved */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-1 px-2">
-              <Clock className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-mono">{timeSavedHours.toFixed(1)}h</span>
+        {metrics.map((metric, index) => {
+          const Icon = metric.icon;
+          return (
+            <div key={index} className="flex flex-col items-center text-center min-w-0">
+              {!showFullLabels && (
+                <Icon className={cn("h-4 w-4 mb-1", metric.color)} />
+              )}
+              
+              {showFullLabels && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-xs text-muted-foreground whitespace-nowrap mb-1 cursor-help font-medium">
+                      {metric.label.split(' ').slice(0, 2).join(' ')}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{metric.label}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={cn("font-mono text-base font-semibold tabular-nums", metric.color)}>
+                    {metric.value}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{metric.label}: {metric.value}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Time saved per month</p>
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Net ROI */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className={cn(
-              "flex items-center gap-1 px-2",
-              isPositiveROI ? "text-green-600" : "text-red-600"
-            )}>
-              <TrendingUp className="h-4 w-4" />
-              <span className="text-sm font-mono">${Math.abs(netROI).toLocaleString()}</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Net monthly ROI</p>
-          </TooltipContent>
-        </Tooltip>
-
-        {/* ROI Ratio */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge 
-              variant={isPositiveROI ? "default" : "destructive"}
-              className="gap-1"
-            >
-              <Percent className="h-3 w-3" />
-              {formattedRoiRatio}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Return on investment ratio</p>
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Payback Period */}
-        {showFullLabels && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1 px-2 text-sm text-muted-foreground">
-                <ShieldCheck className="h-4 w-4" />
-                <span>{paybackPeriod}</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Time to break even</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+          );
+        })}
       </div>
     );
   };
@@ -822,62 +824,54 @@ export function StatsBar({
       <div className="flex items-center justify-between gap-3 px-4 py-3 bg-background border-b min-h-[64px]">
         {/* Left side - App name */}
         <div className="flex items-center flex-shrink-0">
-          <h1 className="text-lg font-bold tracking-tight text-foreground">
+          <h1 className="text-lg font-display font-bold tracking-tight text-foreground">
             Apicus.io
           </h1>
         </div>
 
         {/* Center - Stats */}
         <div className="flex items-center gap-3 md:gap-6 flex-1 justify-center">
-          {statsToShow.includes('runs') && (
-            <>
-              <StatItem
-                label="Runs"
-                value={runsPerMonth >= 1000 ? `${(runsPerMonth / 1000).toFixed(1)}k` : runsPerMonth}
-                icon={Zap}
-                color="text-primary"
-                onIncrement={incrementRuns}
-                onDecrement={decrementRuns}
-                popoverEditConfig={{
-                  isOpen: editingRuns,
-                  onOpenChange: setEditingRuns,
-                  inputValue: tempRuns,
-                  onInputChange: handleRunsChangeInput,
-                  onInputKeyDown: handleRunsKeyDown,
-                  onInputBlur: handleRunsBlur,
-                  inputAriaLabel: "Edit runs per month",
-                  helpText: "Number of automation runs per month."
-                }}
-              />
-              {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
-            </>
-          )}
+          <StatItem
+            label="Runs"
+            value={runsPerMonth >= 1000 ? `${(runsPerMonth / 1000).toFixed(1)}k` : runsPerMonth}
+            icon={Zap}
+            color="text-primary"
+            onIncrement={incrementRuns}
+            onDecrement={decrementRuns}
+            popoverEditConfig={{
+              isOpen: editingRuns,
+              onOpenChange: setEditingRuns,
+              inputValue: tempRuns,
+              onInputChange: handleRunsChangeInput,
+              onInputKeyDown: handleRunsKeyDown,
+              onInputBlur: handleRunsBlur,
+              inputAriaLabel: "Edit runs per month",
+              helpText: "Number of automation runs per month."
+            }}
+          />
+          
+          {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
 
-          {statsToShow.includes('minutes') && (
-            <>
-              <StatItem
-                label="Minutes"
-                value={minutesPerRun}
-                icon={Clock}
-                color="text-primary"
-                onIncrement={incrementMinutes}
-                onDecrement={decrementMinutes}
-                popoverEditConfig={{
-                  isOpen: editingMinutes,
-                  onOpenChange: setEditingMinutes,
-                  inputValue: tempMinutes,
-                  onInputChange: handleMinutesChangeInput,
-                  onInputKeyDown: handleMinutesKeyDown,
-                  onInputBlur: handleMinutesBlur,
-                  inputAriaLabel: "Edit average minutes saved per run",
-                  helpText: "Minutes saved per run (e.g., 0.5, 5)."
-                }}
-              />
-              {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
-            </>
-          )}
+          <StatItem
+            label="Minutes"
+            value={minutesPerRun}
+            icon={Clock}
+            color="text-primary"
+            onIncrement={incrementMinutes}
+            onDecrement={decrementMinutes}
+            popoverEditConfig={{
+              isOpen: editingMinutes,
+              onOpenChange: setEditingMinutes,
+              inputValue: tempMinutes,
+              onInputChange: handleMinutesChangeInput,
+              onInputKeyDown: handleMinutesKeyDown,
+              onInputBlur: handleMinutesBlur,
+              inputAriaLabel: "Edit average minutes saved per run",
+              helpText: "Minutes saved per run (e.g., 0.5, 5)."
+            }}
+          />
 
-          {/* Replace individual stat items with comprehensive ROI display */}
+          {/* ROI Metrics Display */}
           <ROIMetricsDisplay />
         </div>
 

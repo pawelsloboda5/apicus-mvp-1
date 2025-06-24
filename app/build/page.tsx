@@ -1,3 +1,5 @@
+"use client";
+
 import { Suspense } from 'react';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -107,6 +109,7 @@ function BuildPageContent() {
   const scenarioIdParam = params.get("sid");
   const templateIdParam = params.get("tid");
   const queryParam = params.get("q");
+  const importParam = params.get("import");
   const { setTheme } = useTheme();
 
   // Force light mode when entering the canvas
@@ -207,6 +210,12 @@ function BuildPageContent() {
   };
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Ensure client-side only operations
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // After existing imports, add:
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -412,8 +421,20 @@ function BuildPageContent() {
 
   // Ensure a Scenario exists (or load existing one)
   useEffect(() => {
+    // Skip on server-side rendering or before mount
+    if (typeof window === 'undefined' || !isMounted) {
+      return;
+    }
+    
     setIsLoading(true);
     async function manageScenario() {
+      console.log('[Build] manageScenario called with params:', {
+        scenarioIdParam,
+        templateIdParam,
+        queryParam,
+        importParam
+      });
+      
       let activeScenarioIdToLoad: number | null = scenarioIdParam ? Number(scenarioIdParam) : null;
       let scenarioToLoad: Scenario | undefined;
       let primaryTemplateData: {
@@ -441,16 +462,23 @@ function BuildPageContent() {
         setScenarioId(activeScenarioIdToLoad);
       } else {
         // No valid sid or scenario not found, create a new one
-        const newName = templateIdParam ? "Loading Template..." : (queryParam ? `Search: ${queryParam}` : "Untitled Scenario");
+        const newName = templateIdParam ? "Loading Template..." : (queryParam ? `Search: ${queryParam}` : (importParam === 'session' ? "Imported Workflow" : "Untitled Scenario"));
         const newId = await createScenario(newName);
         setScenarioId(newId);
         activeScenarioIdToLoad = newId;
+        
+        // If importing, set platform to 'make' 
+        if (importParam === 'session') {
+          await db.scenarios.update(newId, { platform: 'make' });
+        }
+        
         scenarioToLoad = await db.scenarios.get(newId); // Fetch the newly created scenario
 
         const urlQuery = new URLSearchParams(window.location.search);
         urlQuery.set("sid", String(newId));
         if (templateIdParam) urlQuery.set("tid", templateIdParam);
         if (queryParam) urlQuery.set("q", queryParam); // Persist q
+        // Don't remove import param yet - it's needed for processing
         // Only replace history if scenarioIdParam was missing or invalid
         if (!scenarioIdParam || scenarioIdParam !== String(newId)) {
             router.replace(`/build?${urlQuery.toString()}`, { scroll: false });
@@ -459,9 +487,37 @@ function BuildPageContent() {
       
       // Moved setCurrentScenario and template loading logic to after this block
       // to ensure scenarioId state is set first.
+      
+      console.log('[Import] Current state:', {
+        importParam,
+        scenarioIdParam,
+        activeScenarioIdToLoad,
+        hasNodes: scenarioToLoad?.nodesSnapshot?.length || 0
+      });
+
+      // Handle imported workflow from sessionStorage
+      if (importParam === 'session' && scenarioToLoad && activeScenarioIdToLoad && (!scenarioToLoad.nodesSnapshot || scenarioToLoad.nodesSnapshot.length === 0)) {
+        console.log('[Import] Checking for imported template in sessionStorage...');
+        try {
+          // Ensure we're on the client side before accessing sessionStorage
+          if (typeof window !== 'undefined' && window.sessionStorage) {
+            const importedTemplateStr = sessionStorage.getItem('importedTemplate');
+            if (importedTemplateStr) {
+              console.log('[Import] Found template in sessionStorage, parsing...');
+              primaryTemplateData = JSON.parse(importedTemplateStr);
+              console.log('[Import] Parsed template:', primaryTemplateData);
+              sessionStorage.removeItem('importedTemplate'); // Clean up
+            } else {
+              console.log('[Import] No template found in sessionStorage');
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load imported template:', err);
+        }
+      }
 
       // Fetch primary template if tid is present AND scenario lacks nodes/edges (i.e., needs initialization)
-      if (templateIdParam && scenarioToLoad && activeScenarioIdToLoad && (!scenarioToLoad.nodesSnapshot || scenarioToLoad.nodesSnapshot.length === 0)) {
+      else if (templateIdParam && scenarioToLoad && activeScenarioIdToLoad && (!scenarioToLoad.nodesSnapshot || scenarioToLoad.nodesSnapshot.length === 0)) {
         try {
           const res = await fetch(`/api/templates/${templateIdParam}`);
           if (!res.ok) throw new Error("Primary template fetch failed");
@@ -491,6 +547,34 @@ function BuildPageContent() {
           }
         }
       } else if (templateIdParam && scenarioToLoad) {
+      }
+      
+      // Process primaryTemplateData if it was loaded from import
+      if (primaryTemplateData && primaryTemplateData.nodes && primaryTemplateData.edges && activeScenarioIdToLoad) {
+        console.log('[Import] Processing imported template data...');
+        const updatedScenarioData: Partial<Scenario> = {
+          name: primaryTemplateData.title || scenarioToLoad?.name || "Imported Workflow",
+          nodesSnapshot: primaryTemplateData.nodes.map((n: any) => ({
+            id: n.reactFlowId, type: n.type, position: n.position, data: n.data,
+          })),
+          edgesSnapshot: primaryTemplateData.edges.map((e: any) => ({
+            id: e.reactFlowId, source: e.data?.source || e.source, target: e.data?.target || e.target, label: e.label, data: e.data, type: 'custom',
+          })),
+          platform: (primaryTemplateData.platform || primaryTemplateData.source || scenarioToLoad?.platform || "make") as LibPlatformType,
+          originalTemplateId: (primaryTemplateData as any).templateId || importParam,
+          searchQuery: queryParam || scenarioToLoad?.searchQuery,
+          updatedAt: Date.now(),
+        };
+        console.log('[Import] Updating scenario with:', updatedScenarioData);
+        await db.scenarios.update(activeScenarioIdToLoad, updatedScenarioData);
+        scenarioToLoad = { ...scenarioToLoad, ...updatedScenarioData } as Scenario;
+        
+        // Clean up the URL after successful import
+        if (importParam === 'session') {
+          const cleanUrl = new URLSearchParams(window.location.search);
+          cleanUrl.delete("import");
+          router.replace(`/build?${cleanUrl.toString()}`, { scroll: false });
+        }
       }
       
       // Set currentScenario here after all potential modifications
@@ -603,7 +687,7 @@ function BuildPageContent() {
       setIsLoading(false);
     }
     manageScenario();
-  }, [scenarioIdParam, templateIdParam, queryParam, router]); // Added router to dependencies
+  }, [scenarioIdParam, templateIdParam, queryParam, router, importParam, isMounted]); // Added router and isMounted to dependencies
 
   // Load scenario data once rfInstance is available AND currentScenario is set
   useEffect(() => {
@@ -2343,7 +2427,21 @@ function BuildPageContent() {
                     selectedNode={selectedEmailNode}
                     onClose={() => setSelectedEmailNodeId(null)}
                     onUpdateNodeData={handleUpdateEmailNodeData}
-                    onGenerateSection={handleGenerateEmailSectionAI}
+                    onGenerateSection={async (nodeId: string, section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency') => {
+                      // Get current text for the section
+                      const emailNode = nodes.find(n => n.id === nodeId && n.type === 'emailPreview');
+                      const emailData = emailNode?.data as EmailPreviewNodeData | undefined;
+                      const fieldKey = section === 'subject' ? 'subjectLine' : `${section}Text` as keyof EmailPreviewNodeData;
+                      const currentText = String(emailData?.[fieldKey] || '');
+                      
+                      // Default prompt type - this would need to be enhanced to use actual user selection
+                      const promptType = `standard_${section}_standard_professional_warm`;
+                      
+                      // Get selected context nodes from somewhere (e.g., from the email node data)
+                      const selectedContextNodes: string[] = [];
+                      
+                      await handleGenerateEmailSectionAI(nodeId, section, promptType, currentText, selectedContextNodes);
+                    }}
                     isGeneratingAIContent={isGeneratingAIContent}
                     emailContextNodes={emailContextNodes}
                   />

@@ -59,10 +59,7 @@ export function FlowCanvas({
   onNodeTypeChange?: (type: NodeType) => void;
   handleRegenerateSection?: (
     nodeId: string, 
-    section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
-    promptType: string,
-    currentText: string,
-    selectedContextNodes?: string[]
+    section: string
   ) => Promise<void>;
 }) {
   // Local state to track selection mode
@@ -544,10 +541,7 @@ export function FlowCanvas({
             ...props.data,
             onRegenerateSection: (section: string) => handleRegenerateSection(
               props.id, 
-              section as 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
-              'regenerate', 
-              '', 
-              []
+              section
             ),
           }
         });

@@ -6,6 +6,9 @@ import {
   ImportError
 } from './types';
 
+// Re-export ImportError so it can be imported from this module
+export { ImportError };
+
 // Type guards for platform detection
 interface ObjectWithFlow {
   flow: unknown;

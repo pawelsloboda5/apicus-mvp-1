@@ -34,14 +34,16 @@ export function CustomEdge({
       path={edgePath}
       style={{
         ...style,
-        strokeWidth: isEmailContext ? 6 : 2,
-        opacity: isEmailContext ? 0.8 : 1,
+        strokeWidth: isEmailContext ? 3 : 2,
+        opacity: isEmailContext ? 0.9 : 0.8,
+        strokeDasharray: isEmailContext ? "none" : "none",
       }}
       className={cn(
-        "!stroke-foreground/50",
-        isTrue && "!stroke-green-500 dark:!stroke-green-400",
-        isFalse && "!stroke-red-500 dark:!stroke-red-400",
-        isEmailContext && "!stroke-purple-500 dark:!stroke-purple-400 animate-pulse"
+        "transition-all duration-200",
+        "!stroke-muted-foreground/60 hover:!stroke-muted-foreground",
+        isTrue && "!stroke-green-500 dark:!stroke-green-400 hover:!stroke-green-600 dark:hover:!stroke-green-300",
+        isFalse && "!stroke-red-500 dark:!stroke-red-400 hover:!stroke-red-600 dark:hover:!stroke-red-300",
+        isEmailContext && "!stroke-primary dark:!stroke-primary hover:!stroke-primary/80 animate-pulse"
       )}
     />
   );

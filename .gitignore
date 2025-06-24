@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# test outputs
+parsed-make-workflow.json
+imported-workflow-with-pricing.json
+test-make-parser.ts
