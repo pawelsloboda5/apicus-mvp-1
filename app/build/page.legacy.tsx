@@ -63,7 +63,7 @@ import {
 } from "@/lib/roi-utils";
 import { PlatformType as LibPlatformType, NodeType, NodeData } from "@/lib/types";
 import { captureROISnapshot, shouldCaptureSnapshot } from "@/lib/metrics-utils";
-import { cacheTemplatePricingInScenario, getScenarioTemplatePricing } from "@/lib/template-pricing-utils";
+import { cacheTemplatePricingInScenario } from "@/lib/template-pricing-utils";
 
 
 // Disable SSR for Toolbox because dnd-kit generates ids non-deterministically, which causes hydration mismatch warnings.
