@@ -1,5 +1,5 @@
 import { parseMakeBlueprint } from '@/lib/import/parsers/make';
-import { createApicusTemplate } from './types';
+import { mapMakeToApicus } from './make-to-apicus-mapper';
 import fs from 'fs';
 import path from 'path';
 
@@ -21,7 +21,7 @@ async function testMakeImport() {
     console.log('- Platform:', workflow.metadata.platform);
     
     // Create Apicus template
-    const template = createApicusTemplate(workflow);
+    const template = mapMakeToApicus(jsonData);
     console.log('\nCreated template:');
     console.log('- Template ID:', template.templateId);
     console.log('- Title:', template.title);
