@@ -1,16 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Node, Edge, Viewport } from '@xyflow/react';
 import { toast } from 'sonner';
-import { Scenario, AlternativeTemplate, TemplateData } from '@/lib/types';
+import { Scenario, TemplateResponse } from '@/lib/types';
 import { db, createScenario as dbCreateScenario } from '@/lib/db';
 import { 
   ERROR_MESSAGES, 
   SUCCESS_MESSAGES, 
   API_CONFIG,
-  STORAGE_KEYS,
-  LIMITS,
   ANIMATION_CONFIG
 } from '@/lib/utils/constants';
 
@@ -26,7 +23,7 @@ export interface UseScenarioManagerOptions {
 export interface ScenarioState {
   currentScenario: Scenario | null;
   scenarios: Scenario[];
-  alternativeTemplates: AlternativeTemplate[];
+  alternativeTemplates: TemplateResponse[];
   isLoading: boolean;
   isSaving: boolean;
   lastSaved: Date | null;
@@ -136,7 +133,7 @@ export function useScenarioManager({
   }, [state.currentScenario]);
 
   // Create new scenario
-  const createScenario = useCallback(async (name: string, templateData?: TemplateData) => {
+  const createScenario = useCallback(async (name: string, templateData?: Partial<Scenario>) => {
     setState(prev => ({ ...prev, isSaving: true }));
 
     try {
@@ -219,6 +216,27 @@ export function useScenarioManager({
     // onScenarioChange should only be called when loading/creating scenarios
   }, [state.currentScenario, saveScenario, autoSaveInterval]);
 
+  // Load all scenarios
+  const loadAllScenarios = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoading: true }));
+
+    try {
+      const scenarios = await db.scenarios.orderBy('updatedAt').reverse().toArray();
+      
+      setState(prev => ({
+        ...prev,
+        scenarios,
+        isLoading: false,
+      }));
+
+      return scenarios;
+    } catch (error) {
+      setState(prev => ({ ...prev, isLoading: false }));
+      toast.error(ERROR_MESSAGES.scenario.loadFailed);
+      throw error;
+    }
+  }, []);
+
   // Delete scenario
   const deleteScenario = useCallback(async (scenarioId: string) => {
     try {
@@ -243,28 +261,7 @@ export function useScenarioManager({
       toast.error(errorMessage);
       throw error;
     }
-  }, []);
-
-  // Load all scenarios
-  const loadAllScenarios = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true }));
-
-    try {
-      const scenarios = await db.scenarios.orderBy('updatedAt').reverse().toArray();
-      
-      setState(prev => ({
-        ...prev,
-        scenarios,
-        isLoading: false,
-      }));
-
-      return scenarios;
-    } catch (error) {
-      setState(prev => ({ ...prev, isLoading: false }));
-      toast.error(ERROR_MESSAGES.scenario.loadFailed);
-      throw error;
-    }
-  }, []);
+  }, [loadAllScenarios]);
 
   // Search alternative templates
   const searchAlternativeTemplates = useCallback(async (query: string) => {
@@ -320,7 +317,7 @@ export function useScenarioManager({
     return () => {
       mounted = false;
     };
-  }, [initialScenarioId]); // Only depend on initialScenarioId
+  }, [initialScenarioId, loadScenario, loadAllScenarios]);
 
   // Cleanup auto-save timeout
   useEffect(() => {

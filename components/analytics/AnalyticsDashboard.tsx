@@ -67,7 +67,7 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
     
     setPreviousMetrics(metrics);
     setPreviousNodeCount(nodeCount);
-  }, [scenario?.id, metrics?.netROI, nodes.length]); // Fixed dependencies
+  }, [scenario, metrics, nodes, previousMetrics, previousNodeCount]); // Include all dependencies
   
   // Manual snapshot handler
   const handleCaptureSnapshot = async () => {
@@ -215,7 +215,7 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
       console.error('Error transforming flow time data:', error);
       return null;
     }
-  }, [nodes, scenario?.minutesPerRun]);
+  }, [nodes, scenario]);
   
   const handleFlowNodeClick = (nodeId: string) => {
     setHighlightedNodeId(nodeId);

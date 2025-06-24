@@ -14,7 +14,6 @@ import {
   TrendingUp, 
   DollarSign, 
   ShieldCheck, 
-  Percent, 
   Plus, 
   MinusIcon, 
   PlusIcon, 

@@ -29,22 +29,35 @@ export function CustomEdge({
   const isEmailContext = data?.isEmailContext === true;
 
   return (
-    <BaseEdge
-      id={id}
-      path={edgePath}
-      style={{
-        ...style,
-        strokeWidth: isEmailContext ? 3 : 2,
-        opacity: isEmailContext ? 0.9 : 0.8,
-        strokeDasharray: isEmailContext ? "none" : "none",
-      }}
-      className={cn(
-        "transition-all duration-200",
-        "!stroke-muted-foreground/60 hover:!stroke-muted-foreground",
-        isTrue && "!stroke-green-500 dark:!stroke-green-400 hover:!stroke-green-600 dark:hover:!stroke-green-300",
-        isFalse && "!stroke-red-500 dark:!stroke-red-400 hover:!stroke-red-600 dark:hover:!stroke-red-300",
-        isEmailContext && "!stroke-primary dark:!stroke-primary hover:!stroke-primary/80 animate-pulse"
-      )}
-    />
+    <>
+      {/* Invisible larger hitbox for easier interaction */}
+      <BaseEdge
+        id={`${id}-hitbox`}
+        path={edgePath}
+        style={{
+          strokeWidth: 20,
+          opacity: 0,
+          cursor: 'pointer',
+        }}
+      />
+      {/* Visible edge */}
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        style={{
+          ...style,
+          strokeWidth: isEmailContext ? 4 : 3,
+          opacity: isEmailContext ? 0.9 : 0.85,
+          strokeDasharray: isEmailContext ? "none" : "none",
+        }}
+        className={cn(
+          "transition-all duration-200",
+          "!stroke-muted-foreground/70 hover:!stroke-muted-foreground",
+          isTrue && "!stroke-green-500 dark:!stroke-green-400 hover:!stroke-green-600 dark:hover:!stroke-green-300",
+          isFalse && "!stroke-red-500 dark:!stroke-red-400 hover:!stroke-red-600 dark:hover:!stroke-red-300",
+          isEmailContext && "!stroke-primary dark:!stroke-primary hover:!stroke-primary/80 animate-pulse"
+        )}
+      />
+    </>
   );
 } 

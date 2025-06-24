@@ -148,7 +148,8 @@ export function removeSectionConnection(
   
   // If no more connections, remove the section data
   if (updatedNodeIds.length === 0) {
-    const { [section]: _, ...rest } = currentConnections;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [section]: removed, ...rest } = currentConnections;
     return rest;
   }
   
@@ -247,9 +248,35 @@ export function hasAnyRegenerateNeeded(sectionConnections: EmailSectionConnectio
 }
 
 /**
+ * Interface for template node data from MongoDB
+ */
+interface TemplateNodeData {
+  id?: string;
+  reactFlowId?: string;
+  type?: string;
+  position?: { x: number; y: number };
+  label?: string;
+  data?: Record<string, unknown>;
+  platformMeta?: Record<string, unknown>;
+}
+
+/**
+ * Interface for template edge data from MongoDB
+ */
+interface TemplateEdgeData {
+  id?: string;
+  reactFlowId?: string;
+  source?: string;
+  target?: string;
+  type?: string;
+  data?: Record<string, unknown>;
+  label?: string;
+}
+
+/**
  * Transform template nodes from MongoDB format (with reactFlowId) to React Flow format (with id)
  */
-export function transformTemplateNodes(nodes: any[], templateId?: string): Node[] {
+export function transformTemplateNodes(nodes: TemplateNodeData[], templateId?: string): Node[] {
   if (!nodes || !Array.isArray(nodes)) return [];
   
   return nodes.map((node, index) => ({
@@ -267,13 +294,13 @@ export function transformTemplateNodes(nodes: any[], templateId?: string): Node[
 /**
  * Transform template edges from MongoDB format to React Flow format
  */
-export function transformTemplateEdges(edges: any[], templateId?: string): Edge[] {
+export function transformTemplateEdges(edges: TemplateEdgeData[], templateId?: string): Edge[] {
   if (!edges || !Array.isArray(edges)) return [];
   
   return edges.map((edge, index) => ({
     id: edge.id || edge.reactFlowId || `edge-${templateId || 'template'}-${index}-${nanoid(6)}`,
-    source: edge.source || edge.data?.source || '',
-    target: edge.target || edge.data?.target || '',
+    source: edge.source || (edge.data?.source as string) || '',
+    target: edge.target || (edge.data?.target as string) || '',
     type: edge.type || 'custom',
     data: edge.data || {},
     label: edge.label || '',

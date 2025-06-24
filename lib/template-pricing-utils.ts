@@ -31,7 +31,7 @@ export function calculateTemplateTotalCost(
   let freeAppsCount = 0;
   let paidAppsCount = 0;
 
-  Object.entries(appPricingMap).forEach(([appId, pricing]) => {
+  Object.entries(appPricingMap).forEach(([, pricing]) => {
     const monthlyCost = pricing.hasFreeTier && runsPerMonth <= 1000 
       ? 0 // Assume free tier covers up to 1000 operations
       : pricing.lowestMonthlyPrice;

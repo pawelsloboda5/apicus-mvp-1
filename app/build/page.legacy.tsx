@@ -1,8 +1,6 @@
 "use client";
 
 import { Suspense } from 'react';
-import { BuildPageCore } from './components/BuildPageCore';
-import { SuspenseWrapper } from '@/components/ui/suspense-wrapper';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -2394,7 +2392,12 @@ function BuildPageContent() {
                     selectedNode={selectedEmailNode}
                     onClose={() => setSelectedEmailNodeId(null)}
                     onUpdateNodeData={handleUpdateEmailNodeData}
-                    onGenerateSection={handleGenerateEmailSectionAI}
+                    onGenerateSection={async (nodeId: string, section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency') => {
+                      const emailNode = nodes.find(n => n.id === nodeId && n.type === 'emailPreview');
+                      const currentText = emailNode?.data?.[`${section}Text`] as string || '';
+                      const promptType = `${section}_standard_professional_warm`;
+                      await handleGenerateEmailSectionAI(nodeId, section, promptType, currentText);
+                    }}
                     isGeneratingAIContent={isGeneratingAIContent}
                     emailContextNodes={emailContextNodes}
                   />

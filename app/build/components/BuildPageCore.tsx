@@ -17,7 +17,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, use, lazy } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ReactFlowProvider,
   useNodesState,
@@ -37,13 +37,10 @@ import {
   PointerSensor,
   KeyboardSensor,
   DragEndEvent,
-  DragOverlay,
   DragStartEvent,
   pointerWithin,
 } from "@dnd-kit/core";
 import { createSnapModifier } from "@dnd-kit/modifiers";
-import dynamic from "next/dynamic";
-import { pricing } from "../../api/data/pricing";
 import { Loader2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useDroppable } from "@dnd-kit/core";
@@ -51,15 +48,9 @@ import { useTheme } from "next-themes";
 
 // Import custom components with Suspense
 import { StatsBar } from "@/components/flow/StatsBar";
-import { NodePropertiesPanel } from "@/components/flow/NodePropertiesPanel";
-import { ROISettingsPanel } from "@/components/roi/ROISettingsPanel";
 import { FlowCanvas } from "@/components/flow/FlowCanvas";
 import { CustomEdge } from "@/components/flow/CustomEdge";
 import { NodeGroup } from "@/components/flow/NodeGroup";
-import { GroupPropertiesPanel } from "@/components/flow/GroupPropertiesPanel";
-import { AlternativeTemplatesSheet, type AlternativeTemplateForDisplay } from "@/components/flow/AlternativeTemplatesSheet";
-import { EmailPreviewNode, type EmailPreviewNodeData } from "@/components/flow/EmailPreviewNode";
-import { EmailNodePropertiesPanel } from "@/components/flow/EmailNodePropertiesPanel";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { SuspenseWrapper, DataSuspenseWrapper } from "@/components/ui/suspense-wrapper";
 
@@ -67,24 +58,13 @@ import { SuspenseWrapper, DataSuspenseWrapper } from "@/components/ui/suspense-w
 import { snapToGrid } from "@/lib/flow-utils";
 import {
   calculateNodeTimeSavings,
-  calculateTimeValue,
-  calculateRiskValue,
-  calculateRevenueValue,
-  calculateTotalValue,
-  calculatePlatformCost,
-  calculateNetROI,
-  calculateROIRatio,
-  calculatePaybackPeriod,
-  formatPaybackPeriod
 } from "@/lib/roi-utils";
 import { PlatformType as LibPlatformType, NodeType, NodeData } from "@/lib/types";
 import { captureROISnapshot, shouldCaptureSnapshot } from "@/lib/metrics-utils";
-import { cacheTemplatePricingInScenario, getScenarioTemplatePricing } from "@/lib/template-pricing-utils";
+import { cacheTemplatePricingInScenario } from "@/lib/template-pricing-utils";
 
 // Lazy load heavy components with React 19 optimizations
 const Toolbox = lazy(() => import("@/components/flow/Toolbox").then(mod => ({ default: mod.Toolbox })));
-const MobileToolboxTrigger = lazy(() => import("@/components/flow/Toolbox").then(mod => ({ default: mod.MobileToolboxTrigger })));
-const MobileAlternativeTemplatesButton = lazy(() => import("@/components/flow/Toolbox").then(mod => ({ default: mod.MobileAlternativeTemplatesButton })));
 
 // Define nodeTypes and edgeTypes outside component for stability
 const nodeTypes = {
@@ -92,7 +72,7 @@ const nodeTypes = {
   action: PixelNode,
   decision: PixelNode,
   group: NodeGroup,
-  emailPreview: EmailPreviewNode,
+  emailPreview: PixelNode,
   // Email context nodes
   persona: PixelNode,
   industry: PixelNode,
@@ -172,12 +152,25 @@ function ScenarioLoader({
           if (res.ok) {
             const templateData = await res.json();
             if (templateData?.nodes && templateData?.edges && activeScenarioIdToLoad) {
+              interface TemplateNode {
+                reactFlowId: string;
+                type: string;
+                position: { x: number; y: number };
+                data: Record<string, unknown>;
+              }
+              
+              interface TemplateEdge {
+                reactFlowId: string;
+                label?: string;
+                data?: { source: string; target: string };
+              }
+              
               const updatedScenarioData: Partial<Scenario> = {
                 name: templateData.title || scenarioToLoad.name,
-                nodesSnapshot: templateData.nodes.map((n: any) => ({
+                nodesSnapshot: (templateData.nodes as TemplateNode[]).map((n) => ({
                   id: n.reactFlowId, type: n.type, position: n.position, data: n.data,
                 })),
-                edgesSnapshot: templateData.edges.map((e: any) => ({
+                edgesSnapshot: (templateData.edges as TemplateEdge[]).map((e) => ({
                   id: e.reactFlowId, source: e.data?.source, target: e.data?.target, 
                   label: e.label, data: e.data, type: 'custom',
                 })),
@@ -209,20 +202,29 @@ function ScenarioLoader({
             if (res.ok) {
               const data = await res.json();
               if (data.templates && Array.isArray(data.templates)) {
+                interface AlternativeTemplate {
+                  templateId: string;
+                  title?: string;
+                  platform?: string;
+                  source?: string;
+                  nodes?: Array<{ reactFlowId?: string; id?: string; type: string; position: { x: number; y: number }; data: Record<string, unknown> }>;
+                  edges?: Array<{ reactFlowId?: string; id?: string; source?: string; target?: string; label?: string; data?: Record<string, unknown> }>;
+                }
+                
                 const primaryTemplateIdToExclude = scenarioToLoad.originalTemplateId;
-                alternativesData = data.templates
-                  .filter((t: any) => t.templateId !== primaryTemplateIdToExclude)
+                alternativesData = (data.templates as AlternativeTemplate[])
+                  .filter((t) => t.templateId !== primaryTemplateIdToExclude)
                   .slice(0, 5)
-                  .map((t: any) => ({
+                  .map((t) => ({
                     slug: nanoid(8),
                     name: t.title || "Alternative",
                     createdAt: Date.now(),
                     updatedAt: Date.now(),
                     platform: (t.platform || t.source || "zapier") as LibPlatformType,
-                    nodesSnapshot: t.nodes?.map((n: any) => ({ 
+                    nodesSnapshot: t.nodes?.map((n) => ({ 
                       id: n.reactFlowId || n.id, type: n.type, position: n.position, data: n.data 
                     })) || [],
-                    edgesSnapshot: t.edges?.map((e: any) => ({ 
+                    edgesSnapshot: t.edges?.map((e) => ({ 
                       id: e.reactFlowId || e.id, source: e.data?.source || e.source, 
                       target: e.data?.target || e.target, label: e.label, data: e.data, type: 'custom' 
                     })) || [],
@@ -260,11 +262,11 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
   const { setTheme } = useTheme();
   const [scenarioId, setScenarioId] = useState<number | null>(null);
   const [currentScenario, setCurrentScenario] = useState<Scenario | null>(null);
-  const [alternativeTemplates, setAlternativeTemplates] = useState<Scenario[]>([]);
+  const [, setAlternativeTemplates] = useState<Scenario[]>([]);
   const [platform, setPlatform] = useState<LibPlatformType>("zapier");
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<Record<string, unknown>>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<Record<string, unknown>>>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [, setSelectedId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // ReactFlow instance & wrapper ref
@@ -359,7 +361,7 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
       // Clear manipulation flag slightly later to avoid save race
       setTimeout(() => setIsManipulatingNodesProgrammatically(false), 500);
     },
-    [currentScenario, db.scenarios, nodes, reactFlowWrapper, rfInstance]
+    [currentScenario, nodes, reactFlowWrapper, rfInstance, setNodes]
   );
 
   // ROI state
@@ -367,28 +369,18 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
   const [minutesPerRun, setMinutesPerRun] = useState(3);
   const [hourlyRate, setHourlyRate] = useState(30);
   const [taskMultiplier, setTaskMultiplier] = useState(1.5);
-  const [taskType, setTaskType] = useState<string>("general");
-  const [complianceEnabled, setComplianceEnabled] = useState(false);
-  const [revenueEnabled, setRevenueEnabled] = useState(false);
-  const [riskLevel, setRiskLevel] = useState(3);
-  const [riskFrequency, setRiskFrequency] = useState(5);
-  const [errorCost, setErrorCost] = useState(500);
-  const [monthlyVolume, setMonthlyVolume] = useState(100);
-  const [conversionRate, setConversionRate] = useState(5);
-  const [valuePerConversion, setValuePerConversion] = useState(200);
   
   // UI state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isMultiSelectionActive, setIsMultiSelectionActive] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [selectedEmailNodeId, setSelectedEmailNodeId] = useState<string | null>(null);
+  const [, setSelectedEmailNodeId] = useState<string | null>(null);
   const [isManipulatingNodesProgrammatically, setIsManipulatingNodesProgrammatically] = useState(false);
-  const [isGeneratingAIContent, setIsGeneratingAIContent] = useState(false);
-  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
+  const [isGeneratingEmail] = useState(false);
   const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('action');
   const [activeTab, setActiveTab] = useState<'canvas' | 'analytics'>('canvas');
-  const [roiOpen, setRoiOpen] = useState(false);
-  const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: string } | null>(null);
+  const [, setRoiOpen] = useState(false);
+  const [, setActiveDragItem] = useState<{ id: string; type: string } | null>(null);
 
   // Canvas state autosave with debounce + ROI snapshot
   const [previousScenario, setPreviousScenario] = useState<Scenario | null>(null);
@@ -410,15 +402,6 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
     setMinutesPerRun(scenario.minutesPerRun || 3);
     setHourlyRate(scenario.hourlyRate || 30);
     setTaskMultiplier(scenario.taskMultiplier || 1.5);
-    setTaskType(scenario.taskType || 'general');
-    setComplianceEnabled(scenario.complianceEnabled || false);
-    setRevenueEnabled(scenario.revenueEnabled || false);
-    setRiskLevel(scenario.riskLevel || 3);
-    setRiskFrequency(scenario.riskFrequency || 5);
-    setErrorCost(scenario.errorCost || 500);
-    setMonthlyVolume(scenario.monthlyVolume || 100);
-    setConversionRate(scenario.conversionRate || 5);
-    setValuePerConversion(scenario.valuePerConversion || 200);
     setNodes(scenario.nodesSnapshot as Node[] || []);
     setEdges(scenario.edgesSnapshot as Edge[] || []);
     if (rfInstance) {
@@ -535,14 +518,14 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
     setIsMultiSelectionActive(false);
     setSelectedGroupId(groupId);
     setSelectedId(null);
-  }, [selectedIds, nodes, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, platform]);
+  }, [selectedIds, nodes, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, platform, setNodes]);
 
   // Function to ungroup
   const ungroupSelection = useCallback(() => {
     if (!selectedGroupId) return;
     setNodes(ns => ns.filter(n => n.id !== selectedGroupId));
     setSelectedGroupId(null);
-  }, [selectedGroupId]);
+  }, [selectedGroupId, setNodes]);
 
   // handler to persist viewport
   const handleMoveEnd = useCallback((_evt: MouseEvent | TouchEvent | null, viewport: Viewport) => {
@@ -558,7 +541,7 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
     if (currentScenario && rfInstance && nodes.length === 0 && edges.length === 0) {
       loadScenarioDataToState(currentScenario);
     }
-  }, [currentScenario, rfInstance]);
+  }, [currentScenario, rfInstance, nodes.length, edges.length, loadScenarioDataToState]);
 
   // Canvas autosave
   useEffect(() => {
@@ -570,10 +553,6 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
       if (isManipulatingNodesProgrammatically) return;
       const flowObj = rfInstance.toObject();
       const cleanedNodes = flowObj.nodes.map(n => {
-        if (n.type === 'emailPreview') {
-          const { onOpenNodeProperties, ...rest } = n.data as Record<string, unknown>;
-          return { ...n, data: rest };
-        }
         return n;
       });
       const nodesChanged = JSON.stringify(cleanedNodes) !== JSON.stringify(currentScenario.nodesSnapshot || []);
@@ -598,7 +577,7 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
       }
     }, 300);
     return () => clearTimeout(to);
-  }, [nodes, edges, rfInstance, currentScenario, isLoading, isManipulatingNodesProgrammatically]);
+  }, [nodes, edges, rfInstance, currentScenario, isLoading, isManipulatingNodesProgrammatically, previousScenario, previousNodeCount]);
 
   return (
     <ReactFlowProvider>

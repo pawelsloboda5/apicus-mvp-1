@@ -1,19 +1,15 @@
 "use client";
 
 import { useCallback, useRef, useState } from 'react';
-import { Node, Edge, Connection, addEdge, NodeChange, EdgeChange } from '@xyflow/react';
-import { DndContext, DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
-import { snapCenterToCursor } from '@dnd-kit/modifiers';
+import { Node, Edge, Connection, NodeChange, EdgeChange } from '@xyflow/react';
+import { DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
 import { toast } from 'sonner';
 import { NodeType, EmailContextNodeType } from '@/lib/types';
 import { 
-  DND_CONFIG, 
   CANVAS_CONFIG, 
-  NODE_DEFAULTS,
   ERROR_MESSAGES 
 } from '@/lib/utils/constants';
-import { createNode, createEdge } from '@/lib/flow/node-factory';
+import { createNode } from '@/lib/flow/node-factory';
 
 export interface UseDragAndDropOptions {
   /** Current nodes array */
@@ -163,7 +159,6 @@ export function useDragAndDrop({
   // Handle node connections
   const handleConnect = useCallback((params: Connection) => {
     try {
-      const newEdge = createEdge(params.source!, params.target!);
       onConnect(params);
       toast.success('Nodes connected');
     } catch (error) {
@@ -201,7 +196,7 @@ export function useDragAndDrop({
       console.error('Failed to delete node:', error);
       toast.error('Failed to delete node');
     }
-  }, [nodes, edges, onNodesChange, onEdgesChange]);
+  }, [edges, onNodesChange, onEdgesChange]);
 
   // Handle edge deletion
   const deleteEdge = useCallback((edgeId: string) => {

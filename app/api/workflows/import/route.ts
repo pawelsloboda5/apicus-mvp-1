@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mapMakeToApicus } from './make-to-apicus-mapper';
 
+// Interface for Make.com workflow structure - matching what mapMakeToApicus expects
+interface MakeWorkflowData {
+  name: string;
+  flow: Array<{
+    id: number;
+    module: string;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    let makeJson: any;
+    let makeJson: unknown;
     
     // Handle both FormData (file upload) and JSON body
     const contentType = request.headers.get('content-type') || '';
@@ -42,16 +53,31 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Check if it's a Make.com workflow
-    if (!makeJson.flow || !Array.isArray(makeJson.flow)) {
+    // Type guard to check if it's a valid Make.com workflow
+    function isMakeWorkflow(data: unknown): data is MakeWorkflowData {
+      return (
+        typeof data === 'object' &&
+        data !== null &&
+        'flow' in data &&
+        Array.isArray((data as { flow: unknown }).flow)
+      );
+    }
+    
+    if (!isMakeWorkflow(makeJson)) {
       return NextResponse.json({
         success: false,
         error: 'Invalid Make.com workflow format. Expected a "flow" array.',
       }, { status: 400 });
     }
     
+    // Ensure name field exists
+    const workflowData: MakeWorkflowData = {
+      ...makeJson,
+      name: makeJson.name || 'Imported Make.com Workflow'
+    };
+    
     // Convert to Apicus template schema
-    const template = mapMakeToApicus(makeJson);
+    const template = mapMakeToApicus(workflowData);
     
     // Return only the template
     return NextResponse.json({
@@ -75,7 +101,7 @@ export async function POST(request: NextRequest) {
 }
 
 // OPTIONS handler for CORS preflight
-export async function OPTIONS(request: NextRequest) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {

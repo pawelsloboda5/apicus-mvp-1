@@ -552,16 +552,42 @@ function BuildPageContent() {
       // Process primaryTemplateData if it was loaded from import
       if (primaryTemplateData && primaryTemplateData.nodes && primaryTemplateData.edges && activeScenarioIdToLoad) {
         console.log('[Import] Processing imported template data...');
+        
+        // Define proper types for template data
+        interface TemplateNode {
+          reactFlowId: string;
+          type: string;
+          position: { x: number; y: number };
+          data: Record<string, unknown>;
+        }
+        
+        interface TemplateEdge {
+          reactFlowId: string;
+          data?: { source?: string; target?: string };
+          source?: string;
+          target?: string;
+          label?: string;
+        }
+        
+        interface TemplateDataWithId {
+          title?: string;
+          nodes?: TemplateNode[];
+          edges?: TemplateEdge[];
+          platform?: string;
+          source?: string;
+          templateId?: string;
+        }
+        
         const updatedScenarioData: Partial<Scenario> = {
           name: primaryTemplateData.title || scenarioToLoad?.name || "Imported Workflow",
-          nodesSnapshot: primaryTemplateData.nodes.map((n: any) => ({
+          nodesSnapshot: primaryTemplateData.nodes.map((n: TemplateNode) => ({
             id: n.reactFlowId, type: n.type, position: n.position, data: n.data,
           })),
-          edgesSnapshot: primaryTemplateData.edges.map((e: any) => ({
+          edgesSnapshot: primaryTemplateData.edges.map((e: TemplateEdge) => ({
             id: e.reactFlowId, source: e.data?.source || e.source, target: e.data?.target || e.target, label: e.label, data: e.data, type: 'custom',
           })),
           platform: (primaryTemplateData.platform || primaryTemplateData.source || scenarioToLoad?.platform || "make") as LibPlatformType,
-          originalTemplateId: (primaryTemplateData as any).templateId || importParam,
+          originalTemplateId: (primaryTemplateData as TemplateDataWithId).templateId || importParam || undefined,
           searchQuery: queryParam || scenarioToLoad?.searchQuery,
           updatedAt: Date.now(),
         };

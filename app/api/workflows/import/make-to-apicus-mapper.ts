@@ -3,6 +3,7 @@
  * Only includes fields that Apicus needs, drops everything else
  */
 
+// Make.com module interface
 interface MakeModule {
   id: number;
   module: string;
@@ -72,7 +73,7 @@ const APP_NAME_MAP: Record<string, string> = {
   'instantly': 'Instantly'
 };
 
-export function mapMakeToApicus(makeJson: any): ApicusTemplate {
+export function mapMakeToApicus(makeJson: MakeWorkflow): ApicusTemplate {
   const makeWorkflow = makeJson as MakeWorkflow;
   const nodes: ApicusNode[] = [];
   const edges: ApicusEdge[] = [];
@@ -80,7 +81,7 @@ export function mapMakeToApicus(makeJson: any): ApicusTemplate {
   const appNamesSet = new Set<string>();
   
   // Process all modules (including nested ones in routes)
-  function processModule(module: MakeModule, parentId?: string, routeIndex?: number) {
+  function processModule(module: MakeModule) {
     const nodeId = `node-${module.id}`;
     nodeIdMap.set(module.id, nodeId);
     
@@ -116,9 +117,9 @@ export function mapMakeToApicus(makeJson: any): ApicusTemplate {
     
     // Process nested routes
     if (module.routes) {
-      module.routes.forEach((route, idx) => {
+      module.routes.forEach((route) => {
         route.flow.forEach(nestedModule => {
-          processModule(nestedModule, nodeId, idx);
+          processModule(nestedModule);
         });
       });
     }

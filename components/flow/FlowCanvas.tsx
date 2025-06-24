@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useOptimistic, startTransition, useMemo } from "react";
+import React, { useState, useEffect, useOptimistic, startTransition } from "react";
 import {
   ReactFlow,
   Background,
@@ -11,16 +11,12 @@ import {
   Edge,
   useReactFlow,
   EdgeChange,
-  ReactFlowProvider,
-  Viewport,
-  NodeTypes,
-  EdgeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { FlowCanvasProps, NodeType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Edit2Icon, RefreshCcw } from "lucide-react";
+import { Edit2Icon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { FloatingNodeSelector } from "./FloatingNodeSelector";
 import { addSectionConnection, removeSectionConnection, EmailSectionConnections } from "@/lib/flow-utils";
@@ -51,16 +47,11 @@ export function FlowCanvas({
   setDroppableRef,
   selectedNodeType = 'action',
   onNodeTypeChange,
-  handleRegenerateSection,
 }: FlowCanvasProps & { 
   isOver?: boolean; 
   setDroppableRef?: (ref: HTMLDivElement | null) => void;
   selectedNodeType?: NodeType;
   onNodeTypeChange?: (type: NodeType) => void;
-  handleRegenerateSection?: (
-    nodeId: string, 
-    section: string
-  ) => Promise<void>;
 }) {
   // Local state to track selection mode
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(SelectionMode.Partial);
@@ -219,7 +210,7 @@ export function FlowCanvas({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isMobile, cursorPosition, screenToFlowPosition, onNodesChange]);
+  }, [isMobile, cursorPosition, screenToFlowPosition, onNodesChange, addOptimisticNode]);
   
   // Function to validate connections - no longer wrapped in useCallback
   const isValidConnection: IsValidConnection = (connection) => {
@@ -522,32 +513,7 @@ export function FlowCanvas({
     onEdgesChange(changes);
   };
 
-  // Find email preview nodes
-  const emailPreviewNodes = optimisticNodes.filter(n => n.type === 'emailPreview');
 
-  // Enhanced node types with callbacks
-  const enhancedNodeTypes = useMemo(() => {
-    if (!nodeTypes || !handleRegenerateSection) return nodeTypes;
-    
-    return {
-      ...nodeTypes,
-      emailPreview: (props: any) => {
-        const EmailPreviewComponent = nodeTypes?.emailPreview;
-        if (!EmailPreviewComponent) return null;
-        
-        return React.createElement(EmailPreviewComponent, {
-          ...props,
-          data: {
-            ...props.data,
-            onRegenerateSection: (section: string) => handleRegenerateSection(
-              props.id, 
-              section
-            ),
-          }
-        });
-      },
-    };
-  }, [nodeTypes, handleRegenerateSection]);
 
   return (
     <div

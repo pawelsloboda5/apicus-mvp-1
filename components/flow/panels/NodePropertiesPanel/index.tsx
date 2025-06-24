@@ -18,7 +18,6 @@ import { pricing } from "@/app/api/data/pricing";
 import { NodePropertiesPanelProps, NodeData, NodeType } from "@/lib/types";
 import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio } from "@/lib/roi-utils";
 import { NODE_TIME_FACTORS } from "@/lib/utils/constants";
-import { Node } from "@xyflow/react";
 
 // Import specific node panels
 import { TriggerNodePanel } from "./TriggerNodePanel";

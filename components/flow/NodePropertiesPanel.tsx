@@ -21,9 +21,7 @@ import { cn } from "@/lib/utils";
 import { pricing } from "@/app/api/data/pricing";
 import { NodePropertiesPanelProps, NodeData, NodeType } from "@/lib/types";
 import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio } from "@/lib/roi-utils";
-import { markSectionsWithChanges, EmailSectionConnections } from "@/lib/flow-utils";
 import { NODE_TIME_FACTORS } from "@/lib/utils/constants";
-import { Node, Edge } from "@xyflow/react";
 
 // Template configurations for email context nodes
 interface EmailContextTemplate {
@@ -157,8 +155,7 @@ export function NodePropertiesPanel({
   minutesPerRun,
   hourlyRate,
   taskMultiplier,
-  edges,
-}: NodePropertiesPanelProps) {
+}: Omit<NodePropertiesPanelProps, 'edges'>) {
   const nodeData = selectedNode?.data as NodeData | undefined;
   
   const isEmailContextNode = nodeData?.isEmailContext || [
@@ -182,47 +179,7 @@ export function NodePropertiesPanel({
     return Array.isArray(value) ? value : [value as string];
   };
   
-  // Helper function to update email context nodes and mark connected sections
-  const updateEmailContextNode = (updater: (nodes: Node[]) => Node[]) => {
-    if (!isEmailContextNode || !selectedNode) return;
-    
-    // Find connected email preview nodes
-    const connectedEmailNodes = edges
-      ?.filter((edge: Edge) => edge.source === selectedNode.id && edge.data?.isEmailContext)
-      ?.map((edge: Edge) => {
-        const targetNode = nodes.find((n: Node) => n.id === edge.target);
-        return targetNode?.type === 'emailPreview' ? { node: targetNode, targetHandle: edge.targetHandle } : null;
-      })
-      ?.filter(Boolean) || [];
-    
-    // Update nodes with change detection
-    setNodes((currentNodes: Node[]) => {
-      let updatedNodes = updater(currentNodes);
-      
-      // Mark connected email sections as having changes
-      connectedEmailNodes.forEach((connection: { node: Node; targetHandle?: string | null } | null) => {
-        if (connection && connection.targetHandle) {
-          const emailNode = updatedNodes.find((n: Node) => n.id === connection.node.id);
-          if (emailNode) {
-            const currentConnections = (emailNode.data as { sectionConnections?: EmailSectionConnections }).sectionConnections || {};
-            const updatedConnections = markSectionsWithChanges(currentConnections, selectedNode.id);
-            
-            updatedNodes = updatedNodes.map((n: Node) => 
-              n.id === emailNode.id ? {
-                ...n,
-                data: {
-                  ...n.data,
-                  sectionConnections: updatedConnections
-                }
-              } : n
-            );
-          }
-        }
-      });
-      
-      return updatedNodes;
-    });
-  };
+
 
   const handleDeleteNode = () => {
     if (!selectedNode) return;

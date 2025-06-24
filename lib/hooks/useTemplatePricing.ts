@@ -8,11 +8,8 @@ export interface UseTemplatePricingReturn {
   refetch: () => void;
 }
 
-// Cache key for invalidation
-let cacheVersion = 0;
-
 // Cache the pricing fetch function using React 19's cache
-const fetchTemplatePricing = cache(async (templateId: string, version: number): Promise<TemplatePricingResponse> => {
+const fetchTemplatePricing = cache(async (templateId: string): Promise<TemplatePricingResponse> => {
   const response = await fetch(`/api/templates/${templateId}/pricing`);
   
   if (!response.ok) {
@@ -24,8 +21,8 @@ const fetchTemplatePricing = cache(async (templateId: string, version: number): 
 });
 
 // Create a resource function for use with the `use` hook
-function createPricingResource(templateId: string, version: number) {
-  return fetchTemplatePricing(templateId, version);
+function createPricingResource(templateId: string) {
+  return fetchTemplatePricing(templateId);
 }
 
 /**
@@ -35,14 +32,13 @@ function createPricingResource(templateId: string, version: number) {
 export function useTemplatePricing(templateId?: string): UseTemplatePricingReturn {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [version, setVersion] = useState(0);
 
   // Create a stable resource using useMemo
   const pricingResource = useMemo(() => {
     if (!templateId) return null;
     setError(null);
-    return createPricingResource(templateId, version);
-  }, [templateId, version]);
+    return createPricingResource(templateId);
+  }, [templateId]);
 
   // Use the new React 19 `use` hook for automatic suspense
   const pricingData = useMemo(() => {
@@ -67,9 +63,6 @@ export function useTemplatePricing(templateId?: string): UseTemplatePricingRetur
     
     setIsLoading(true);
     setError(null);
-    
-    // Increment version to invalidate cache
-    setVersion(v => v + 1);
     
     // Reset loading state after a brief delay
     setTimeout(() => setIsLoading(false), 100);
@@ -103,7 +96,7 @@ export function useTemplatePricingLegacy(templateId?: string): UseTemplatePricin
     setError(null);
 
     try {
-      const data = await fetchTemplatePricing(templateId, 0); // Legacy doesn't use versioning
+      const data = await fetchTemplatePricing(templateId);
       setPricingData(data.appPricingMap);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);

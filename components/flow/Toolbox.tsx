@@ -341,7 +341,6 @@ function ToolboxContent({
   const [editingScenarioId, setEditingScenarioId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const [showEmailContextNodes, setShowEmailContextNodes] = useState(false);
 
   const getPlatformColor = (platform?: PlatformType) => {
     switch (platform) {
@@ -449,10 +448,48 @@ function ToolboxContent({
       {/* Canvas Mode Content */}
       {activeTab === 'canvas' && (
         <>
-          {/* Section 1: Node Types - Fixed height, always visible */}
+          {/* Section 1: Email Context Nodes - Now primary and expanded by default */}
+          {!isMobile && (
+            <div className="shrink-0 mb-6">
+              <div className="flex items-center justify-between mb-4 px-1">
+                <h2 className="text-base font-display font-semibold tracking-tight">Email Context</h2>
+                <Badge variant="secondary" className="text-xs">Recommended</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4 px-1 leading-relaxed">
+                Drag these nodes to influence email generation
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {EMAIL_CONTEXT_ITEMS.slice(0, 4).map((item) => (
+                  <EmailContextToolboxItem
+                    key={item.type}
+                    {...item}
+                    isSelected={selectedNodeType === item.type}
+                    onSelect={onNodeTypeSelect}
+                  />
+                ))}
+              </div>
+              <details className="mt-3 group">
+                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground px-1 py-2">
+                  Show more context nodes ({EMAIL_CONTEXT_ITEMS.length - 4} more)
+                </summary>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {EMAIL_CONTEXT_ITEMS.slice(4).map((item) => (
+                    <EmailContextToolboxItem
+                      key={item.type}
+                      {...item}
+                      isSelected={selectedNodeType === item.type}
+                      onSelect={onNodeTypeSelect}
+                    />
+                  ))}
+                </div>
+              </details>
+            </div>
+          )}
+
+          {/* Section 2: Basic Node Types - Smaller and secondary */}
           <div className="shrink-0 mb-6">
-            {!isMobile && <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1">Node Types</h2>}
-            <ul className={cn("space-y-3", isMobile && "grid grid-cols-3 gap-3")}>
+            {!isMobile && <h2 className="mb-3 text-sm font-display font-semibold tracking-tight px-1 text-muted-foreground">Basic Nodes</h2>}
+            <ul className={cn("flex gap-2", isMobile && "grid grid-cols-3")}>
               {ITEMS.map((item) => (
                 <ToolboxItem 
                   key={item.type} 
@@ -460,45 +497,13 @@ function ToolboxContent({
                   isMobile={isMobile}
                   isSelected={selectedNodeType === item.type}
                   onSelect={onNodeTypeSelect}
+                  compact={!isMobile}
                 />
               ))}
             </ul>
           </div>
           
-          {/* NEW Section: Email Context Nodes - Desktop only */}
-          {!isMobile && (
-            <div className="border-t pt-6 mb-6">
-              <div className="flex items-center justify-between mb-4 px-1">
-                <h2 className="text-base font-display font-semibold tracking-tight">Email Context Nodes</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowEmailContextNodes(!showEmailContextNodes)}
-                  className="h-7 px-3 text-xs font-medium"
-                >
-                  {showEmailContextNodes ? 'Hide' : 'Show'}
-                </Button>
-              </div>
-              
-              {showEmailContextNodes && (
-                <>
-                  <p className="text-xs text-muted-foreground mb-4 px-1 leading-relaxed">
-                    Add these special nodes to influence how emails are generated
-                  </p>
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                    {EMAIL_CONTEXT_ITEMS.map((item) => (
-                      <EmailContextToolboxItem
-                        key={item.type}
-                        {...item}
-                        isSelected={selectedNodeType === item.type}
-                        onSelect={onNodeTypeSelect}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+
         </>
       )}
       
@@ -551,8 +556,8 @@ function ToolboxContent({
         </>
       )}
       
-      {/* Section 2: My Scenarios - Fixed height with scrolling */}
-      <div className={cn("border-t pt-6 flex flex-col h-[40vh]", isMobile ? "flex-grow min-h-0" : "flex-shrink-0")}>
+      {/* Section 3: My Scenarios - Now with higher priority */}
+      <div className={cn("pt-6 flex flex-col", isMobile ? "flex-grow min-h-0" : "flex-grow", "border-t")}>
         <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1 flex justify-between items-center shrink-0">
           My Scenarios
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleAddNewScenario} title="Add new scenario">
@@ -560,7 +565,7 @@ function ToolboxContent({
           </Button>
         </h2>
         {filteredScenarios && filteredScenarios.length > 0 ? (
-          <div className={cn("overflow-hidden", isMobile ? "flex-1 min-h-0" : "h-[40vh]")}>
+          <div className={cn("overflow-hidden flex-1 min-h-0")}>
             <ScrollArea className="h-full pr-1">
               <ul className="space-y-2 pb-2">
                 {filteredScenarios.map((scenario) => (
@@ -632,19 +637,19 @@ function ToolboxContent({
             </ScrollArea>
           </div>
         ) : (
-          <div className={cn("flex items-center px-1", isMobile ? "h-[80px]" : "h-[180px]")}>
-            <p className="text-sm text-muted-foreground italic">No saved scenarios yet. Click &apos;+&apos; to add one.</p>
+          <div className="flex items-center justify-center px-4 py-8">
+            <p className="text-sm text-muted-foreground italic text-center">No saved scenarios yet. Click &apos;+&apos; to add one.</p>
           </div>
         )}
       </div>
 
-      {/* Section 3: Generated Emails - Fixed height with scrolling, always shown on desktop - Only in Canvas mode */}
+      {/* Section 4: Generated Emails - Compact and secondary */}
       {!isMobile && activeTab === 'canvas' && (
-        <div className="border-t pt-6 flex flex-col flex-shrink-0">
-          <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1 shrink-0">
+        <div className="border-t pt-4 flex flex-col flex-shrink-0">
+          <h2 className="mb-3 text-sm font-display font-semibold tracking-tight px-1 shrink-0 text-muted-foreground">
             Generated Emails
           </h2>
-          <div className="overflow-hidden h-[20vh]">
+          <div className="overflow-hidden h-[15vh] min-h-[80px]">
             <ScrollArea className="h-full pr-1">
               {emailNodes && emailNodes.length > 0 ? (
                 <ul className="space-y-2 pb-2">
@@ -718,10 +723,11 @@ interface ToolboxItemProps {
   isMobile?: boolean;
   isSelected?: boolean;
   onSelect?: (type: NodeType) => void;
+  compact?: boolean;
 }
 
 // Updated ToolboxItem for better visual design
-function ToolboxItem({ type, label, isMobile = false, isSelected = false, onSelect }: ToolboxItemProps) {
+function ToolboxItem({ type, label, isMobile = false, isSelected = false, onSelect, compact = false }: ToolboxItemProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `tool-${type}`,
     data: { nodeType: type },
@@ -762,6 +768,41 @@ function ToolboxItem({ type, label, isMobile = false, isSelected = false, onSele
       }
     };
   }, [listeners, onSelect, type]);
+
+  if (compact) {
+    return (
+      <li
+        ref={setNodeRef}
+        {...attributes}
+        {...enhancedListeners}
+        className={cn(
+          "cursor-grab rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 relative group",
+          "p-3 flex flex-col items-center justify-center gap-1.5",
+          isDragging && "opacity-50 scale-95",
+          isSelected 
+            ? "bg-primary/10 border-primary text-primary shadow-md scale-[1.02]" 
+            : "bg-background hover:bg-muted/60 border-border hover:border-primary/30"
+        )}
+        data-testid={`toolbox-item-${type}`}
+        onClick={handleClick}
+      >
+        <Icon className={cn(
+          "h-5 w-5",
+          isSelected && "text-primary"
+        )} />
+        <span className={cn(
+          "text-xs font-medium text-center",
+          isSelected && "text-primary"
+        )}>
+          {label}
+        </span>
+        
+        {isSelected && !isDragging && (
+          <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full border border-background" />
+        )}
+      </li>
+    );
+  }
 
   return (
     <li
@@ -863,11 +904,11 @@ function EmailContextToolboxItem({
   }, [listeners, onSelect, type]);
 
   const categoryColors = {
-    audience: "border-purple-300 bg-purple-50 dark:bg-purple-950/30 dark:border-purple-500/50",
-    problem: "border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-500/50",
-    value: "border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-500/50",
-    timing: "border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-500/50",
-    trust: "border-blue-300 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500/50",
+    audience: "border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-500/30",
+    problem: "border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-500/30",
+    value: "border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-500/30",
+    timing: "border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-500/30",
+    trust: "border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-500/30",
   };
 
   const iconColors = {
@@ -884,31 +925,24 @@ function EmailContextToolboxItem({
       {...attributes}
       {...enhancedListeners}
       className={cn(
-        "flex cursor-grab items-start gap-3 rounded-xl border-2 p-4 shadow-sm hover:shadow-md transition-all duration-200 relative group",
+        "flex cursor-grab items-center gap-2 rounded-lg border p-3 shadow-sm hover:shadow-md transition-all duration-200 relative group",
         categoryColors[category as keyof typeof categoryColors] || "bg-background",
         isDragging && "opacity-50 scale-95",
         isSelected && "ring-2 ring-primary scale-[1.02]"
       )}
       onClick={handleClick}
+      title={`${label}: ${description}`}
     >
-      <div className={cn(
-        "p-2 rounded-lg transition-colors duration-200 bg-white/60 dark:bg-gray-900/60"
-      )}>
-        <Icon className={cn(
-          "h-5 w-5 flex-shrink-0",
-          iconColors[category as keyof typeof iconColors] || "text-foreground"
-        )} />
-      </div>
+      <Icon className={cn(
+        "h-4 w-4 flex-shrink-0",
+        iconColors[category as keyof typeof iconColors] || "text-foreground"
+      )} />
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm">{label}</div>
-        <div className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</div>
-        <div className="text-xs text-foreground/80 mt-2 font-mono bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md inline-block">
-          &quot;{defaultValue}&quot;
-        </div>
+        <div className="font-medium text-xs truncate">{label}</div>
       </div>
       
       {isSelected && !isDragging && (
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background" />
+        <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full border border-background" />
       )}
     </li>
   );

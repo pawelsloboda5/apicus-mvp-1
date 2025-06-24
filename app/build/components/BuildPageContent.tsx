@@ -22,7 +22,7 @@ import { useScenarioManager } from "../hooks/useScenarioManager";
 import { useEmailGeneration } from "../hooks/useEmailGeneration";
 
 // Import types
-import { PlatformType, NodeType, Scenario } from "@/lib/types";
+import { NodeType, Scenario } from "@/lib/types";
 
 // Import constants
 import { TASK_TYPE_MULTIPLIERS, BENCHMARKS } from "@/lib/utils/constants";
@@ -72,6 +72,24 @@ const edgeTypes = {
   custom: CustomEdge,
 };
 
+interface EmailNodeData {
+  nodeTitle?: string;
+  subjectLine?: string;
+  hookText?: string;
+  ctaText?: string;
+  offerText?: string;
+  psText?: string;
+  testimonialText?: string;
+  urgencyText?: string;
+  sectionConnections?: Record<string, { connectedNodeIds: string[] }>;
+}
+
+interface NodeData {
+  label?: string;
+  typeOf?: string;
+  contextValue?: string;
+}
+
 export function BuildPageContent() {
   const router = useRouter();
   const params = useSearchParams();
@@ -103,14 +121,27 @@ export function BuildPageContent() {
 
   // ReactFlow refs
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
-
-  // Scenario editing state
-  const [editingScenarioName, setEditingScenarioName] = useState("");
   
   // Flag to prevent save loops
   const isLoadingScenarioRef = useRef(false);
   const lastSavedNodesRef = useRef<string>("");
   const lastSavedEdgesRef = useRef<string>("");
+
+  // Initialize scenario manager without circular dependency
+  const scenarioManager = useScenarioManager({
+    initialScenarioId: scenarioIdParam || undefined,
+  });
+
+  // Initialize ROI hook
+  const roi = useROI({
+    initialScenario: scenarioManager.scenario,
+    onSettingsChange: (settings) => {
+      if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
+        scenarioManager.updateScenario(settings);
+      }
+    },
+    nodes,
+  });
 
   // Load scenario data to canvas - stable callback
   const loadScenarioToCanvas = useCallback((scenario: Scenario) => {
@@ -143,8 +174,6 @@ export function BuildPageContent() {
         rfInstance.setViewport(scenario.viewport as Viewport);
       }
       
-      setEditingScenarioName(scenario.name);
-      
       // Delay to ensure state updates are complete
       setTimeout(() => {
         isLoadingScenarioRef.current = false;
@@ -157,22 +186,6 @@ export function BuildPageContent() {
     }
   }, [setNodes, setEdges, rfInstance]);
 
-  // Initialize scenario manager without circular dependency
-  const scenarioManager = useScenarioManager({
-    initialScenarioId: scenarioIdParam || undefined,
-  });
-
-  // Initialize ROI hook
-  const roi = useROI({
-    initialScenario: scenarioManager.scenario,
-    onSettingsChange: (settings) => {
-      if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
-        scenarioManager.updateScenario(settings);
-      }
-    },
-    nodes,
-  });
-
   // Load scenario when it changes
   useEffect(() => {
     if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
@@ -181,7 +194,7 @@ export function BuildPageContent() {
       loadScenarioToCanvas(scenarioManager.scenario);
       roi.loadFromScenario(scenarioManager.scenario);
     }
-  }, [scenarioManager.scenario?.id]); // Only depend on ID to prevent loops
+  }, [scenarioManager.scenario?.id, scenarioManager.scenario, loadScenarioToCanvas, roi]);
 
   // Initialize email generation hook
   const emailGeneration = useEmailGeneration({
@@ -214,7 +227,7 @@ export function BuildPageContent() {
     promptType: string,
     currentText: string,
     selectedContextNodes?: string[]
-  ) => {
+  ): Promise<void> => {
     try {
       // Find the email node
       const emailNode = nodes.find(n => n.id === nodeId && n.type === 'emailPreview');
@@ -228,7 +241,7 @@ export function BuildPageContent() {
         contextNodes = nodes.filter(n => selectedContextNodes.includes(n.id));
       } else {
         // Fallback to connected nodes (legacy behavior)
-        const sectionConnections = (emailNode.data as any).sectionConnections || {};
+        const sectionConnections = (emailNode.data as EmailNodeData).sectionConnections || {};
         const sectionConnection = sectionConnections[section];
         
         if (sectionConnection?.connectedNodeIds) {
@@ -260,7 +273,7 @@ export function BuildPageContent() {
 
       // Generate the section with proper typing
       const newContent = await emailGeneration.generateEmailSection(
-        fieldName as any, // Type assertion needed due to string vs union type
+        fieldName as 'subjectLine' | 'hookText' | 'ctaText' | 'offerText' | 'psText' | 'testimonialText' | 'urgencyText',
         contextData,
         `regenerate_${section}`,
         {
@@ -293,7 +306,22 @@ export function BuildPageContent() {
       console.error('Failed to regenerate section:', error);
       toast.error('Failed to regenerate section');
     }
-  }, [nodes, emailGeneration, setNodes]);
+  }, [nodes, emailGeneration, setNodes, scenarioManager.scenario?.name, roi.metrics.netROI, roi.metrics.roiRatio, roi.metrics.paybackPeriod, roi.metrics.timeSavedHours, roi.settings.platform, roi.settings.runsPerMonth, roi.settings.minutesPerRun, roi.settings.hourlyRate, roi.settings.taskMultiplier]);
+
+  // Simplified wrapper for FlowCanvas (only nodeId and section)
+  const handleRegenerateSectionSimple = useCallback(async (
+    nodeId: string,
+    section: string
+  ): Promise<void> => {
+    // Call the full function with default values
+    await handleRegenerateSection(
+      nodeId, 
+      section as 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
+      'regenerate_standard_professional_warm', // default prompt type
+      '', // current text (will be extracted from node)
+      [] // no selected context nodes
+    );
+  }, [handleRegenerateSection]);
 
   // Get selected node
   const selectedNode = selectedId ? nodes.find(n => n.id === selectedId) : null;
@@ -399,7 +427,7 @@ export function BuildPageContent() {
     return () => {
       mounted = false;
     };
-  }, []); // Only run once on mount
+  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate, scenarioManager, router]); // Only run once on mount
 
   // Save scenario when nodes/edges change
   useEffect(() => {
@@ -429,7 +457,7 @@ export function BuildPageContent() {
     }, 500);
 
     return () => clearTimeout(saveTimer);
-  }, [nodes, edges, scenarioManager.scenario?.id, isLoading]); // Minimal deps
+  }, [nodes, edges, scenarioManager.scenario?.id, scenarioManager, isLoading]); // Minimal deps
 
   // Show loading state
   if (isLoading) {
@@ -491,7 +519,7 @@ export function BuildPageContent() {
               activeScenarioId={scenarioManager.scenario?.id as number | null}
               emailNodes={nodes.filter(n => n.type === 'emailPreview').map(n => ({
                 id: n.id,
-                title: (n.data as any).nodeTitle || 'Email'
+                title: (n.data as EmailNodeData).nodeTitle || 'Email'
               }))}
               onFocusNode={(nodeId) => {
                 const node = nodes.find(n => n.id === nodeId);
@@ -537,7 +565,7 @@ export function BuildPageContent() {
                 edgeTypes={edgeTypes}
                 selectedNodeType={selectedNodeType}
                 onNodeTypeChange={setSelectedNodeType}
-                handleRegenerateSection={handleRegenerateSection}
+                handleRegenerateSection={handleRegenerateSectionSimple}
               />
 
               {/* Stats Bar */}
@@ -628,8 +656,8 @@ export function BuildPageContent() {
                   .map(n => ({
                     id: n.id,
                     type: n.type || '',
-                    label: (n.data as any).label || n.type || '',
-                    value: (n.data as any).contextValue || '',
+                    label: (n.data as NodeData).label || n.type || '',
+                    value: (n.data as NodeData).contextValue || '',
                   }))}
               />
             )}

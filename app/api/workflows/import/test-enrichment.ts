@@ -1,5 +1,28 @@
 import { enrichWithPricingData } from './enrichment';
 import { ImportedWorkflow } from '@/lib/import/types';
+import { Node } from '@xyflow/react';
+
+// Interface for workflow node with proper typing
+interface WorkflowNodeWithAppData extends Node {
+  data: {
+    label: string;
+    appName: string;
+    action: string;
+    [key: string]: unknown;
+  };
+}
+
+// Interface for pricing data structure
+interface PricingData {
+  appName: string;
+  appSlug: string;
+  hasFreeTier: boolean;
+  lowestMonthlyPrice: number | null;
+  highestMonthlyPrice: number | null;
+  tierCount: number;
+  priceModelType: string[];
+  [key: string]: unknown;
+}
 
 // Test workflow with various app names
 const testWorkflow: ImportedWorkflow = {
@@ -59,8 +82,9 @@ async function testEnrichment() {
   console.log('Testing enrichment with automatic slug conversion...\n');
   
   console.log('Original app names:');
-  testWorkflow.nodes.forEach((node: any) => {
-    console.log(`- ${node.data.appName}`);
+  testWorkflow.nodes.forEach((node) => {
+    const typedNode = node as WorkflowNodeWithAppData;
+    console.log(`- ${typedNode.data.appName}`);
   });
   
   try {
@@ -71,12 +95,13 @@ async function testEnrichment() {
     
     const pricingData = enrichedWorkflow.metadata.pricingData;
     if (pricingData && typeof pricingData === 'object') {
-      Object.values(pricingData).forEach((pricing: any) => {
-        console.log(`\n📦 ${pricing.appName} (${pricing.appSlug})`);
-        console.log(`   - Has free tier: ${pricing.hasFreeTier ? '✅' : '❌'}`);
-        console.log(`   - Price range: $${pricing.lowestMonthlyPrice || 0} - $${pricing.highestMonthlyPrice || '?'}/month`);
-        console.log(`   - Tiers: ${pricing.tierCount}`);
-        console.log(`   - Pricing model: ${pricing.priceModelType.join(', ')}`);
+      Object.values(pricingData).forEach((pricing) => {
+        const typedPricing = pricing as PricingData;
+        console.log(`\n📦 ${typedPricing.appName} (${typedPricing.appSlug})`);
+        console.log(`   - Has free tier: ${typedPricing.hasFreeTier ? '✅' : '❌'}`);
+        console.log(`   - Price range: $${typedPricing.lowestMonthlyPrice || 0} - $${typedPricing.highestMonthlyPrice || '?'}/month`);
+        console.log(`   - Tiers: ${typedPricing.tierCount}`);
+        console.log(`   - Pricing model: ${typedPricing.priceModelType.join(', ')}`);
       });
     } else {
       console.log('❌ No pricing data found');

@@ -14,7 +14,7 @@ export interface ImportedWorkflow {
     originalData?: unknown;
     nodeCount: number;
     estimatedMinutes?: number;
-    pricingData?: Record<string, any>;
+    pricingData?: Record<string, unknown>;
     pricingEnrichedAt?: string;
   };
 }

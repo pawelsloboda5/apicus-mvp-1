@@ -2,7 +2,7 @@
 import React from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
-import { PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, MailOpen, Zap, CheckSquare, Code, Link2 } from "lucide-react";
+import { PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, MailOpen, Zap, CheckSquare, Code, Link2, DollarSign, CreditCard } from "lucide-react";
 
 export function PixelNode({ data, type, selected }: NodeProps) {
   const Icon = 
@@ -30,6 +30,13 @@ export function PixelNode({ data, type, selected }: NodeProps) {
     contextType?: string;
     category?: string;
     isConnectedToEmail?: boolean;
+    appId?: string;
+    pricingData?: {
+      hasFreeTier?: boolean;
+      lowestMonthlyPrice?: number | null;
+      priceModelType?: string[];
+      isPricingPublic?: boolean;
+    };
   };
 
   const isEmailContext = nodeData.isEmailContext || [
@@ -106,49 +113,36 @@ export function PixelNode({ data, type, selected }: NodeProps) {
             )
       )}
     >
-      {/* Handles for email context nodes - positioned left/right */}
-      {isEmailContext ? (
-        <>
-          <Handle
-            type="target"
-            position={Position.Left}
-            className={cn(
-              "!w-4 !h-4 !border-2 !rounded-full transition-all duration-200",
-              "!bg-primary !border-primary/70",
-              isConnectedToEmail && "!bg-primary !animate-pulse !scale-110"
-            )}
-          />
-          <Handle
-            type="source"
-            position={Position.Right}
-            className={cn(
-              "!w-4 !h-4 !border-2 !rounded-full transition-all duration-200",
-              "!bg-primary !border-primary/70",
-              isConnectedToEmail && "!bg-primary !animate-pulse !scale-110"
-            )}
-          />
-        </>
-      ) : (
-        <>
-          {/* Regular nodes keep top/bottom handles */}
-          <Handle
-            type="target"
-            position={Position.Top}
-            className={cn(
-              "!w-3 !h-3 !border-2 !rounded-full",
-              "!bg-primary !border-primary/70"
-            )}
-          />
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            className={cn(
-              "!w-3 !h-3 !border-2 !rounded-full",
-              "!bg-primary !border-primary/70"
-            )}
-          />
-        </>
-      )}
+      {/* All nodes now have left/right handles with larger hitboxes */}
+      {/* Target handle (left) with invisible expanded hitbox */}
+      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center">
+        <Handle
+          type="target"
+          position={Position.Left}
+          className={cn(
+            "!w-6 !h-6 !border-2 !rounded-full transition-all duration-200 !relative",
+            "!bg-primary !border-primary/50 hover:!border-primary hover:!scale-125",
+            "after:content-[''] after:absolute after:-inset-2 after:rounded-full",
+            isConnectedToEmail && "!bg-primary !animate-pulse !scale-110"
+          )}
+          style={{ position: 'relative' }}
+        />
+      </div>
+      
+      {/* Source handle (right) with invisible expanded hitbox */}
+      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center">
+        <Handle
+          type="source"
+          position={Position.Right}
+          className={cn(
+            "!w-6 !h-6 !border-2 !rounded-full transition-all duration-200 !relative",
+            "!bg-primary !border-primary/50 hover:!border-primary hover:!scale-125",
+            "after:content-[''] after:absolute after:-inset-2 after:rounded-full",
+            isConnectedToEmail && "!bg-primary !animate-pulse !scale-110"
+          )}
+          style={{ position: 'relative' }}
+        />
+      </div>
       
       {/* Platform indicator badge */}
       {platform && PlatformIcon && !isEmailContext && (
@@ -175,69 +169,105 @@ export function PixelNode({ data, type, selected }: NodeProps) {
       )}
       
       <div className="flex flex-col p-4 space-y-3">
-        {/* Header with icon and node type */}
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "p-2 rounded-lg transition-colors duration-200",
-            isEmailContext 
-              ? (category ? "bg-white/60 dark:bg-gray-900/60" : "bg-white/60 dark:bg-gray-900/60")
-              : (type === "trigger" 
-                  ? "bg-white/60 dark:bg-gray-900/60" 
-                  : type === "action" 
-                  ? "bg-white/60 dark:bg-gray-900/60" 
-                  : "bg-white/60 dark:bg-gray-900/60"
-                )
-          )}>
+        {/* Simplified header - only show if email context */}
+        {isEmailContext ? (
+          <div className="flex items-center gap-2 mb-1">
             <Icon 
               className={cn(
-                "h-5 w-5",
-                isEmailContext 
-                  ? (category ? iconColors[category as keyof typeof iconColors] : "text-slate-600 dark:text-slate-400")
-                  : (type === "trigger" 
-                      ? "text-green-600 dark:text-green-400" 
-                      : type === "action" 
-                      ? "text-blue-600 dark:text-blue-400" 
-                      : "text-amber-600 dark:text-amber-400"
-                    )
+                "h-4 w-4",
+                category ? iconColors[category as keyof typeof iconColors] : "text-slate-600 dark:text-slate-400"
               )}
             />
-          </div>
-          <span className="text-xs font-display font-semibold text-muted-foreground uppercase tracking-wider">
-            {type === "trigger" ? "Trigger" : 
-             type === "action" ? "Action" : 
-             type === "decision" ? "Decision" : 
-             type}
-          </span>
-        </div>
-
-        {/* App name (prominently displayed) */}
-        {nodeData.appName && (
-          <div className="font-display font-bold text-lg text-foreground leading-tight" title={nodeData.appName}>
-            {nodeData.appName}
-          </div>
-        )}
-        
-        {/* Node label */}
-        <div className="font-medium text-sm text-foreground/90 leading-tight" title={nodeData.label || "Node"}>
-          {nodeData.label || "Node"}
-        </div>
-
-        {/* Action or context value */}
-        {(nodeData.action || nodeData.contextValue) && (
-          <div className="text-xs text-muted-foreground leading-tight" 
-               title={nodeData.action || nodeData.contextValue}>
-            {nodeData.action || nodeData.contextValue}
-          </div>
-        )}
-
-        {/* Type indicator for specific operations */}
-        {nodeData.typeOf && (
-          <div className="flex">
-            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide bg-muted text-muted-foreground border border-border">
-              {nodeData.typeOf}
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {type}
             </span>
           </div>
+        ) : (
+          /* Main content for regular nodes */
+          <div className="flex items-start gap-3">
+            <div className={cn(
+              "p-2.5 rounded-xl transition-all duration-200 mt-0.5",
+              type === "trigger" 
+                ? "bg-gradient-to-br from-green-500/20 to-green-600/20 dark:from-green-500/30 dark:to-green-600/30" 
+                : type === "action" 
+                ? "bg-gradient-to-br from-blue-500/20 to-blue-600/20 dark:from-blue-500/30 dark:to-blue-600/30" 
+                : "bg-gradient-to-br from-amber-500/20 to-amber-600/20 dark:from-amber-500/30 dark:to-amber-600/30"
+            )}>
+              <Icon 
+                className={cn(
+                  "h-6 w-6",
+                  type === "trigger" 
+                    ? "text-green-600 dark:text-green-400" 
+                    : type === "action" 
+                    ? "text-blue-600 dark:text-blue-400" 
+                    : "text-amber-600 dark:text-amber-400"
+                )}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              {/* App name or label as primary text */}
+              <div className="font-display font-bold text-base text-foreground leading-tight line-clamp-1" 
+                   title={nodeData.appName || nodeData.label || type}>
+                {nodeData.appName || nodeData.label || type}
+              </div>
+              
+              {/* Action or secondary info */}
+              {nodeData.action && nodeData.appName && (
+                <div className="text-sm text-foreground/70 mt-1 line-clamp-1" title={nodeData.action}>
+                  {nodeData.action}
+                </div>
+              )}
+            </div>
+          </div>
         )}
+
+        {/* Email context content */}
+        {isEmailContext && (
+          <div className="space-y-2">
+            <div className="font-medium text-sm text-foreground leading-tight" title={nodeData.label || type}>
+              {nodeData.label || type}
+            </div>
+            {nodeData.contextValue && (
+              <div className="text-xs bg-black/5 dark:bg-white/5 px-2.5 py-1.5 rounded-lg font-mono">
+                {nodeData.contextValue}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bottom section with pricing and type badges */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Type badge for operations */}
+          {nodeData.typeOf && !isEmailContext && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted/50 text-muted-foreground">
+              {nodeData.typeOf}
+            </span>
+          )}
+          
+          {/* Pricing indicator */}
+          {nodeData.pricingData && !isEmailContext && (
+            <div className="flex items-center gap-1 ml-auto">
+              {nodeData.pricingData.hasFreeTier ? (
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 dark:bg-green-500/20 rounded-full" title="Free tier available">
+                  <span className="text-xs font-medium text-green-700 dark:text-green-400">Free</span>
+                </div>
+              ) : nodeData.pricingData.lowestMonthlyPrice ? (
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 rounded-full" 
+                     title={`From $${nodeData.pricingData.lowestMonthlyPrice}/mo`}>
+                  <DollarSign className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-medium text-primary">
+                    ${nodeData.pricingData.lowestMonthlyPrice}
+                  </span>
+                </div>
+              ) : nodeData.pricingData.isPricingPublic === false ? (
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-muted/50 rounded-full" title="Custom pricing">
+                  <CreditCard className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">Quote</span>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

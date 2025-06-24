@@ -7,8 +7,7 @@ import {
   EMAIL_CONTEXT_DEFAULTS,
   API_CONFIG,
   ERROR_MESSAGES,
-  SUCCESS_MESSAGES,
-  LIMITS 
+  SUCCESS_MESSAGES
 } from '@/lib/utils/constants';
 
 // Define local interfaces for email functionality
@@ -273,7 +272,7 @@ export function useEmailGeneration({
             if (Array.isArray(parsed)) {
               value = parsed.join(', ');
             }
-          } catch (e) {
+          } catch {
             // Keep original value if parsing fails
           }
         }

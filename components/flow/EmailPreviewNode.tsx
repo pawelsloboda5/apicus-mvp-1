@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { EmailTemplate, EmailTemplateProps } from './EmailTemplate';
+import { EmailTemplateProps } from './EmailTemplate';
 import { cn } from '@/lib/utils';
 
 export interface EmailPreviewNodeData extends EmailTemplateProps {
@@ -211,7 +211,6 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
   const { 
     nodeTitle = "Generated Email Output", 
     isLoading = false, 
-    onOpenNodeProperties,
     onRegenerateSection,
     sectionConnections,
     ...emailProps 
@@ -219,7 +218,7 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
 
   // Check if any sections need regeneration
   const sectionsNeedingRegeneration = sectionConnections ? 
-    Object.entries(sectionConnections).filter(([_, connection]) => connection?.regenerateNeeded).length 
+    Object.entries(sectionConnections).filter(([, connection]) => connection?.regenerateNeeded).length 
     : 0;
 
   // Loading state

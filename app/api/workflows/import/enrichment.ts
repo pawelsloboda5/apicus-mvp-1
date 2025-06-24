@@ -1,4 +1,5 @@
 import { ImportedWorkflow } from '@/lib/import/types';
+import { Node } from '@xyflow/react';
 import clientPromise from '@/lib/mongo';
 import { Db } from 'mongodb';
 
@@ -16,6 +17,50 @@ function appNameToSlug(appName: string): string {
     .replace(/[^a-z0-9-]/g, ''); // Remove non-alphanumeric characters except dashes
 }
 
+// Interfaces for MongoDB pricing document structure
+interface PricingTier {
+  tier_name: string;
+  tier_description?: string;
+  monthly_price: number | null;
+  annual_price: number | null;
+  annual_discount_percentage?: number | null;
+  setup_fee?: number | null;
+  features: string[];
+  limits?: {
+    users?: string;
+    storage?: string;
+    operations?: string;
+    api_calls?: string | null;
+    integrations?: string | number;
+    custom_limits?: Record<string, unknown> | null;
+  };
+}
+
+interface UsageBasedPricing {
+  pricing_model: string;
+  unit_of_measurement: string;
+  price_per_unit: number;
+  included_units?: number;
+  overage_price?: number;
+  billing_cycle?: string;
+}
+
+interface PromotionalOffer {
+  offer_type: string;
+  discount_percentage?: number;
+  discount_amount?: number;
+  valid_until?: string;
+  conditions?: string[];
+}
+
+interface AdditionalFee {
+  fee_type: string;
+  amount: number;
+  currency: string;
+  description?: string;
+  applies_to?: string[];
+}
+
 // Interface matching MongoDB document structure
 interface AppPricingData {
   app_id: string;
@@ -31,24 +76,8 @@ interface AppPricingData {
   is_pricing_public: boolean;
   pricing_page_accessible?: boolean;
   pricing_notes?: string;
-  pricing_tiers?: Array<{
-    tier_name: string;
-    tier_description?: string;
-    monthly_price: number | null;
-    annual_price: number | null;
-    annual_discount_percentage?: number | null;
-    setup_fee?: number | null;
-    features: string[];
-    limits?: {
-      users?: string;
-      storage?: string;
-      operations?: string;
-      api_calls?: string | null;
-      integrations?: string | number;
-      custom_limits?: Record<string, unknown> | null;
-    };
-  }>;
-  usage_based_pricing?: any[];
+  pricing_tiers?: PricingTier[];
+  usage_based_pricing?: UsageBasedPricing[];
   ai_specific_pricing?: {
     has_token_based_pricing?: boolean;
     input_token_price?: number | null;
@@ -59,8 +88,8 @@ interface AppPricingData {
     has_training_pricing?: boolean;
     ai_addon_available?: boolean;
   };
-  promotional_offers?: any[];
-  additional_fees?: any[];
+  promotional_offers?: PromotionalOffer[];
+  additional_fees?: AdditionalFee[];
   extraction_timestamp?: string;
   schema_validated?: boolean;
   confidence_score?: number;
@@ -107,6 +136,14 @@ interface SimplifiedAppPricingData {
   }>;
 }
 
+// Interface for workflow nodes with proper typing
+interface WorkflowNode extends Node {
+  data: {
+    appName?: string;
+    [key: string]: unknown;
+  };
+}
+
 /**
  * Enrich imported workflow with pricing data from MongoDB
  */
@@ -118,7 +155,7 @@ export async function enrichWithPricingData(
     const appNamesSet = new Set<string>();
     const appSlugMap = new Map<string, string>(); // Map app name to slug
     
-    workflow.nodes.forEach((node: any) => {
+    workflow.nodes.forEach((node: WorkflowNode) => {
       if (node.data.appName && node.data.appName !== 'Unknown') {
         appNamesSet.add(node.data.appName);
         appSlugMap.set(node.data.appName, appNameToSlug(node.data.appName));
@@ -240,7 +277,7 @@ export function calculateEstimatedCost(
   
   // Count app usage in workflow
   const appUsage = new Map<string, number>();
-  workflow.nodes.forEach((node: any) => {
+  workflow.nodes.forEach((node: WorkflowNode) => {
     const appName = node.data.appName;
     if (appName && appName !== 'Unknown') {
       appUsage.set(appName, (appUsage.get(appName) || 0) + 1);

@@ -256,7 +256,7 @@ export const db: ApicusDB =
 /** Returns true when the real Dexie instance is available (client side). */
 function isDbReady(): boolean {
   // Dexie instances have an Observable addon; checking for typical property to detect real instance.
-  return typeof (db as any).open === 'function';
+  return typeof (db as unknown as { open?: () => void }).open === 'function';
 }
 
 /**
