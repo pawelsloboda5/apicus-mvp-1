@@ -6,6 +6,7 @@
 import { Node } from "@xyflow/react";
 import { NodeType, PlatformType } from "@/lib/types";
 import type { PlatformPricing } from "@/app/api/data/pricing";
+import { NODE_TIME_FACTORS } from "@/lib/utils/constants";
 
 /**
  * Calculate the time value of automation
@@ -193,21 +194,7 @@ export function calculateNodeTimeSavings(
   nodeType: NodeType,
   totalMinutesPerRun: number,
   allNodes: Node[],
-  typeFactors: Record<NodeType, number> = {
-    trigger: 0.5,
-    action: 1.2,
-    decision: 0.8,
-    group: 0,
-    // Email context nodes have minimal time impact as they are metadata
-    persona: 0,
-    industry: 0,
-    painpoint: 0,
-    metric: 0,
-    urgency: 0,
-    socialproof: 0,
-    objection: 0,
-    value: 0,
-  },
+  typeFactors: Record<NodeType, number> = NODE_TIME_FACTORS,
   operationType?: string
 ): number {
   // Base calculation - distribute time based on node type
@@ -273,21 +260,7 @@ export function calculateGroupROI(
       nodeType, 
       minutesPerRun,
       nodes,
-      {
-        trigger: 0.5,
-        action: 1.2,
-        decision: 0.8,
-        group: 0,
-        // Email context nodes have minimal time impact
-        persona: 0,
-        industry: 0,
-        painpoint: 0,
-        metric: 0,
-        urgency: 0,
-        socialproof: 0,
-        objection: 0,
-        value: 0,
-      },
+      NODE_TIME_FACTORS,
       operationType
     );
     

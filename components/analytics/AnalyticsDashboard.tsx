@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Scenario } from '@/lib/types';
 import { Node } from '@xyflow/react';
 import { useScenarioMetrics } from '@/lib/db';
@@ -18,10 +18,27 @@ interface AnalyticsDashboardProps {
   onNodeClick?: (nodeId: string) => void;
 }
 
+// Define the metrics type to fix the reference error
+type RoiMetrics = {
+  timeValue: number;
+  riskValue: number;
+  revenueValue: number;
+  totalValue: number;
+  platformCost: number;
+  netROI: number;
+  roiRatio: number;
+  paybackPeriod: string;
+  breakEvenRuns: number;
+  isPositiveROI: boolean;
+} | null;
+
 export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDashboardProps) {
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | undefined>();
-  const [previousMetrics, setPreviousMetrics] = useState<typeof metrics | null>(null);
+  const [previousMetrics, setPreviousMetrics] = useState<RoiMetrics>(null);
   const [previousNodeCount, setPreviousNodeCount] = useState(0);
+  
+  // Use ref to prevent infinite loops in useEffect
+  const isCapturingSnapshot = useRef(false);
   
   // Get historical metrics for the scenario
   const historicalMetrics = useScenarioMetrics(scenario?.id);
@@ -29,9 +46,9 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
   // Get real-time ROI calculations
   const metrics = useRoiMetrics(scenario, nodes);
   
-  // Track metric changes for automatic snapshots
+  // Track metric changes for automatic snapshots - fixed dependencies
   useEffect(() => {
-    if (!scenario || !metrics) return;
+    if (!scenario || !metrics || isCapturingSnapshot.current) return;
     
     const nodeCount = nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || '')).length;
     
@@ -42,17 +59,25 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
       previousNodeCount,
       nodeCount
     )) {
-      captureROISnapshot(scenario, nodes, 'major_edit');
+      isCapturingSnapshot.current = true;
+      captureROISnapshot(scenario, nodes, 'major_edit').finally(() => {
+        isCapturingSnapshot.current = false;
+      });
     }
     
     setPreviousMetrics(metrics);
     setPreviousNodeCount(nodeCount);
-  }, [scenario, metrics, nodes, previousMetrics, previousNodeCount]);
+  }, [scenario?.id, metrics?.netROI, nodes.length]); // Fixed dependencies
   
   // Manual snapshot handler
   const handleCaptureSnapshot = async () => {
-    if (!scenario) return;
-    await captureROISnapshot(scenario, nodes, 'manual');
+    if (!scenario || isCapturingSnapshot.current) return;
+    isCapturingSnapshot.current = true;
+    try {
+      await captureROISnapshot(scenario, nodes, 'manual');
+    } finally {
+      isCapturingSnapshot.current = false;
+    }
   };
   
   // Export data handler
@@ -172,22 +197,25 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
   
   // Prepare Flow Time data
   const flowTimeData = useMemo(() => {
-    if (!scenario || nodes.length === 0) return null;
+    if (!scenario || nodes.length === 0 || !scenario.minutesPerRun) return null;
     
     // Filter to only include workflow nodes (not email context nodes)
     const workflowNodes = nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || ''));
     if (workflowNodes.length === 0) return null;
     
     try {
-      const data = transformToFlowTimeData(nodes, scenario.minutesPerRun || 0);
+      const data = transformToFlowTimeData(nodes, scenario.minutesPerRun);
       // Validate the returned data
-      if (!data || !data.nodes || data.nodes.length === 0) return null;
+      if (!data || !data.nodes || data.nodes.length === 0 || 
+          !data.nodes.every(node => node.value != null && !isNaN(node.value))) {
+        return null;
+      }
       return data;
     } catch (error) {
       console.error('Error transforming flow time data:', error);
       return null;
     }
-  }, [nodes, scenario]);
+  }, [nodes, scenario?.minutesPerRun]);
   
   const handleFlowNodeClick = (nodeId: string) => {
     setHighlightedNodeId(nodeId);
@@ -261,7 +289,13 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
               </CardHeader>
               <CardContent>
                 <div className="h-[200px] w-full">
-                  <RoiGauge ratio={metrics.roiRatio} size="lg" animate />
+                  {metrics.roiRatio != null && !isNaN(metrics.roiRatio) ? (
+                    <RoiGauge ratio={metrics.roiRatio} size="lg" animate />
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-muted-foreground">Loading...</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -380,7 +414,7 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
-                  {waterfallData.length > 0 ? (
+                  {waterfallData.length > 0 && waterfallData.every(d => d.value != null && !isNaN(d.value)) ? (
                     <WaterfallChart data={waterfallData} animate />
                   ) : (
                     <div className="h-full flex items-center justify-center bg-muted rounded-lg">
@@ -399,7 +433,7 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
-                  {trendData.length > 1 ? (
+                  {trendData.length > 1 && trendData.every(d => d.value != null && !isNaN(d.value)) ? (
                     <TrendChart data={trendData} animate />
                   ) : (
                     <div className="h-full flex items-center justify-center bg-muted rounded-lg">
@@ -422,29 +456,29 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
               <CardTitle>Workflow Time Analysis</CardTitle>
               <CardDescription>Time savings by automation step</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="h-[400px]">
-                {flowTimeData ? (
-                  <FlowTimeChart 
-                    data={flowTimeData} 
-                    animate 
-                    onNodeClick={handleFlowNodeClick}
-                    highlightedNodeId={highlightedNodeId}
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center bg-muted rounded-lg">
-                    <p className="text-muted-foreground">
-                      {nodes.length === 0 
-                        ? 'Add nodes to see workflow analysis'
-                        : nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || '')).length === 0
-                        ? 'Add workflow nodes (triggers, actions, or decisions) to see analysis'
-                        : 'No workflow data available'
-                      }
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
+                          <CardContent>
+                <div className="h-[400px]">
+                  {flowTimeData && flowTimeData.nodes?.length > 0 ? (
+                    <FlowTimeChart 
+                      data={flowTimeData} 
+                      animate 
+                      onNodeClick={handleFlowNodeClick}
+                      highlightedNodeId={highlightedNodeId}
+                    />
+                  ) : (
+                    <div className="h-full flex items-center justify-center bg-muted rounded-lg">
+                      <p className="text-muted-foreground">
+                        {nodes.length === 0 
+                          ? 'Add nodes to see workflow analysis'
+                          : nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || '')).length === 0
+                          ? 'Add workflow nodes (triggers, actions, or decisions) to see analysis'
+                          : 'No workflow data available'
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
           </Card>
         </div>
       </div>

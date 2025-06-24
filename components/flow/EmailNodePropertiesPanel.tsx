@@ -39,10 +39,7 @@ interface EmailNodePropertiesPanelProps {
   onUpdateNodeData: (nodeId: string, data: Partial<EmailPreviewNodeData>) => void;
   onGenerateSection: (
     nodeId: string,
-    section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
-    promptType: string,
-    currentText: string,
-    selectedContextNodes?: string[]
+    section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency'
   ) => Promise<void>;
   isGeneratingAIContent: boolean;
   emailContextNodes?: EmailContextNode[];
@@ -234,10 +231,7 @@ export function EmailNodePropertiesPanel({
                       if (selectedNode) {
                         onGenerateSection(
                           selectedNode.id,
-                          promptKey,
-                          opt.value + '_' + selectedLength + '_' + selectedTone, // Include tone
-                          formData[fieldKey] || '',
-                          Array.from(selectedContextNodes)
+                          promptKey
                         );
                       }
                     }}

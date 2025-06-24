@@ -82,7 +82,8 @@ export default function Home() {
     try {
       const res = await fetch(`/api/templates/search?q=${encodeURIComponent(q)}`);
       if (!res.ok) {
-        router.push(`/build?q=${encodeURIComponent(q)}`);
+        // If search fails, create a new scenario with default template
+        router.push(`/build?q=${encodeURIComponent(q)}&default=true`);
         return;
       }
       const data = await res.json();
@@ -91,7 +92,8 @@ export default function Home() {
         const primaryTemplate = data.templates[0];
         router.push(`/build?tid=${primaryTemplate.templateId}&q=${encodeURIComponent(q)}`);
       } else {
-        router.push(`/build?q=${encodeURIComponent(q)}`);
+        // No templates found, create with default template
+        router.push(`/build?q=${encodeURIComponent(q)}&default=true`);
       }
     } catch {
       router.push('/build');

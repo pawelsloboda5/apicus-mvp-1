@@ -1,4 +1,4 @@
-import { Node } from "@xyflow/react";
+import { Node, Edge } from "@xyflow/react";
 import { nanoid } from "nanoid";
 
 /**
@@ -244,4 +244,38 @@ export function hasAnyRegenerateNeeded(sectionConnections: EmailSectionConnectio
   return Object.values(sectionConnections).some(
     section => section?.regenerateNeeded === true
   );
+}
+
+/**
+ * Transform template nodes from MongoDB format (with reactFlowId) to React Flow format (with id)
+ */
+export function transformTemplateNodes(nodes: any[], templateId?: string): Node[] {
+  if (!nodes || !Array.isArray(nodes)) return [];
+  
+  return nodes.map((node, index) => ({
+    id: node.id || node.reactFlowId || `node-${templateId || 'template'}-${index}-${nanoid(6)}`,
+    type: node.type || 'action',
+    position: node.position || { x: 250 * index, y: 200 },
+    data: {
+      label: node.label || node.data?.label || 'Node',
+      ...node.data,
+      ...(node.platformMeta || {}),
+    }
+  }));
+}
+
+/**
+ * Transform template edges from MongoDB format to React Flow format
+ */
+export function transformTemplateEdges(edges: any[], templateId?: string): Edge[] {
+  if (!edges || !Array.isArray(edges)) return [];
+  
+  return edges.map((edge, index) => ({
+    id: edge.id || edge.reactFlowId || `edge-${templateId || 'template'}-${index}-${nanoid(6)}`,
+    source: edge.source || edge.data?.source || '',
+    target: edge.target || edge.data?.target || '',
+    type: edge.type || 'custom',
+    data: edge.data || {},
+    label: edge.label || '',
+  }));
 } 

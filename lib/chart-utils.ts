@@ -3,6 +3,7 @@ import { SankeyData, SankeyNode, SankeyLink } from '@/app/chart-kit/SankeyChart'
 import { NodeData, NodeType } from '@/lib/types';
 import { calculateNodeTimeSavings } from '@/lib/roi-utils';
 import { FlowTimeData, FlowNode } from '@/app/chart-kit/FlowTimeChart';
+import { NODE_TIME_FACTORS } from '@/lib/utils/constants';
 
 /**
  * Transform React Flow nodes to FlowTimeChart format
@@ -31,20 +32,7 @@ export function transformToFlowTimeData(
       nodeType,
       totalMinutesPerRun,
       flowNodes,
-      {
-        trigger: 0.5,
-        action: 1.2,
-        decision: 0.8,
-        group: 0,
-        persona: 0,
-        industry: 0,
-        painpoint: 0,
-        metric: 0,
-        urgency: 0,
-        socialproof: 0,
-        objection: 0,
-        value: 0,
-      },
+      NODE_TIME_FACTORS,
       operationType
     );
     
@@ -113,20 +101,7 @@ export function transformToSankeyData(
       nodeType,
       totalMinutesPerRun,
       flowNodes,
-      {
-        trigger: 0.5,
-        action: 1.2,
-        decision: 0.8,
-        group: 0,
-        persona: 0,
-        industry: 0,
-        painpoint: 0,
-        metric: 0,
-        urgency: 0,
-        socialproof: 0,
-        objection: 0,
-        value: 0,
-      },
+      NODE_TIME_FACTORS,
       operationType
     );
     
