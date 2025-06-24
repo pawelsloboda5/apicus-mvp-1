@@ -109,13 +109,6 @@ const useScreenSize = () => {
   return screenSize;
 };
 
-// Helper function for dynamic minute steps
-const getMinuteStep = (currentMinutes: number): number => {
-  if (currentMinutes < 1) return 0.1;
-  if (currentMinutes < 10) return 0.5;
-  return 1;
-};
-
 export function StatsBar({
   platform,
   runsPerMonth,
@@ -152,6 +145,13 @@ export function StatsBar({
   const [editingRuns, setEditingRuns] = useState(false);
   const [tempMinutes, setTempMinutes] = useState(minutesPerRun);
   const [tempRuns, setTempRuns] = useState(runsPerMonth);
+
+  // Helper function for dynamic minute steps
+  const getMinuteStep = (currentMinutes: number): number => {
+    if (currentMinutes < 1) return 0.1;
+    if (currentMinutes < 10) return 0.5;
+    return 1;
+  };
 
   // Update temp values when props change
   useEffect(() => {
