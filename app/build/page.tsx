@@ -2436,7 +2436,6 @@ function BuildPageContent() {
                     minutesPerRun={minutesPerRun}
                     hourlyRate={hourlyRate}
                     taskMultiplier={taskMultiplier}
-                    edges={edges}
                   />
                   <GroupPropertiesPanel
                     selectedGroup={selectedGroup}
