@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Node, Edge, Connection, NodeChange, EdgeChange } from '@xyflow/react';
 import { DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
 import { toast } from 'sonner';
-import { NodeType, EmailContextNodeType } from '@/lib/types';
+import { NodeType } from '@/lib/types';
 import { 
   CANVAS_CONFIG, 
   ERROR_MESSAGES 
@@ -30,7 +30,7 @@ export interface UseDragAndDropOptions {
 
 export interface DragState {
   isDragging: boolean;
-  draggedNodeType: NodeType | EmailContextNodeType | null;
+  draggedNodeType: NodeType | null;
   draggedItemId: string | null;
   dropPosition: { x: number; y: number } | null;
 }
@@ -72,7 +72,7 @@ export function useDragAndDrop({
   // Handle drag start
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
-    const nodeType = active.data.current?.nodeType as NodeType | EmailContextNodeType;
+    const nodeType = active.data.current?.nodeType as NodeType;
     
     if (!nodeType) return;
 
