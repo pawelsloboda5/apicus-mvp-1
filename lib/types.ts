@@ -1,6 +1,7 @@
+import React from "react";
 import { Node, Edge, ReactFlowInstance, NodeChange, EdgeChange, Viewport, NodeTypes, EdgeTypes } from "@xyflow/react";
 
-export type NodeType = "trigger" | "action" | "decision" | "group" | "persona" | "industry" | "painpoint" | "metric" | "urgency" | "socialproof" | "objection" | "value";
+export type NodeType = "trigger" | "action" | "decision" | "group" | "emailPreview" | "persona" | "industry" | "painpoint" | "metric" | "urgency" | "socialproof" | "objection" | "value";
 export type PlatformType = "zapier" | "make" | "n8n";
 
 // App Pricing Data Structure (from appPricingMap in templates)
@@ -155,6 +156,7 @@ export interface GroupData {
   isLocked?: boolean;
   onLockToggle?: (locked: boolean) => void;
   nodeCount?: number;
+  [key: string]: unknown; // Index signature to satisfy Record<string, unknown>
 }
 
 export interface NodePropertiesPanelProps {
@@ -162,7 +164,7 @@ export interface NodePropertiesPanelProps {
   onClose: () => void;
   platform: PlatformType;
   nodes: Node[];
-  setNodes: (updater: (nodes: Node[]) => Node[]) => void;
+  setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   runsPerMonth: number;
   minutesPerRun: number;
   hourlyRate: number;
@@ -175,7 +177,7 @@ export interface GroupPropertiesPanelProps {
   onClose: () => void;
   platform: PlatformType;
   nodes: Node[];
-  setNodes: (updater: (nodes: Node[]) => Node[]) => void;
+  setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   runsPerMonth: number;
   minutesPerRun: number;
   hourlyRate: number;
@@ -311,6 +313,7 @@ export interface EmailPreviewNodeData {
     hasChanges?: boolean;
     regenerateNeeded?: boolean;
   }>;
+  [key: string]: unknown; // Index signature to satisfy Record<string, unknown>
 }
 
 // Analytics Types

@@ -4,7 +4,7 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PanelWrapper } from "../shared/PanelWrapper";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Node } from "@xyflow/react";
 import { NodeData } from "@/lib/types";
 
@@ -14,14 +14,16 @@ interface DecisionNodePanelProps {
 }
 
 export function DecisionNodePanel({ node, setNodes }: DecisionNodePanelProps) {
-  const nodeData = node.data as NodeData;
+  // Safely cast node data with fallbacks for required properties
+  const nodeData = node.data as unknown as NodeData;
 
   return (
-    <PanelWrapper 
-      title="Condition Logic"
-      description="Define when to follow the True or False paths."
-    >
-      <div className="space-y-4">
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Condition Logic</CardTitle>
+        <p className="text-sm text-muted-foreground">Define when to follow the True or False paths.</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
         <div>
           <Label className="text-sm">Label</Label>
           <Input
@@ -142,7 +144,7 @@ export function DecisionNodePanel({ node, setNodes }: DecisionNodePanelProps) {
             <span className="font-medium text-red-600 dark:text-red-400">False path:</span> Condition is not met
           </p>
         </div>
-      </div>
-    </PanelWrapper>
+      </CardContent>
+    </Card>
   );
 } 

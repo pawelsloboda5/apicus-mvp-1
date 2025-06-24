@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import { Sparkles, GitBranch, PlayCircle, Zap, PlusCircle, Trash2, Edit3, Check, X, MailOpen, Menu, ChevronLeft, ChevronRight, GripVertical, Workflow, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, BarChart3, FileText, Download, Filter, Palette } from "lucide-react";
+import { Sparkles, GitBranch, PlayCircle, Zap, PlusCircle, Trash2, Edit3, Check, X, MailOpen, Menu, ChevronLeft, ChevronRight, GripVertical, Workflow, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, BarChart3, FileText, Download, Filter, Palette, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NodeType, PlatformType } from "@/lib/types";
 import { db, Scenario, createScenario } from "@/lib/db";
@@ -118,6 +118,7 @@ const typeIcon = {
   action: Sparkles,
   decision: GitBranch,
   group: Zap,
+  emailPreview: Mail,
   persona: User,
   industry: Building,
   painpoint: AlertCircle,

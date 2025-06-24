@@ -479,7 +479,15 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
           action: 1.2,
           decision: 0.8,
           group: 0,
-          persona:0,industry:0,painpoint:0,metric:0,urgency:0,socialproof:0,objection:0,value:0,
+          emailPreview: 0,
+          persona: 0,
+          industry: 0,
+          painpoint: 0,
+          metric: 0,
+          urgency: 0,
+          socialproof: 0,
+          objection: 0,
+          value: 0,
         },
         operationType
       );

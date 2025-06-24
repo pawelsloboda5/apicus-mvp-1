@@ -913,6 +913,7 @@ function BuildPageContent() {
           action: 1.2,
           decision: 0.8,
           group: 0,
+          emailPreview: 0,
           // Email context nodes
           persona: 0,
           industry: 0,

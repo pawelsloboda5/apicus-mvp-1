@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronRight } from "lucide-react";
-import { PanelWrapper } from "../shared/PanelWrapper";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Node, Edge } from "@xyflow/react";
 import { NodeData } from "@/lib/types";
 import { markSectionsWithChanges, EmailSectionConnections } from "@/lib/flow-utils";
@@ -142,7 +142,8 @@ const EMAIL_CONTEXT_TEMPLATES: Record<string, EmailContextTemplate> = {
 };
 
 export function EmailContextNodePanel({ node, nodes, edges, setNodes }: EmailContextNodePanelProps) {
-  const nodeData = node.data as NodeData;
+  // Safely cast node data with fallbacks for required properties
+  const nodeData = node.data as unknown as NodeData;
   const nodeType = node.type || "";
   const template = EMAIL_CONTEXT_TEMPLATES[nodeType];
 
@@ -205,24 +206,28 @@ export function EmailContextNodePanel({ node, nodes, edges, setNodes }: EmailCon
 
   if (!template) {
     return (
-      <PanelWrapper 
-        title="Email Context Node"
-        description="Configure this email context to influence email generation."
-      >
-        <p className="text-sm text-muted-foreground">
-          Unknown email context type: {nodeType}
-        </p>
-      </PanelWrapper>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Email Context Node</CardTitle>
+          <p className="text-sm text-muted-foreground">Configure this email context to influence email generation.</p>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Unknown email context type: {nodeType}
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <PanelWrapper 
-      title="Email Context Configuration"
-      description="Configure this email context to influence email generation."
-      className="space-y-4"
-    >
-      <div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Email Context Configuration</CardTitle>
+        <p className="text-sm text-muted-foreground">Configure this email context to influence email generation.</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
         <Label className="text-sm">Label</Label>
         <Input
           className="mt-1.5"
@@ -436,6 +441,7 @@ export function EmailContextNodePanel({ node, nodes, edges, setNodes }: EmailCon
             "Emphasizes these specific benefits in the email messaging."}
         </p>
       </div>
-    </PanelWrapper>
+      </CardContent>
+    </Card>
   );
 } 

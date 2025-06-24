@@ -24,7 +24,8 @@ export function TriggerNodePanel({ node, setNodes }: TriggerNodePanelProps) {
       )
     );
   };
-  const nodeData = node.data as NodeData;
+  // Safely cast node data with fallbacks for required properties
+  const nodeData = node.data as unknown as NodeData;
 
   return (
     <div className="space-y-6">

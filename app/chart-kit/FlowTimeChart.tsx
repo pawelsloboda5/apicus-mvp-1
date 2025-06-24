@@ -33,6 +33,7 @@ const nodeTypeColors = {
   action: colors.action,
   decision: colors.decision,
   group: colors.group,
+  emailPreview: colors.neutral,
   // Email context nodes
   persona: colors.neutral,
   industry: colors.neutral,
