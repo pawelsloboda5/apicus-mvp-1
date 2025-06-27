@@ -1,15 +1,37 @@
-import React from 'react';
-import { Handle, Position } from '@xyflow/react';
+import React, { useState, useRef, useEffect } from 'react';
 import { EmailTemplateProps } from './EmailTemplate';
+import { EmailSectionInlineEditor } from './EmailSectionInlineEditor';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { 
+  Copy, 
+  Download, 
+  ChevronDown, 
+  ChevronUp,
+  Mail,
+  User,
+  RefreshCw,
+  Sparkles,
+  Check
+} from 'lucide-react';
 
 export interface EmailPreviewNodeData extends EmailTemplateProps {
   nodeTitle?: string;
   isLoading?: boolean;
-  lengthOption?: 'concise' | 'standard' | 'detailed';
-  toneOption?: string;
-  onOpenNodeProperties?: () => void;
-  onRegenerateSection?: (section: string) => void;
+  globalLengthOption?: 'concise' | 'standard' | 'detailed';
+  globalToneOption?: string;
+  onRegenerateSection?: (section: string, promptType: string, tone: string, length: 'concise' | 'standard' | 'detailed') => Promise<void>;
+  onGenerateFullEmail?: (tone: string, length: 'concise' | 'standard' | 'detailed') => Promise<void>;
   // Email section connections
   sectionConnections?: {
     subject?: { connectedNodeIds: string[]; hasChanges?: boolean; regenerateNeeded?: boolean };
@@ -20,212 +42,116 @@ export interface EmailPreviewNodeData extends EmailTemplateProps {
     testimonial?: { connectedNodeIds: string[]; hasChanges?: boolean; regenerateNeeded?: boolean };
     urgency?: { connectedNodeIds: string[]; hasChanges?: boolean; regenerateNeeded?: boolean };
   };
+  // Section-specific settings
+  sectionSettings?: {
+    [key: string]: { tone: string; length: string };
+  };
   [key: string]: unknown;
 }
 
 interface EmailPreviewNodeProps {
   id: string;
   data: EmailPreviewNodeData;
-  // selected: boolean; // Add if selection styling is needed
-  // type: string; // React Flow injects this
-  // xPos: number;
-  // yPos: number;
-  // zIndex: number;
-  // isConnectable: boolean;
-  // dragHandle?: string;
 }
 
-// Email section component with handle
-const EmailSection: React.FC<{
-  sectionId: string;
-  title: string;
-  content: string | undefined;
-  isVisible: boolean;
-  isOptional?: boolean;
-  connectedNodes?: string[];
-  hasChanges?: boolean;
-  regenerateNeeded?: boolean;
-  onRegenerate?: () => void;
-  className?: string;
-  isSubject?: boolean;
-}> = ({ sectionId, title, content, isVisible, isOptional = false, connectedNodes = [], hasChanges = false, regenerateNeeded = false, onRegenerate, className, isSubject = false }) => {
-  if (!isVisible || !content) return null;
+// Global tone and length options
+const GLOBAL_TONE_OPTIONS = [
+  { value: 'professional_warm', label: 'Professional & Warm', icon: '🤝' },
+  { value: 'casual_friendly', label: 'Casual & Friendly', icon: '😊' },
+  { value: 'direct_results', label: 'Direct & Results-Driven', icon: '🎯' },
+  { value: 'consultative_helpful', label: 'Consultative & Helpful', icon: '💡' },
+];
 
-  const showRegenerateButton = connectedNodes.length > 0 && !!onRegenerate;
-  const shouldShowButton = showRegenerateButton && (regenerateNeeded || hasChanges);
-
-  const sectionContent = isSubject ? (
-    <div className={cn(
-      "relative bg-primary text-primary-foreground p-4 rounded-t-lg group",
-      hasChanges && "ring-2 ring-orange-400 ring-inset",
-      regenerateNeeded && "ring-2 ring-orange-500 ring-inset bg-orange-600",
-      className
-    )}>
-      {/* Connection handles positioned within the node */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id={`${sectionId}-left`}
-        className={cn(
-          "!absolute !w-4 !h-4 !border-2 !left-2 !z-10",
-          isOptional ? "!bg-purple-400 !border-purple-600" : "!bg-purple-500 !border-purple-700",
-          connectedNodes.length > 0 && "!bg-purple-600 animate-pulse",
-          "hover:!scale-110 transition-transform cursor-crosshair",
-          "shadow-sm hover:shadow-md"
-        )}
-        style={{ 
-          top: '50%',
-          transform: 'translateY(-50%)'
-        }}
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id={`${sectionId}-right`}
-        className={cn(
-          "!absolute !w-4 !h-4 !border-2 !right-2 !z-10",
-          isOptional ? "!bg-purple-400 !border-purple-600" : "!bg-purple-500 !border-purple-700",
-          connectedNodes.length > 0 && "!bg-purple-600 animate-pulse",
-          "hover:!scale-110 transition-transform cursor-crosshair",
-          "shadow-sm hover:shadow-md"
-        )}
-        style={{ 
-          top: '50%',
-          transform: 'translateY(-50%)'
-        }}
-      />
-      
-      {/* Content layout with regenerate button inline */}
-      <div className="flex items-center gap-2 pl-8 pr-8">
-        {shouldShowButton && (
-          <button
-            onClick={onRegenerate}
-            className={cn(
-              "flex-shrink-0 transition-all duration-200",
-              "flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md",
-              "bg-white/20 hover:bg-white/30 border border-white/30",
-              "text-white hover:text-white",
-              "shadow-sm hover:shadow-md",
-              regenerateNeeded ? [
-                "opacity-100 bg-orange-500 hover:bg-orange-600 animate-pulse",
-                "border-orange-400 text-white font-bold",
-                "shadow-lg hover:shadow-xl"
-              ] : [
-                "opacity-0 group-hover:opacity-100"
-              ]
-            )}
-            title={regenerateNeeded ? "Section needs updating due to context changes" : "Regenerate this section"}
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {regenerateNeeded ? 'Update Now' : 'Regenerate'}
-          </button>
-        )}
-        <h2 className="text-lg font-bold flex-1">{content}</h2>
-      </div>
-    </div>
-  ) : (
-    <div className={cn(
-      "relative p-4 border-l-2 group",
-      hasChanges ? "border-orange-400 bg-orange-50/50" : "border-transparent",
-      regenerateNeeded && "border-orange-500 bg-orange-100/70",
-      className
-    )}>
-      {/* Connection handles positioned within the node */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id={`${sectionId}-left`}
-        className={cn(
-          "!absolute !w-4 !h-4 !border-2 !left-2 !z-10",
-          isOptional ? "!bg-purple-400 !border-purple-600" : "!bg-purple-500 !border-purple-700",
-          connectedNodes.length > 0 && "!bg-purple-600 animate-pulse",
-          "hover:!scale-110 transition-transform cursor-crosshair",
-          "shadow-sm hover:shadow-md"
-        )}
-        style={{ 
-          top: isOptional ? '16px' : '50%',
-          transform: isOptional ? 'none' : 'translateY(-50%)'
-        }}
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id={`${sectionId}-right`}
-        className={cn(
-          "!absolute !w-4 !h-4 !border-2 !right-2 !z-10",
-          isOptional ? "!bg-purple-400 !border-purple-600" : "!bg-purple-500 !border-purple-700",
-          connectedNodes.length > 0 && "!bg-purple-600 animate-pulse",
-          "hover:!scale-110 transition-transform cursor-crosshair",
-          "shadow-sm hover:shadow-md"
-        )}
-        style={{ 
-          top: isOptional ? '16px' : '50%',
-          transform: isOptional ? 'none' : 'translateY(-50%)'
-        }}
-      />
-      
-      {/* Content layout with regenerate button inline */}
-      <div className="flex items-start gap-2 pl-8 pr-8">
-        {shouldShowButton && (
-          <button
-            onClick={onRegenerate}
-            className={cn(
-              "flex-shrink-0 mt-0.5 transition-all duration-200",
-              "flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md",
-              "bg-secondary hover:bg-secondary/80 border border-border",
-              "text-secondary-foreground hover:text-secondary-foreground",
-              "shadow-sm hover:shadow-md",
-              regenerateNeeded ? [
-                "opacity-100 bg-orange-100 hover:bg-orange-200 border-orange-300",
-                "text-orange-800 animate-pulse font-bold",
-                "shadow-lg hover:shadow-xl"
-              ] : [
-                "opacity-0 group-hover:opacity-100"
-              ]
-            )}
-            title={regenerateNeeded ? "Section needs updating due to context changes" : "Regenerate this section"}
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {regenerateNeeded ? 'Update Now' : 'Regenerate'}
-          </button>
-        )}
-        <div className="flex-1">
-          {title && <h3 className="text-xs font-semibold text-muted-foreground mb-1">{title}</h3>}
-          <div 
-            className="text-sm text-foreground" 
-            dangerouslySetInnerHTML={{ __html: content }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  return sectionContent;
-};
+const GLOBAL_LENGTH_OPTIONS = [
+  { value: 'concise', label: 'Concise', icon: '📄' },
+  { value: 'standard', label: 'Standard', icon: '📋' },
+  { value: 'detailed', label: 'Detailed', icon: '📚' },
+];
 
 export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
   const { 
     nodeTitle = "Generated Email Output", 
     isLoading = false, 
     onRegenerateSection,
+    onGenerateFullEmail,
     sectionConnections,
+    sectionSettings = {},
+    globalToneOption = 'professional_warm',
+    globalLengthOption = 'standard',
     ...emailProps 
   } = data;
 
-  // Check if any sections need regeneration
-  const sectionsNeedingRegeneration = sectionConnections ? 
-    Object.entries(sectionConnections).filter(([, connection]) => connection?.regenerateNeeded).length 
-    : 0;
+  // State management
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(nodeTitle);
+  const [globalTone, setGlobalTone] = useState(globalToneOption);
+  const [globalLength, setGlobalLength] = useState<'concise' | 'standard' | 'detailed'>(globalLengthOption);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [isGeneratingFullEmail, setIsGeneratingFullEmail] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Details form state
+  const [yourName, setYourName] = useState(emailProps.yourName || '');
+  const [yourCompany, setYourCompany] = useState(emailProps.yourCompany || '');
+  const [yourEmail, setYourEmail] = useState(emailProps.yourEmail || '');
+  const [firstName, setFirstName] = useState(emailProps.firstName || '');
+  const [calendlyLink, setCalendlyLink] = useState(emailProps.calendlyLink || '');
+  const [pdfLink, setPdfLink] = useState(emailProps.pdfLink || '');
+
+  useEffect(() => {
+    if (editingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [editingTitle]);
+
+  const handleTitleSave = () => {
+    setEditingTitle(false);
+    // TODO: Update node data with new title
+  };
+
+  const handleSectionContentChange = (sectionId: string, content: string) => {
+    // TODO: Update node data with new content
+    console.log('Section content changed:', sectionId, content);
+  };
+
+  const handleSectionRegenerate = async (
+    sectionId: string, 
+    promptType: string, 
+    tone: string, 
+    length: string
+  ) => {
+    if (onRegenerateSection) {
+      await onRegenerateSection(sectionId, promptType, tone, length as 'concise' | 'standard' | 'detailed');
+    }
+  };
+
+  const handleGenerateFullEmail = async () => {
+    if (onGenerateFullEmail) {
+      setIsGeneratingFullEmail(true);
+      try {
+        await onGenerateFullEmail(globalTone, globalLength);
+      } finally {
+        setIsGeneratingFullEmail(false);
+      }
+    }
+  };
+
+  const handleCopyHtml = () => {
+    // TODO: Generate and copy HTML
+    console.log('Copy HTML');
+  };
+
+  const handleDownload = () => {
+    // TODO: Generate and download HTML
+    console.log('Download HTML');
+  };
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="w-[700px] h-[900px] bg-card text-card-foreground border border-border rounded-lg shadow-lg overflow-visible flex flex-col font-sans">
-        <div className="custom-drag-handle p-3 bg-muted/50 border-b border-border text-sm font-semibold text-foreground cursor-move flex items-center justify-between">
+      <div className="w-[800px] h-[600px] bg-card text-card-foreground border border-border rounded-lg shadow-lg overflow-visible flex flex-col font-sans">
+        <div className="p-3 bg-muted/50 border-b border-border text-sm font-semibold text-foreground flex items-center justify-between">
           <span>{nodeTitle}</span>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
@@ -245,165 +171,383 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
     );
   }
 
-  // Email preview with sections
   return (
-    <div className="relative w-[700px] h-[900px] bg-card text-card-foreground border border-border rounded-lg shadow-lg flex flex-col font-sans overflow-hidden">
-      <div className="custom-drag-handle p-3 bg-muted/50 border-b border-border text-sm font-semibold text-foreground cursor-move flex items-center justify-between">
-        <span>{nodeTitle}</span>
+    <div className="relative w-[800px] min-h-[600px] bg-card text-card-foreground border border-border rounded-lg shadow-lg flex flex-col font-sans overflow-hidden">
+      {/* Header Bar */}
+      <div className="p-3 bg-muted/50 border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-1">
+          <Mail className="h-4 w-4 text-muted-foreground" />
+          {editingTitle ? (
+            <Input
+              ref={titleInputRef}
+              value={titleValue}
+              onChange={(e) => setTitleValue(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleTitleSave();
+                if (e.key === 'Escape') {
+                  setTitleValue(nodeTitle);
+                  setEditingTitle(false);
+                }
+              }}
+              className="h-6 text-sm flex-1"
+            />
+          ) : (
+            <h3 
+              className="text-sm font-semibold cursor-pointer hover:text-primary transition-colors flex-1"
+              onClick={() => setEditingTitle(true)}
+            >
+              {nodeTitle}
+            </h3>
+          )}
+        </div>
         
-        {/* Regeneration indicator */}
-        {sectionsNeedingRegeneration > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 border border-orange-300 rounded-md text-orange-800">
-              <svg className="w-3 h-3 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span className="text-xs font-medium">
-                {sectionsNeedingRegeneration} section{sectionsNeedingRegeneration > 1 ? 's' : ''} need updating
-              </span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={handleCopyHtml}
+            title="Copy HTML"
+          >
+            <Copy className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={handleDownload}
+            title="Download HTML"
+          >
+            <Download className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Global Controls Bar */}
+      <div className="p-3 bg-muted/20 border-b flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-muted-foreground">Email Settings:</span>
+          
+          {/* Global Tone Selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 text-xs">
+                {GLOBAL_TONE_OPTIONS.find(t => t.value === globalTone)?.icon}
+                <span className="ml-1">{GLOBAL_TONE_OPTIONS.find(t => t.value === globalTone)?.label}</span>
+                <ChevronDown className="h-3 w-3 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel className="text-xs">Global Email Tone</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {GLOBAL_TONE_OPTIONS.map(tone => (
+                <DropdownMenuItem
+                  key={tone.value}
+                  onClick={() => setGlobalTone(tone.value)}
+                  className={cn("text-xs", globalTone === tone.value && "font-semibold")}
+                >
+                  <span className="mr-2">{tone.icon}</span>
+                  {tone.label}
+                  {globalTone === tone.value && <Check className="h-3 w-3 ml-auto" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Global Length Selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 text-xs">
+                {GLOBAL_LENGTH_OPTIONS.find(l => l.value === globalLength)?.icon}
+                <span className="ml-1">{GLOBAL_LENGTH_OPTIONS.find(l => l.value === globalLength)?.label}</span>
+                <ChevronDown className="h-3 w-3 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel className="text-xs">Global Email Length</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {GLOBAL_LENGTH_OPTIONS.map(length => (
+                <DropdownMenuItem
+                  key={length.value}
+                  onClick={() => setGlobalLength(length.value as 'concise' | 'standard' | 'detailed')}
+                  className={cn("text-xs", globalLength === length.value && "font-semibold")}
+                >
+                  <span className="mr-2">{length.icon}</span>
+                  {length.label}
+                  {globalLength === length.value && <Check className="h-3 w-3 ml-auto" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Generate Full Email Button */}
+        <Button
+          variant="default"
+          size="sm"
+          className="h-7"
+          onClick={handleGenerateFullEmail}
+          disabled={isGeneratingFullEmail}
+        >
+          {isGeneratingFullEmail ? (
+            <>
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-3 w-3 mr-1" />
+              Generate All Sections
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Email Sections */}
+      <div className="flex-grow overflow-y-auto p-4 space-y-4">
+        {/* Subject Line */}
+        <EmailSectionInlineEditor
+          sectionId="subject"
+          sectionLabel="Subject Line"
+          content={emailProps.subjectLine || ''}
+          isVisible={emailProps.showSubject !== false}
+          connectedNodes={sectionConnections?.subject?.connectedNodeIds}
+          hasChanges={sectionConnections?.subject?.hasChanges}
+          regenerateNeeded={sectionConnections?.subject?.regenerateNeeded}
+          onToggleVisibility={(visible) => console.log('Toggle subject:', visible)}
+          onContentChange={(content) => handleSectionContentChange('subject', content)}
+          onRegenerateSection={(promptType, tone, length) => handleSectionRegenerate('subject', promptType, tone, length)}
+          defaultTone={sectionSettings?.subject?.tone || globalTone}
+          defaultLength={sectionSettings?.subject?.length || globalLength}
+        />
+
+        {/* Greeting */}
+        <div className="text-sm text-muted-foreground">
+          Hi {firstName || '[FIRST NAME]'},
+        </div>
+
+        {/* Hook */}
+        <EmailSectionInlineEditor
+          sectionId="hook"
+          sectionLabel="Hook Text"
+          content={emailProps.hookText || ''}
+          isVisible={emailProps.showHook !== false}
+          connectedNodes={sectionConnections?.hook?.connectedNodeIds}
+          hasChanges={sectionConnections?.hook?.hasChanges}
+          regenerateNeeded={sectionConnections?.hook?.regenerateNeeded}
+          onToggleVisibility={(visible) => console.log('Toggle hook:', visible)}
+          onContentChange={(content) => handleSectionContentChange('hook', content)}
+          onRegenerateSection={(promptType, tone, length) => handleSectionRegenerate('hook', promptType, tone, length)}
+          defaultTone={sectionSettings?.hook?.tone || globalTone}
+          defaultLength={sectionSettings?.hook?.length || globalLength}
+        />
+
+        {/* Testimonial (Optional) */}
+        <EmailSectionInlineEditor
+          sectionId="testimonial"
+          sectionLabel="Testimonial"
+          content={emailProps.testimonialText || ''}
+          isVisible={emailProps.showTestimonial === true}
+          isOptional={true}
+          connectedNodes={sectionConnections?.testimonial?.connectedNodeIds}
+          hasChanges={sectionConnections?.testimonial?.hasChanges}
+          regenerateNeeded={sectionConnections?.testimonial?.regenerateNeeded}
+          onToggleVisibility={(visible) => console.log('Toggle testimonial:', visible)}
+          onContentChange={(content) => handleSectionContentChange('testimonial', content)}
+          onRegenerateSection={(promptType, tone, length) => handleSectionRegenerate('testimonial', promptType, tone, length)}
+          defaultTone={sectionSettings?.testimonial?.tone || globalTone}
+          defaultLength={sectionSettings?.testimonial?.length || globalLength}
+        />
+
+        {/* ROI Stats */}
+        {emailProps.stats && (
+          <div className="flex justify-center gap-3 my-4">
+            <div className="bg-primary/10 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-primary">{emailProps.stats.roiX || 0}×</div>
+              <div className="text-xs text-muted-foreground">ROI</div>
+            </div>
+            <div className="bg-primary/10 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-primary">{emailProps.stats.payback || 'N/A'}</div>
+              <div className="text-xs text-muted-foreground">Payback</div>
+            </div>
+            <div className="bg-primary/10 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-primary">{emailProps.stats.runs || 0}</div>
+              <div className="text-xs text-muted-foreground">Runs/mo</div>
             </div>
           </div>
         )}
+
+        {/* CTA */}
+        <EmailSectionInlineEditor
+          sectionId="cta"
+          sectionLabel="Call to Action"
+          content={emailProps.ctaText || ''}
+          isVisible={emailProps.showCTA !== false}
+          connectedNodes={sectionConnections?.cta?.connectedNodeIds}
+          hasChanges={sectionConnections?.cta?.hasChanges}
+          regenerateNeeded={sectionConnections?.cta?.regenerateNeeded}
+          onToggleVisibility={(visible) => console.log('Toggle cta:', visible)}
+          onContentChange={(content) => handleSectionContentChange('cta', content)}
+          onRegenerateSection={(promptType, tone, length) => handleSectionRegenerate('cta', promptType, tone, length)}
+          defaultTone={sectionSettings?.cta?.tone || globalTone}
+          defaultLength={sectionSettings?.cta?.length || globalLength}
+        />
+
+        {/* Urgency (Optional) */}
+        <EmailSectionInlineEditor
+          sectionId="urgency"
+          sectionLabel="Urgency Line"
+          content={emailProps.urgencyText || ''}
+          isVisible={emailProps.showUrgency === true}
+          isOptional={true}
+          connectedNodes={sectionConnections?.urgency?.connectedNodeIds}
+          hasChanges={sectionConnections?.urgency?.hasChanges}
+          regenerateNeeded={sectionConnections?.urgency?.regenerateNeeded}
+          onToggleVisibility={(visible) => console.log('Toggle urgency:', visible)}
+          onContentChange={(content) => handleSectionContentChange('urgency', content)}
+          onRegenerateSection={(promptType, tone, length) => handleSectionRegenerate('urgency', promptType, tone, length)}
+          defaultTone={sectionSettings?.urgency?.tone || globalTone}
+          defaultLength={sectionSettings?.urgency?.length || globalLength}
+        />
+
+        {/* Offer */}
+        <EmailSectionInlineEditor
+          sectionId="offer"
+          sectionLabel="Offer Text"
+          content={emailProps.offerText || ''}
+          isVisible={emailProps.showOffer !== false}
+          connectedNodes={sectionConnections?.offer?.connectedNodeIds}
+          hasChanges={sectionConnections?.offer?.hasChanges}
+          regenerateNeeded={sectionConnections?.offer?.regenerateNeeded}
+          onToggleVisibility={(visible) => console.log('Toggle offer:', visible)}
+          onContentChange={(content) => handleSectionContentChange('offer', content)}
+          onRegenerateSection={(promptType, tone, length) => handleSectionRegenerate('offer', promptType, tone, length)}
+          defaultTone={sectionSettings?.offer?.tone || globalTone}
+          defaultLength={sectionSettings?.offer?.length || globalLength}
+        />
+
+        {/* Signature */}
+        <div className="mt-6 space-y-1 text-sm">
+          <p>Best,</p>
+          <p className="font-semibold">{yourName || '[YOUR NAME]'}</p>
+          <p className="text-muted-foreground">
+            Automation Consultant, {yourCompany || '[YOUR COMPANY]'}<br/>
+            <a href={`mailto:${yourEmail}`} className="text-primary">
+              {yourEmail || '[YOUR_EMAIL]'}
+            </a> | <a href={calendlyLink} className="text-primary">Book 15 min</a>
+          </p>
+        </div>
+
+        {/* PS (Optional) */}
+        <EmailSectionInlineEditor
+          sectionId="ps"
+          sectionLabel="PS Line"
+          content={emailProps.psText || ''}
+          isVisible={emailProps.showPS !== false}
+          isOptional={true}
+          connectedNodes={sectionConnections?.ps?.connectedNodeIds}
+          hasChanges={sectionConnections?.ps?.hasChanges}
+          regenerateNeeded={sectionConnections?.ps?.regenerateNeeded}
+          onToggleVisibility={(visible) => console.log('Toggle ps:', visible)}
+          onContentChange={(content) => handleSectionContentChange('ps', content)}
+          onRegenerateSection={(promptType, tone, length) => handleSectionRegenerate('ps', promptType, tone, length)}
+          defaultTone={sectionSettings?.ps?.tone || globalTone}
+          defaultLength={sectionSettings?.ps?.length || globalLength}
+        />
       </div>
-      
-      <div className="flex-grow overflow-y-auto relative">
-        <div className="bg-white relative">
-          {/* Subject Line */}
-          <EmailSection
-            sectionId="subject"
-            title=""
-            content={emailProps.subjectLine}
-            isVisible={emailProps.showSubject !== false}
-            connectedNodes={sectionConnections?.subject?.connectedNodeIds}
-            hasChanges={sectionConnections?.subject?.hasChanges}
-            regenerateNeeded={sectionConnections?.subject?.regenerateNeeded}
-            onRegenerate={onRegenerateSection ? () => onRegenerateSection('subject') : undefined}
-            isSubject={true}
-          />
-          
-          {/* Email Body */}
-          <div className="p-6 space-y-4">
-            {/* Greeting */}
-            <p className="text-sm">Hi {emailProps.firstName || '[FIRST NAME]'},</p>
-            
-            {/* Hook */}
-            <EmailSection
-              sectionId="hook"
-              title=""
-              content={emailProps.hookText}
-              isVisible={emailProps.showHook !== false}
-              connectedNodes={sectionConnections?.hook?.connectedNodeIds}
-              hasChanges={sectionConnections?.hook?.hasChanges}
-              regenerateNeeded={sectionConnections?.hook?.regenerateNeeded}
-              onRegenerate={onRegenerateSection ? () => onRegenerateSection('hook') : undefined}
-              className="-mx-6 px-6"
-            />
-            
-            {/* Testimonial */}
-            {emailProps.showTestimonial && emailProps.testimonialText && (
-              <EmailSection
-                sectionId="testimonial"
-                title=""
-                content={`<div class="bg-muted/20 border-l-4 border-primary p-3 italic">${emailProps.testimonialText}</div>`}
-                isVisible={true}
-                isOptional={true}
-                connectedNodes={sectionConnections?.testimonial?.connectedNodeIds}
-                hasChanges={sectionConnections?.testimonial?.hasChanges}
-                regenerateNeeded={sectionConnections?.testimonial?.regenerateNeeded}
-                onRegenerate={onRegenerateSection ? () => onRegenerateSection('testimonial') : undefined}
-                className="-mx-6 px-6"
-              />
-            )}
-            
-            {/* ROI Stats */}
-            {emailProps.stats && (
-              <div className="flex justify-center gap-3 my-4">
-                <div className="bg-primary/10 rounded-lg p-3 text-center">
-                  <div className="text-lg font-bold text-primary">{emailProps.stats.roiX || 0}×</div>
-                  <div className="text-xs text-muted-foreground">ROI</div>
+
+      {/* Collapsible Details Panel */}
+      <div className={cn(
+        "border-t bg-muted/30 transition-all duration-300",
+        detailsExpanded ? "h-48" : "h-10"
+      )}>
+        <button
+          onClick={() => setDetailsExpanded(!detailsExpanded)}
+          className="w-full p-2 flex items-center justify-between hover:bg-muted/50 transition-colors"
+        >
+          <div className="flex items-center gap-2 text-xs font-medium">
+            <User className="h-3 w-3" />
+            <span>Your Details & Recipient Info</span>
+          </div>
+          {detailsExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+        </button>
+        
+        {detailsExpanded && (
+          <div className="p-4 grid grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold text-muted-foreground">Your Details</h4>
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="yourName" className="text-xs w-20">Name:</Label>
+                  <Input
+                    id="yourName"
+                    value={yourName}
+                    onChange={(e) => setYourName(e.target.value)}
+                    className="h-7 text-xs flex-1"
+                    placeholder="Jane Doe"
+                  />
                 </div>
-                <div className="bg-primary/10 rounded-lg p-3 text-center">
-                  <div className="text-lg font-bold text-primary">{emailProps.stats.payback || 'N/A'}</div>
-                  <div className="text-xs text-muted-foreground">Payback</div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="yourCompany" className="text-xs w-20">Company:</Label>
+                  <Input
+                    id="yourCompany"
+                    value={yourCompany}
+                    onChange={(e) => setYourCompany(e.target.value)}
+                    className="h-7 text-xs flex-1"
+                    placeholder="Acme Corp"
+                  />
                 </div>
-                <div className="bg-primary/10 rounded-lg p-3 text-center">
-                  <div className="text-lg font-bold text-primary">{emailProps.stats.runs || 0}</div>
-                  <div className="text-xs text-muted-foreground">Runs/mo</div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="yourEmail" className="text-xs w-20">Email:</Label>
+                  <Input
+                    id="yourEmail"
+                    value={yourEmail}
+                    onChange={(e) => setYourEmail(e.target.value)}
+                    className="h-7 text-xs flex-1"
+                    placeholder="jane@acme.com"
+                  />
                 </div>
               </div>
-            )}
-            
-            {/* CTA */}
-            <EmailSection
-              sectionId="cta"
-              title=""
-              content={emailProps.ctaText ? `${emailProps.ctaText}<br/><a href="${emailProps.pdfLink}" class="text-primary font-bold">Download the ROI snapshot →</a>` : undefined}
-              isVisible={emailProps.showCTA !== false}
-              connectedNodes={sectionConnections?.cta?.connectedNodeIds}
-              hasChanges={sectionConnections?.cta?.hasChanges}
-              regenerateNeeded={sectionConnections?.cta?.regenerateNeeded}
-              onRegenerate={onRegenerateSection ? () => onRegenerateSection('cta') : undefined}
-              className="-mx-6 px-6"
-            />
-            
-            {/* Urgency */}
-            {emailProps.showUrgency && emailProps.urgencyText && (
-              <EmailSection
-                sectionId="urgency"
-                title=""
-                content={`<div class="text-center text-destructive font-medium">${emailProps.urgencyText}</div>`}
-                isVisible={true}
-                isOptional={true}
-                connectedNodes={sectionConnections?.urgency?.connectedNodeIds}
-                hasChanges={sectionConnections?.urgency?.hasChanges}
-                regenerateNeeded={sectionConnections?.urgency?.regenerateNeeded}
-                onRegenerate={onRegenerateSection ? () => onRegenerateSection('urgency') : undefined}
-                className="-mx-6 px-6"
-              />
-            )}
-            
-            {/* Offer */}
-            <EmailSection
-              sectionId="offer"
-              title=""
-              content={emailProps.offerText}
-              isVisible={emailProps.showOffer !== false}
-              connectedNodes={sectionConnections?.offer?.connectedNodeIds}
-              hasChanges={sectionConnections?.offer?.hasChanges}
-              regenerateNeeded={sectionConnections?.offer?.regenerateNeeded}
-              onRegenerate={onRegenerateSection ? () => onRegenerateSection('offer') : undefined}
-              className="-mx-6 px-6"
-            />
-            
-            {/* Signature */}
-            <div className="mt-6 space-y-1 text-sm">
-              <p>Best,</p>
-              <p className="font-semibold">{emailProps.yourName || '[YOUR NAME]'}</p>
-              <p className="text-muted-foreground">
-                Automation Consultant, {emailProps.yourCompany || '[YOUR COMPANY]'}<br/>
-                <a href={`mailto:${emailProps.yourEmail}`} className="text-primary">
-                  {emailProps.yourEmail || '[YOUR_EMAIL]'}
-                </a> | <a href={emailProps.calendlyLink} className="text-primary">Book 15 min</a>
-              </p>
             </div>
             
-            {/* PS */}
-            {emailProps.showPS && emailProps.psText && (
-              <EmailSection
-                sectionId="ps"
-                title=""
-                content={`<i class="text-muted-foreground">${emailProps.psText}</i>`}
-                isVisible={true}
-                isOptional={true}
-                connectedNodes={sectionConnections?.ps?.connectedNodeIds}
-                hasChanges={sectionConnections?.ps?.hasChanges}
-                regenerateNeeded={sectionConnections?.ps?.regenerateNeeded}
-                onRegenerate={onRegenerateSection ? () => onRegenerateSection('ps') : undefined}
-                className="-mx-6 px-6 pt-4 border-t"
-              />
-            )}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold text-muted-foreground">Recipient & Links</h4>
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="firstName" className="text-xs w-20">First Name:</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="h-7 text-xs flex-1"
+                    placeholder="John"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="calendlyLink" className="text-xs w-20">Calendly:</Label>
+                  <Input
+                    id="calendlyLink"
+                    value={calendlyLink}
+                    onChange={(e) => setCalendlyLink(e.target.value)}
+                    className="h-7 text-xs flex-1"
+                    placeholder="https://calendly.com/..."
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="pdfLink" className="text-xs w-20">PDF Link:</Label>
+                  <Input
+                    id="pdfLink"
+                    value={pdfLink}
+                    onChange={(e) => setPdfLink(e.target.value)}
+                    className="h-7 text-xs flex-1"
+                    placeholder="https://example.com/roi.pdf"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

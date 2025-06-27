@@ -28,7 +28,7 @@ function Badge({
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        "inline-flex items-center border px-3 py-1 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
         {
           "border-transparent bg-primary text-primary-foreground hover:bg-primary/90": variant === "default",
           "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80": variant === "secondary",
@@ -48,7 +48,7 @@ export default function Home() {
   const [searching, setSearching] = useState(false);
   const [currentBenefit, setCurrentBenefit] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   
   const benefits = [
@@ -110,6 +110,22 @@ export default function Home() {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      // Create a synthetic form event
+      const syntheticEvent = {
+        ...e,
+        type: 'submit' as const,
+        currentTarget: e.currentTarget.form,
+        target: e.currentTarget.form,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+      } as React.FormEvent;
+      handleGenerate(syntheticEvent);
+    }
+  };
+
   const nextBenefit = () => {
     setCurrentBenefit((prev) => (prev + 1) % benefits.length);
   };
@@ -138,11 +154,11 @@ export default function Home() {
             </h1>
 
             <p className={cn(
-              "mx-auto mt-8 max-w-3xl text-xl leading-relaxed text-muted-foreground md:text-2xl",
+              "mx-auto mt-8 max-w-4xl text-xl leading-relaxed text-muted-foreground md:text-2xl",
               mounted && "animate-fade-in"
             )} style={{ animationDelay: '200ms' }}>
-              <span className="text-gradient-orange font-bold">Apicus</span> turns your workflow ideas into ROI reports that help you{" "}
-              <span className="text-foreground font-semibold">win clients</span>
+              From idea to signed contract: Build data-driven automation proposals that close deals{" "}
+              <span className="text-foreground font-semibold">before the first workflow runs</span>
             </p>
 
             {/* CTA Section */}
@@ -164,29 +180,36 @@ export default function Home() {
               <span className="text-sm font-medium text-muted-foreground">or</span>
 
               {/* Secondary CTA – Generate */}
-              <form onSubmit={handleGenerate} className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-md">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Describe your client's automation need..."
-                  className="flex-1 rounded-xl border-2 border-input bg-background px-4 py-3 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-40"
-                  disabled={searching}
-                />
+              <form onSubmit={handleGenerate} className="flex flex-col items-center gap-4 w-full max-w-2xl">
+                <div className="relative w-full">
+                  <textarea
+                    ref={inputRef}
+                    placeholder="What repetitive process is costing your client time? (e.g., invoice processing, lead routing, data entry)"
+                    className="w-full h-24 sm:h-20 border-2 border-input bg-background px-6 py-4 text-base sm:text-lg font-medium text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-40 resize-none transition-all duration-200"
+                    disabled={searching}
+                    rows={3}
+                    onKeyDown={handleKeyDown}
+                  />
+                  <div className="absolute bottom-3 right-4 text-xs text-muted-foreground/60">
+                    Enter to generate • Shift+Enter for new line
+                  </div>
+                </div>
                 <Button 
                   type="submit" 
                   disabled={searching} 
                   variant="outline"
-                  className="px-6 py-3 font-semibold"
+                  size="lg"
+                  className="w-full sm:w-auto px-8 py-4 text-lg font-semibold min-h-[44px] transition-all duration-200 hover:scale-105"
                 >
                   {searching ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
+                      <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                      Generating ROI Analysis...
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-2 h-4 w-4" />
-                      Generate
+                      <Wand2 className="mr-3 h-5 w-5" />
+                      Generate ROI Report
                     </>
                   )}
                 </Button>
@@ -231,7 +254,7 @@ export default function Home() {
                 variant="outline"
                 size="icon"
                 onClick={prevBenefit}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 backdrop-blur-sm"
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -239,7 +262,7 @@ export default function Home() {
               <div className="mx-auto max-w-4xl">
                 <Card className="border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:bg-card/80 hover:shadow-lg min-h-[300px]">
                   <CardContent className="p-12 text-center">
-                    <div className="mb-8 inline-flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <div className="mb-8 inline-flex h-16 w-16 items-center justify-center bg-primary/10 text-primary">
                       {benefits[currentBenefit].icon}
                     </div>
                     <h3 className="text-2xl font-bold leading-relaxed text-foreground">
@@ -253,7 +276,7 @@ export default function Home() {
                 variant="outline"
                 size="icon"
                 onClick={nextBenefit}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 backdrop-blur-sm"
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -266,7 +289,7 @@ export default function Home() {
                   key={index}
                   onClick={() => setCurrentBenefit(index)}
                   className={cn(
-                    "h-2 w-8 rounded-full transition-all",
+                    "h-2 w-8 transition-all",
                     index === currentBenefit ? "bg-primary" : "bg-muted-foreground/30"
                   )}
                 />
@@ -459,7 +482,7 @@ function StatCard({ icon, number, label, description }: {
   return (
     <Card className="border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:bg-card/80 hover:shadow-lg group">
       <CardContent className="p-8 text-center">
-        <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+        <div className="mb-6 inline-flex h-16 w-16 items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
           {icon}
         </div>
         <div className="text-4xl font-black font-mono text-foreground mb-2">{number}</div>
@@ -502,10 +525,10 @@ function StepCard({ step, title, description, icon }: {
 }) {
   return (
     <div className="relative group">
-      <div className="mb-6 mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground font-mono text-xl font-bold group-hover:scale-110 transition-transform">
+      <div className="mb-6 mx-auto flex h-16 w-16 items-center justify-center bg-primary text-primary-foreground font-mono text-xl font-bold group-hover:scale-110 transition-transform">
         {step}
       </div>
-      <div className="mb-4 mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <div className="mb-4 mx-auto flex h-8 w-8 items-center justify-center bg-primary/10 text-primary">
         {icon}
       </div>
       <h3 className="text-lg font-bold mb-3 text-foreground">{title}</h3>

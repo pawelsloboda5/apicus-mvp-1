@@ -229,9 +229,6 @@ export interface FlowCanvasProps {
   // Props for floating node selector
   selectedNodeType?: NodeType;
   onNodeTypeChange?: (type: NodeType) => void;
-  
-  // Props for email regeneration
-  handleRegenerateSection?: (nodeId: string, section: string) => void;
 }
 
 export interface Scenario {

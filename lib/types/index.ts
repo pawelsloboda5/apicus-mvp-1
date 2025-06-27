@@ -366,15 +366,6 @@ export interface FlowCanvasProps {
   // Props for floating node selector
   selectedNodeType?: NodeType;
   onNodeTypeChange?: (type: NodeType) => void;
-  
-  // Props for email regeneration
-  handleRegenerateSection?: (
-    nodeId: string, 
-    section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
-    promptType: string,
-    currentText: string,
-    selectedContextNodes?: string[]
-  ) => Promise<void>;
 }
 
 export interface PixelNodeProps {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ReactFlowProvider,
@@ -51,13 +51,15 @@ const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mo
   ssr: false,
 });
 
-// Node and edge types
-const nodeTypes = {
+// Node and edge types - moved inside component to access callback
+const createNodeTypes = (handleRegenerateSection: (nodeId: string, section: string) => Promise<void>) => ({
   trigger: PixelNode,
   action: PixelNode,
   decision: PixelNode,
   group: NodeGroup,
-  emailPreview: EmailPreviewNode,
+  emailPreview: (props: { id: string; data: Record<string, unknown> }) => (
+    <EmailPreviewNode {...props} data={{...props.data, onRegenerateSection: (section: string) => handleRegenerateSection(props.id, section)}} />
+  ),
   persona: PixelNode,
   industry: PixelNode,
   painpoint: PixelNode,
@@ -66,7 +68,7 @@ const nodeTypes = {
   socialproof: PixelNode,
   objection: PixelNode,
   value: PixelNode,
-};
+});
 
 const edgeTypes = {
   custom: CustomEdge,
@@ -323,6 +325,19 @@ export function BuildPageContent() {
     );
   }, [handleRegenerateSection]);
 
+  // Create refs to store the latest callback implementations
+  const regenerationCallbackRef = useRef(handleRegenerateSectionSimple);
+  
+  // Update the ref when callback changes
+  useEffect(() => {
+    regenerationCallbackRef.current = handleRegenerateSectionSimple;
+  }, [handleRegenerateSectionSimple]);
+  
+  // Create nodeTypes with a stable function that uses the ref
+  const nodeTypes = useMemo(() => createNodeTypes((nodeId: string, section: string) => 
+    regenerationCallbackRef.current(nodeId, section)
+  ), []); // Empty deps array - nodeTypes never changes
+
   // Get selected node
   const selectedNode = selectedId ? nodes.find(n => n.id === selectedId) : null;
   const selectedGroup = selectedGroupId ? nodes.find(n => n.id === selectedGroupId) : null;
@@ -565,7 +580,6 @@ export function BuildPageContent() {
                 edgeTypes={edgeTypes}
                 selectedNodeType={selectedNodeType}
                 onNodeTypeChange={setSelectedNodeType}
-                handleRegenerateSection={handleRegenerateSectionSimple}
               />
 
               {/* Stats Bar */}

@@ -44,7 +44,7 @@ import { NodeGroup } from "@/components/flow/NodeGroup";
 import { GroupPropertiesPanel } from "@/components/flow/GroupPropertiesPanel";
 import { AlternativeTemplatesSheet, type AlternativeTemplateForDisplay } from "@/components/flow/AlternativeTemplatesSheet";
 import { EmailPreviewNode, type EmailPreviewNodeData } from "@/components/flow/EmailPreviewNode";
-import { EmailNodePropertiesPanel } from "@/components/flow/EmailNodePropertiesPanel";
+// EmailNodePropertiesPanel removed - using inline editing
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 
 // Import utility functions
@@ -80,23 +80,7 @@ const MobileAlternativeTemplatesButton = dynamic(() => import("@/components/flow
   ssr: false,
 });
 
-// Define nodeTypes and edgeTypes outside the component function for stability
-const nodeTypes = {
-  trigger: PixelNode,
-  action: PixelNode,
-  decision: PixelNode,
-  group: NodeGroup,
-  emailPreview: EmailPreviewNode,
-  // Email context nodes
-  persona: PixelNode,
-  industry: PixelNode,
-  painpoint: PixelNode,
-  metric: PixelNode,
-  urgency: PixelNode,
-  socialproof: PixelNode,
-  objection: PixelNode,
-  value: PixelNode,
-};
+// nodeTypes will be created inside the component to have access to handlers
 
 const edgeTypes = {
   custom: CustomEdge,
@@ -221,9 +205,9 @@ function BuildPageContent() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isMultiSelectionActive, setIsMultiSelectionActive] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [selectedEmailNodeId, setSelectedEmailNodeId] = useState<string | null>(null);
+  // Removed selectedEmailNodeId - no longer needed with inline editing
   const [isManipulatingNodesProgrammatically, setIsManipulatingNodesProgrammatically] = useState(false);
-  const [isGeneratingAIContent, setIsGeneratingAIContent] = useState(false);
+  // Removed isGeneratingAIContent - no longer needed with inline editing
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
 
   // Add state for selected node type
@@ -260,25 +244,7 @@ function BuildPageContent() {
 
   // Add event listener for email node properties button clicks
   useEffect(() => {
-    const handleEmailNodePropertiesClick = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const nodeElement = customEvent.detail?.nodeElement as HTMLElement;
-      if (nodeElement) {
-        // Extract node id from the element's data attribute
-        const nodeId = nodeElement.getAttribute('data-id');
-        if (nodeId) {
-          setSelectedEmailNodeId(nodeId);
-          setSelectedId(null);
-          setSelectedGroupId(null);
-          setIsMultiSelectionActive(false);
-        }
-      }
-    };
-
-    document.addEventListener('emailNodePropertiesClick', handleEmailNodePropertiesClick);
-    return () => {
-      document.removeEventListener('emailNodePropertiesClick', handleEmailNodePropertiesClick);
-    };
+    // Email node properties handling removed - using inline editing now
   }, []);
   
   // Add keyboard shortcuts for tab switching
@@ -388,6 +354,8 @@ function BuildPageContent() {
     async (partial: Partial<Scenario>) => {
       if (!currentScenario || !currentScenario.id) return;
       
+      const scenarioId = currentScenario.id; // Capture ID for closure
+      
       // Check if we should capture a snapshot
       const updatedScenario = { ...currentScenario, ...partial };
       const currentNodeCount = nodes.length;
@@ -403,18 +371,20 @@ function BuildPageContent() {
         await captureROISnapshot(updatedScenario, nodes, trigger);
       }
       
-      // Update state
+      // Update state - BUT USE A TIMEOUT TO BREAK THE SYNC CYCLE
       const updatedFields = { ...partial, updatedAt: Date.now() };
-      setCurrentScenario(prev => {
-        setPreviousScenario(prev); // Track previous state
-        return prev ? { ...prev, ...updatedFields } : null;
-      });
-      setPreviousNodeCount(currentNodeCount);
       
-      // Persist to database
-      if (currentScenario.id) {
-        db.scenarios.update(currentScenario.id, updatedFields);
-      }
+      // Use setTimeout to avoid synchronous state updates that cause loops
+      setTimeout(() => {
+        setCurrentScenario(prev => {
+          setPreviousScenario(prev); // Track previous state
+          return prev ? { ...prev, ...updatedFields } : null;
+        });
+        setPreviousNodeCount(currentNodeCount);
+      }, 0);
+      
+      // Persist to database immediately (don't wait for state update)
+      db.scenarios.update(scenarioId, updatedFields);
     },
     [currentScenario, nodes, previousScenario, previousNodeCount]
   );
@@ -698,7 +668,7 @@ function BuildPageContent() {
 
             if (scenarioToLoad && scenarioToLoad.id) {
               await db.scenarios.update(scenarioToLoad.id, { alternativeTemplatesCache: altsCacheForDb, updatedAt: Date.now(), searchQuery: queryParam });
-              setCurrentScenario(prev => prev ? ({...prev, alternativeTemplatesCache: altsCacheForDb, searchQuery: queryParam }) : null);
+              // Don't update state here - let the main setCurrentScenario at the end handle it
             }
           }
         } catch {
@@ -706,7 +676,7 @@ function BuildPageContent() {
           if (scenarioToLoad && scenarioToLoad.id) {
             // Corrected variable name here
             await db.scenarios.update(scenarioToLoad.id, { alternativeTemplatesCache: [], updatedAt: Date.now() });
-             setCurrentScenario(prev => prev ? ({...prev, alternativeTemplatesCache: [] }) : null);
+            // Don't update state here - let the main setCurrentScenario at the end handle it
           }
         }
       }
@@ -808,6 +778,7 @@ function BuildPageContent() {
       const hasContentChanged = nodesChanged || edgesChanged || viewportChanged;
 
       if (hasContentChanged && currentScenario.id) {
+        const scenarioId = currentScenario.id; // Capture ID for database update
         const updatePayload: Partial<Scenario> = {
           nodesSnapshot: cleanedNodes,
           edgesSnapshot: flowObject.edges,
@@ -815,19 +786,17 @@ function BuildPageContent() {
           updatedAt: Date.now(),
         };
 
-        // Update local state immediately to prevent stale data issues
-        setCurrentScenario(prev => prev ? { ...prev, ...updatePayload } : null);
+        // DON'T update local state here - it causes circular updates!
+        // Just persist to database
+        db.scenarios.update(scenarioId, updatePayload).catch(() => {
+          console.warn("Failed to save scenario state");
+        });
         
         // Capture metric snapshot for significant changes
         if (nodesChanged || edgesChanged) {
           const updatedScenario = { ...currentScenario, ...updatePayload };
           captureROISnapshot(updatedScenario, cleanedNodes, 'save').catch(console.error);
         }
-        
-        // Persist to database
-        db.scenarios.update(currentScenario.id, updatePayload).catch(() => {
-          console.warn("Failed to save scenario state");
-        });
       }
     }, 300);
 
@@ -837,7 +806,7 @@ function BuildPageContent() {
   // Update selected node convenience to handle both nodes and groups
   const selectedNode = nodes.find((n) => n.id === selectedId) || null;
   const selectedGroup = nodes.find((n) => n.id === selectedGroupId && n.type === "group") || null;
-  const selectedEmailNode = nodes.find((n) => n.id === selectedEmailNodeId && n.type === "emailPreview") as Node<EmailPreviewNodeData> | null;
+  // Removed selectedEmailNode - no longer needed with inline editing
 
   // Add a function to handle node selection with multi-select
   const handleNodeClick = useCallback((evt: React.MouseEvent, node: Node) => {
@@ -845,12 +814,12 @@ function BuildPageContent() {
     if (node.type === "group") {
       setSelectedGroupId(node.id);
       setSelectedId(null);
-      setSelectedEmailNodeId(null);
+      // Removed setSelectedEmailNodeId - no longer needed
       return;
     }
-    // Handle Email Preview Node selection
+    // Handle Email Preview Node selection - DO NOT open panel anymore
     if (node.type === "emailPreview") {
-      setSelectedEmailNodeId(node.id);
+      // Email node editing is now inline, no panel needed
       setSelectedId(null);
       setSelectedGroupId(null);
       setIsMultiSelectionActive(false);
@@ -873,7 +842,7 @@ function BuildPageContent() {
       // Regular single selection
       setSelectedId(node.id);
       setSelectedGroupId(null);
-      setSelectedEmailNodeId(null);
+      // Removed setSelectedEmailNodeId - no longer needed
       setSelectedIds([]);
       setIsMultiSelectionActive(false);
     }
@@ -1084,11 +1053,15 @@ function BuildPageContent() {
         },
       };
       
-      setNodes((nds) => {
-        const updatedNodes = [...nds, newNode];
-        
-        // Immediately update currentScenario to prevent it from being overwritten
-        if (currentScenario && currentScenario.id) {
+      // Update nodes state
+      setNodes((nds) => [...nds, newNode]);
+      
+      // Update currentScenario and database AFTER setNodes (not inside it)
+      if (currentScenario && currentScenario.id) {
+        const scenarioId = currentScenario.id; // Capture id to satisfy TypeScript
+        // Use setTimeout to delay the updates and avoid state update loops
+        setTimeout(() => {
+          const updatedNodes = [...nodes, newNode];
           const updatedScenario = {
             ...currentScenario,
             nodesSnapshot: updatedNodes,
@@ -1096,14 +1069,12 @@ function BuildPageContent() {
           };
           setCurrentScenario(updatedScenario);
           // Also update the database
-          db.scenarios.update(currentScenario.id, {
+          db.scenarios.update(scenarioId, {
             nodesSnapshot: updatedNodes,
             updatedAt: Date.now(),
           }).catch(console.error);
-        }
-        
-        return updatedNodes;
-      });
+        }, 0);
+      }
 
       // Clear manipulation flag after a short delay
       setTimeout(() => {
@@ -1225,14 +1196,16 @@ function BuildPageContent() {
         setAlternativeTemplates(newAltsState);
         // Ensure currentScenario.id is valid before update
         if (currentScenario && currentScenario.id) {
-            await db.scenarios.update(currentScenario.id, { alternativeTemplatesCache: altsCacheForDb, updatedAt: Date.now(), searchQuery: queryToSearch });
-            setCurrentScenario(prev => prev ? ({ ...prev, alternativeTemplatesCache: altsCacheForDb, searchQuery: queryToSearch }) : null);
+            const scenarioId = currentScenario.id; // Capture ID
+            await db.scenarios.update(scenarioId, { alternativeTemplatesCache: altsCacheForDb, updatedAt: Date.now(), searchQuery: queryToSearch });
+            // Don't update state here - it causes circular updates!
         }
     } catch {
         setAlternativeTemplates([]);
         if (currentScenario && currentScenario.id) {
-            await db.scenarios.update(currentScenario.id, { alternativeTemplatesCache: [], updatedAt: Date.now() });
-            setCurrentScenario(prev => prev ? ({ ...prev, alternativeTemplatesCache: [] }) : null);
+            const scenarioId = currentScenario.id; // Capture ID
+            await db.scenarios.update(scenarioId, { alternativeTemplatesCache: [], updatedAt: Date.now() });
+            // Don't update state here - it causes circular updates!
         }
     } finally {
         setIsLoadingAlternatives(false); // Correct usage
@@ -1316,26 +1289,7 @@ function BuildPageContent() {
     return filtered;
   }, [nodes]);
 
-  // Collect email context nodes for the email properties panel
-  const emailContextNodes = useMemo(() => {
-    return nodes
-      .filter(node => {
-        const nodeData = node.data as unknown as NodeData;
-        return nodeData.isEmailContext || [
-          "persona", "industry", "painpoint", "metric", 
-          "urgency", "socialproof", "objection", "value"
-        ].includes(node.type || "");
-      })
-      .map(node => {
-        const nodeData = node.data as unknown as NodeData;
-        return {
-          id: node.id,
-          type: node.type || "",
-          label: nodeData.label || node.type || "",
-          value: nodeData.contextValue || "",
-        };
-      });
-  }, [nodes]);
+  // Removed emailContextNodes - no longer needed with inline editing
 
   // ADD THE HANDLER FUNCTION HERE
   const handleGenerateEmailOnCanvas = useCallback(async () => {
@@ -1806,7 +1760,6 @@ function BuildPageContent() {
         alert("No active scenario selected.");
         return;
       }
-      setIsGeneratingAIContent(true);
       try {
         const sc = currentScenario;
         
@@ -2055,198 +2008,93 @@ function BuildPageContent() {
 
       } catch (error) {
         alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
-      } finally {
-        setIsGeneratingAIContent(false);
       }
     },
     [currentScenario, handleUpdateEmailNodeData, nodes]
   );
 
-  const handleRegenerateSection = useCallback(
-    async (nodeId: string, section: string) => {
-      const node = nodes.find(n => n.id === nodeId);
-      if (!node || node.type !== 'emailPreview' || !currentScenario) {
-        return;
-      }
-      
-      const emailData = node.data as unknown as EmailPreviewNodeData;
-      const sectionConnection = emailData.sectionConnections?.[section as keyof typeof emailData.sectionConnections];
-      
-      if (!sectionConnection?.connectedNodeIds?.length) {
-        return;
-      }
-      
-      // Get the connected context nodes
-      const connectedContextNodes = nodes.filter(n => 
-        sectionConnection.connectedNodeIds.includes(n.id)
-      );
-      
-      if (connectedContextNodes.length === 0) {
-        return;
-      }
-      
-      // Build email context from connected nodes
-      const emailContext: Record<string, string[]> = {
-        personas: [],
-        industries: [],
-        painPoints: [],
-        metrics: [],
-        urgencyFactors: [],
-        socialProofs: [],
-        objections: [],
-        valueProps: [],
-      };
-      
-      connectedContextNodes.forEach(contextNode => {
-        const nodeData = contextNode.data as unknown as NodeData;
-        const contextValue = nodeData.contextValue || nodeData.label || "";
-        const nodeType = contextNode.type || "";
-        
-        // Parse multi-select values
-        let values: string[] = [];
-        try {
-          const parsed = JSON.parse(contextValue as string);
-          values = Array.isArray(parsed) ? parsed : [contextValue as string];
-        } catch {
-          values = [contextValue as string];
-        }
-        
-        switch(nodeType) {
-          case "persona":
-            emailContext.personas.push(...values);
-            break;
-          case "industry":
-            emailContext.industries.push(...values);
-            break;
-          case "painpoint":
-            emailContext.painPoints.push(...values);
-            break;
-          case "metric":
-            emailContext.metrics.push(...values);
-            break;
-          case "urgency":
-            emailContext.urgencyFactors.push(...values);
-            break;
-          case "socialproof":
-            emailContext.socialProofs.push(...values);
-            break;
-          case "objection":
-            emailContext.objections.push(...values);
-            break;
-          case "value":
-            emailContext.valueProps.push(...values);
-            break;
-        }
-      });
-      
-      // Set loading state for the section
-      setNodes(ns => ns.map(n => 
-        n.id === nodeId ? {
-          ...n,
-          data: {
-            ...n.data,
-            [`${section}Loading`]: true
+  // Create refs to store the latest callback implementations
+  // This allows nodeTypes to remain stable while callbacks can change
+  const emailCallbacksRef = useRef({
+    handleGenerateEmailSectionAI,
+    handleUpdateEmailNodeData,
+    handleGenerateEmailOnCanvas
+  });
+
+  // Update the ref when callbacks change
+  useEffect(() => {
+    emailCallbacksRef.current = {
+      handleGenerateEmailSectionAI,
+      handleUpdateEmailNodeData,
+      handleGenerateEmailOnCanvas
+    };
+  }, [handleGenerateEmailSectionAI, handleUpdateEmailNodeData, handleGenerateEmailOnCanvas]);
+
+  // Create stable wrapper for EmailPreviewNode that uses the ref
+  const EmailPreviewNodeWrapper = useCallback((props: { id: string; data: EmailPreviewNodeData }) => {
+    const emailData = props.data as EmailPreviewNodeData;
+    const nodeId = props.id;
+    
+    return (
+      <EmailPreviewNode 
+        {...props} 
+        data={{
+          ...props.data,
+          onRegenerateSection: async (section: string, promptType: string, tone: string, length: 'concise' | 'standard' | 'detailed') => {
+            // Get current text for the section
+            const fieldKey = section === 'subject' ? 'subjectLine' : `${section}Text` as keyof EmailPreviewNodeData;
+            const currentText = String(emailData?.[fieldKey] || '');
+            
+            // Get connected context nodes for this section
+            const sectionConnection = emailData.sectionConnections?.[section as keyof typeof emailData.sectionConnections];
+            const selectedContextNodes = sectionConnection?.connectedNodeIds || [];
+            
+            // Build the full prompt type with tone and length
+            const fullPromptType = `${promptType}_${length}_${tone}`;
+            
+            // Call the generation function using the ref
+            await emailCallbacksRef.current.handleGenerateEmailSectionAI(
+              nodeId,
+              section as 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
+              fullPromptType,
+              currentText,
+              selectedContextNodes
+            );
+          },
+          onGenerateFullEmail: async (tone: string, length: 'concise' | 'standard' | 'detailed') => {
+            // Update node with tone/length settings using the ref
+            emailCallbacksRef.current.handleUpdateEmailNodeData(nodeId, { 
+              toneOption: tone,
+              lengthOption: length 
+            });
+            
+            // Call the full email generation using the ref
+            await emailCallbacksRef.current.handleGenerateEmailOnCanvas();
           }
-        } : n
-      ));
-      
-      try {
-        // Get current length and tone options
-        const lengthOption = emailData.lengthOption || 'standard';
-        const toneOption = emailData.toneOption || 'professional_warm';
-        
-        // Calculate ROI values for context
-        const sc = currentScenario;
-        const timeValue = calculateTimeValue(sc.runsPerMonth || 0, sc.minutesPerRun || 0, sc.hourlyRate || 0, sc.taskMultiplier || 0);
-        const platformCost = calculatePlatformCost(sc.platform || 'zapier', sc.runsPerMonth || 0, pricing, sc.nodesSnapshot?.length || 0);
-        const roiRatio = calculateROIRatio(calculateTotalValue(timeValue, 0, 0), platformCost);
-        
-        // Build request payload with only the specific section
-        const payload = {
-          scenarioName: sc.name,
-          platform: sc.platform,
-          taskType: sc.taskType || 'general',
-          runsPerMonth: sc.runsPerMonth,
-          minutesPerRun: sc.minutesPerRun,
-          hourlyRate: sc.hourlyRate,
-          roiRatio,
-          emailContext,
-          lengthOption,
-          toneOption,
-          enabledSections: {
-            subject: section === 'subject',
-            hook: section === 'hook',
-            cta: section === 'cta',
-            offer: section === 'offer',
-            ps: section === 'ps',
-            testimonial: section === 'testimonial',
-            urgency: section === 'urgency',
-          }
-        };
-        
-        const response = await fetch('/api/openai/generate-email-section', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...payload,
-            section,
-            currentText: emailData[`${section}Text` as keyof EmailPreviewNodeData] || '',
-          }),
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to regenerate ${section}`);
-        }
-        
-        const result = await response.json();
-        const newText = result[`${section}Text`] || result.text || '';
-        
-        // Update node with new text and reset changes flag
-        setNodes(ns => ns.map(n => 
-          n.id === nodeId ? {
-            ...n,
-            data: {
-              ...n.data,
-              [`${section}Text`]: newText,
-              [`${section}Loading`]: false,
-              sectionConnections: {
-                ...emailData.sectionConnections,
-                [section]: {
-                  ...sectionConnection,
-                  hasChanges: false,
-                  regenerateNeeded: false,
-                  lastContent: newText
-                }
-              }
-            }
-          } : n
-        ));
-        
-        // Update scenario in database
-        if (sc.id) {
-          const updateField = `email${section.charAt(0).toUpperCase() + section.slice(1)}Text` as keyof Scenario;
-          await db.scenarios.update(sc.id, {
-            [updateField]: newText,
-            updatedAt: Date.now()
-          });
-        }
-        
-      } catch (error) {
-        console.error(`Error regenerating ${section}:`, error);
-        // Remove loading state on error
-        setNodes(ns => ns.map(n => 
-          n.id === nodeId ? {
-            ...n,
-            data: {
-              ...n.data,
-              [`${section}Loading`]: false
-            }
-          } : n
-        ));
-      }
-    },
-    [nodes, currentScenario, setNodes]
-  );
+        }} 
+      />
+    );
+  }, []); // Empty deps array - this wrapper never changes
+
+  // Create nodeTypes with stable references - no dependencies needed
+  const nodeTypes = useMemo(() => ({
+    trigger: PixelNode,
+    action: PixelNode,
+    decision: PixelNode,
+    group: NodeGroup,
+    emailPreview: EmailPreviewNodeWrapper,
+    // Email context nodes
+    persona: PixelNode,
+    industry: PixelNode,
+    painpoint: PixelNode,
+    metric: PixelNode,
+    urgency: PixelNode,
+    socialproof: PixelNode,
+    objection: PixelNode,
+    value: PixelNode,
+  }), [EmailPreviewNodeWrapper]); // Only depends on the stable wrapper
+
+  // Removed handleRegenerateSection - now handled by inline editors
 
   // Moved the loading return to before the main return, after all hooks
   if (isLoading && !currentScenario && !scenarioIdParam) {
@@ -2279,11 +2127,17 @@ function BuildPageContent() {
             taskMultiplier={taskMultiplier}
             onUpdateMinutes={(minutes) => {
               setMinutesPerRun(minutes);
-              updateCurrentScenarioROI({ minutesPerRun: minutes });
+              // Delay the ROI update to avoid sync loops
+              setTimeout(() => {
+                updateCurrentScenarioROI({ minutesPerRun: minutes });
+              }, 0);
             }}
             onUpdateRuns={(runs) => {
               setRunsPerMonth(runs);
-              updateCurrentScenarioROI({ runsPerMonth: runs });
+              // Delay the ROI update to avoid sync loops
+              setTimeout(() => {
+                updateCurrentScenarioROI({ runsPerMonth: runs });
+              }, 0);
             }}
             nodes={nodes}
             currentScenario={currentScenario}
@@ -2291,7 +2145,10 @@ function BuildPageContent() {
             // Integrated control handlers
             onPlatformChange={(newPlatform) => {
               setPlatform(newPlatform);
-              updateCurrentScenarioROI({ platform: newPlatform });
+              // Delay the ROI update to avoid sync loops
+              setTimeout(() => {
+                updateCurrentScenarioROI({ platform: newPlatform });
+              }, 0);
             }}
             onOpenROISettings={() => setRoiOpen(true)}
             onAddNode={() => {
@@ -2336,12 +2193,15 @@ function BuildPageContent() {
                 
                 console.log("Adding new node:", newNode); // Debug log
                 
-                setNodes((nds) => {
-                  const updatedNodes = [...nds, newNode];
-                  console.log("Updated nodes array:", updatedNodes); // Debug log
-                  
-                  // Immediately update currentScenario to prevent conflicts
-                  if (currentScenario && currentScenario.id) {
+                // Update nodes state
+                setNodes((nds) => [...nds, newNode]);
+                
+                // Update currentScenario and database AFTER setNodes (not inside it)
+                if (currentScenario && currentScenario.id) {
+                  const scenarioId = currentScenario.id; // Capture id to satisfy TypeScript
+                  // Use setTimeout to ensure state update happens after setNodes completes
+                  setTimeout(() => {
+                    const updatedNodes = [...nodes, newNode];
                     const updatedScenario = {
                       ...currentScenario,
                       nodesSnapshot: updatedNodes,
@@ -2349,14 +2209,12 @@ function BuildPageContent() {
                     };
                     setCurrentScenario(updatedScenario);
                     // Also update the database
-                    db.scenarios.update(currentScenario.id, {
+                    db.scenarios.update(scenarioId, {
                       nodesSnapshot: updatedNodes,
                       updatedAt: Date.now(),
                     }).catch(console.error);
-                  }
-                  
-                  return updatedNodes;
-                });
+                  }, 0);
+                }
               } catch (error) {
                 console.error("Error adding node:", error);
               }
@@ -2423,7 +2281,6 @@ function BuildPageContent() {
                     titleInputRef={titleInputRef}
                     selectedNodeType={selectedNodeType}
                     onNodeTypeChange={setSelectedNodeType}
-                    handleRegenerateSection={handleRegenerateSection}
                   />
 
                   {/* Property Panels - existing code... */}
@@ -2449,28 +2306,7 @@ function BuildPageContent() {
                     hourlyRate={hourlyRate}
                     taskMultiplier={taskMultiplier}
                   />
-                  <EmailNodePropertiesPanel
-                    selectedNode={selectedEmailNode}
-                    onClose={() => setSelectedEmailNodeId(null)}
-                    onUpdateNodeData={handleUpdateEmailNodeData}
-                    onGenerateSection={async (nodeId: string, section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency') => {
-                      // Get current text for the section
-                      const emailNode = nodes.find(n => n.id === nodeId && n.type === 'emailPreview');
-                      const emailData = emailNode?.data as EmailPreviewNodeData | undefined;
-                      const fieldKey = section === 'subject' ? 'subjectLine' : `${section}Text` as keyof EmailPreviewNodeData;
-                      const currentText = String(emailData?.[fieldKey] || '');
-                      
-                      // Default prompt type - this would need to be enhanced to use actual user selection
-                      const promptType = `standard_${section}_standard_professional_warm`;
-                      
-                      // Get selected context nodes from somewhere (e.g., from the email node data)
-                      const selectedContextNodes: string[] = [];
-                      
-                      await handleGenerateEmailSectionAI(nodeId, section, promptType, currentText, selectedContextNodes);
-                    }}
-                    isGeneratingAIContent={isGeneratingAIContent}
-                    emailContextNodes={emailContextNodes}
-                  />
+                  {/* EmailNodePropertiesPanel removed - using inline editing now */}
                 </div>
               ) : (
                 <AnalyticsDashboard scenario={currentScenario} nodes={nodes} />
@@ -2539,67 +2375,67 @@ function BuildPageContent() {
           runsPerMonth={runsPerMonth}
           setRunsPerMonth={(value) => {
             setRunsPerMonth(value);
-            updateCurrentScenarioROI({ runsPerMonth: value });
+            setTimeout(() => updateCurrentScenarioROI({ runsPerMonth: value }), 0);
           }}
           minutesPerRun={minutesPerRun}
           setMinutesPerRun={(value) => {
             setMinutesPerRun(value);
-            updateCurrentScenarioROI({ minutesPerRun: value });
+            setTimeout(() => updateCurrentScenarioROI({ minutesPerRun: value }), 0);
           }}
           hourlyRate={hourlyRate}
           setHourlyRate={(value) => {
             setHourlyRate(value);
-            updateCurrentScenarioROI({ hourlyRate: value });
+            setTimeout(() => updateCurrentScenarioROI({ hourlyRate: value }), 0);
           }}
           taskMultiplier={taskMultiplier}
           setTaskMultiplier={(value) => {
             setTaskMultiplier(value);
-            updateCurrentScenarioROI({ taskMultiplier: value });
+            setTimeout(() => updateCurrentScenarioROI({ taskMultiplier: value }), 0);
           }}
           taskType={taskType}
           setTaskType={(value) => {
             setTaskType(value);
-            updateCurrentScenarioROI({ taskMultiplier: taskTypeMultipliers[value as keyof typeof taskTypeMultipliers] });
+            setTimeout(() => updateCurrentScenarioROI({ taskMultiplier: taskTypeMultipliers[value as keyof typeof taskTypeMultipliers] }), 0);
           }}
           complianceEnabled={complianceEnabled}
           setComplianceEnabled={(value) => {
             setComplianceEnabled(value);
-            updateCurrentScenarioROI({ complianceEnabled: value });
+            setTimeout(() => updateCurrentScenarioROI({ complianceEnabled: value }), 0);
           }}
           revenueEnabled={revenueEnabled}
           setRevenueEnabled={(value) => {
             setRevenueEnabled(value);
-            updateCurrentScenarioROI({ revenueEnabled: value });
+            setTimeout(() => updateCurrentScenarioROI({ revenueEnabled: value }), 0);
           }}
           riskLevel={riskLevel}
           setRiskLevel={(value) => {
             setRiskLevel(value);
-            updateCurrentScenarioROI({ riskLevel: value });
+            setTimeout(() => updateCurrentScenarioROI({ riskLevel: value }), 0);
           }}
           riskFrequency={riskFrequency}
           setRiskFrequency={(value) => {
             setRiskFrequency(value);
-            updateCurrentScenarioROI({ riskFrequency: value });
+            setTimeout(() => updateCurrentScenarioROI({ riskFrequency: value }), 0);
           }}
           errorCost={errorCost}
           setErrorCost={(value) => {
             setErrorCost(value);
-            updateCurrentScenarioROI({ errorCost: value });
+            setTimeout(() => updateCurrentScenarioROI({ errorCost: value }), 0);
           }}
           monthlyVolume={monthlyVolume}
           setMonthlyVolume={(value) => {
             setMonthlyVolume(value);
-            updateCurrentScenarioROI({ monthlyVolume: value });
+            setTimeout(() => updateCurrentScenarioROI({ monthlyVolume: value }), 0);
           }}
           conversionRate={conversionRate}
           setConversionRate={(value) => {
             setConversionRate(value);
-            updateCurrentScenarioROI({ conversionRate: value });
+            setTimeout(() => updateCurrentScenarioROI({ conversionRate: value }), 0);
           }}
           valuePerConversion={valuePerConversion}
           setValuePerConversion={(value) => {
             setValuePerConversion(value);
-            updateCurrentScenarioROI({ valuePerConversion: value });
+            setTimeout(() => updateCurrentScenarioROI({ valuePerConversion: value }), 0);
           }}
           taskTypeMultipliers={taskTypeMultipliers}
           benchmarks={benchmarks}
