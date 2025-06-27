@@ -2,11 +2,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Wand2, BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Rocket, Users, Zap,Crown, ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import { Wand2, BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Rocket, Users, Zap,Crown, ChevronLeft, ChevronRight, Upload, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 
 // Dynamic import to prevent SSR issues with sessionStorage
 const ImportWorkflowDialog = dynamic(
@@ -137,14 +138,125 @@ export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-background">
       {/* Hero Section */}
-      <section className="relative bg-background min-h-screen">
-        <div className="relative z-10 px-4 py-20 md:py-32">
-          <div className="mx-auto max-w-6xl text-center">
-           
+      <section className="relative bg-background min-h-screen flex items-center justify-center">
+        {/* Background Images - Multiple Components */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="relative h-full w-full">
+            {/* Canvas Title - Top Right Away from Text */}
+            <div className="absolute right-[10%] top-[8%] transform rotate-[+3deg] scale-125 opacity-45">
+              <Image
+                src="/title-automation-on-canvas-image.png"
+                alt=""
+                width={600}
+                height={450}
+                className="object-contain"
+                priority
+              />
+            </div>
 
+            {/* Workflow Example Images - Under Canvas Title */}
+            {/* Capture and Qualify Leads */}
+            <div className="absolute right-[8%] top-[12%] transform rotate-[+3deg] scale-110 opacity-25">
+              <Image
+                src="/capture=qualify-and-nuture-leads-chatgpt.png"
+                alt=""
+                width={600}
+                height={450}
+                className="object-contain"
+              />
+            </div>
+
+            {/* Create Landing Page Copy */}
+            <div className="absolute right-[12%] top-[15%] transform rotate-[+3deg] scale-110 opacity-25">
+              <Image
+                src="/create-landing-page-copy-with-jasper.png"
+                alt=""
+                width={600}
+                height={450}
+                className="object-contain"
+              />
+            </div>
+
+            {/* Send Special Offers Campaigns */}
+            <div className="absolute right-[6%] top-[20%] transform rotate-[+3deg] scale-120 opacity-25">
+              <Image
+                src="/send-special-offers-campaigns-in-mailchimp.png"
+                alt=""
+                width={600}
+                height={450}
+                className="object-contain"
+              />
+            </div>
+            
+            {/* Analytics Dashboard Group - Left Side in Order */}
+            {/* Time Value - First */}
+            <div className="absolute left-[20%] top-[20%] transform rotate-[-5deg] scale-75 opacity-25">
+              <Image
+                src="/time-value-analytics-dashboard.png"
+                alt=""
+                width={320}
+                height={220}
+                className="object-contain"
+                priority
+              />
+            </div>
+            
+            {/* Platform Cost - Second */}
+            <div className="absolute left-[20%] top-[40%] transform rotate-[3deg] scale-80 opacity-20">
+              <Image
+                src="/platform-cost-analytics-dashboard.png"
+                alt=""
+                width={320}
+                height={220}
+                className="object-contain"
+                priority
+              />
+            </div>
+            
+            {/* Net ROI - Third */}
+            <div className="absolute left-[20%] bottom-[15%] transform rotate-[-7deg] scale-75 opacity-25">
+              <Image
+                src="/net-roi-analytics-dashboard.png"
+                alt=""
+                width={320}
+                height={220}
+                className="object-contain"
+                priority
+              />
+            </div>
+            
+            {/* Automation Nodes - Right Side */}
+            <div className="absolute right-[15%] top-[40%] transform rotate-[5deg] scale-120 opacity-40">
+              <Image
+                src="/generated-automation-nodes-transparent-background.png"
+                alt=""
+                width={500}
+                height={400}
+                className="object-contain"
+                priority
+              />
+            </div>
+            
+            {/* Analytics Dashboard Stats Bar - above automation nodes */}
+            <div className="absolute right-[15%] top-[38%] transform rotate-[5deg] scale-100 opacity-85">
+              <Image
+                src="/analytics-dashboard-stats-bar.png"
+                alt=""
+                width={400}
+                height={300}
+                className="object-contain"
+                priority
+              />
+            </div>
+            
+          </div>
+        </div>
+
+        <div className="relative z-10 w-full px-4 py-12">
+          <div className="mx-auto max-w-5xl text-center">
             <h1
               className={cn(
-                "mx-auto my-15 max-w-4xl text-5xl font-black leading-[1.1] tracking-tight text-foreground md:text-7xl lg:text-8xl",
+                "mx-auto mb-12 text-5xl font-black leading-[1.1] tracking-tight text-foreground sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl",
                 mounted && "animate-fade-in"
               )}
             >
@@ -153,17 +265,9 @@ export default function Home() {
               Proposals.
             </h1>
 
-            <p className={cn(
-              "mx-auto mt-8 max-w-4xl text-xl leading-relaxed text-muted-foreground md:text-2xl",
-              mounted && "animate-fade-in"
-            )} style={{ animationDelay: '200ms' }}>
-              From idea to signed contract: Build data-driven automation proposals that close deals{" "}
-              <span className="text-foreground font-semibold">before the first workflow runs</span>
-            </p>
-
             {/* CTA Section */}
             <div className={cn(
-              "mt-12  flex flex-col items-center gap-6",
+              "mt-8 sm:mt-12 flex flex-col items-center gap-4 sm:gap-6",
               mounted && "animate-fade-in"
             )} style={{ animationDelay: '400ms' }}>
 
@@ -171,48 +275,41 @@ export default function Home() {
               <Button 
                 size="lg" 
                 onClick={() => setImportDialogOpen(true)}
-                className="animate-pulse-glow px-12 py-6 text-xl font-bold shadow-lg"
+                className="animate-pulse-glow px-6 sm:px-12 py-4 sm:py-6 text-lg sm:text-xl font-bold shadow-lg w-full sm:w-auto max-w-md"
               >
-                <Upload className="mr-3 h-6 w-6" />
+                <Upload className="mr-3 h-5 w-5 sm:h-6 sm:w-6" />
                 Import from Make, n8n, or Zapier
               </Button>
 
-              <span className="text-sm font-medium text-muted-foreground">or</span>
+              <span className="text-xs sm:text-sm font-medium text-muted-foreground">or</span>
 
               {/* Secondary CTA – Generate */}
-              <form onSubmit={handleGenerate} className="flex flex-col items-center gap-4 w-full max-w-2xl">
+              <form onSubmit={handleGenerate} className="flex flex-col items-center gap-4 w-full max-w-2xl px-4 sm:px-0">
                 <div className="relative w-full">
                   <textarea
                     ref={inputRef}
                     placeholder="What repetitive process is costing your client time? (e.g., invoice processing, lead routing, data entry)"
-                    className="w-full h-24 sm:h-20 border-2 border-input bg-background px-6 py-4 text-base sm:text-lg font-medium text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-40 resize-none transition-all duration-200"
+                    className="w-full h-20 sm:h-24 border-2 border-input bg-background/95 backdrop-blur-sm px-4 sm:px-6 py-3 sm:py-4 pr-14 sm:pr-16 text-sm sm:text-base lg:text-lg font-medium text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 disabled:opacity-40 resize-none transition-all duration-200"
                     disabled={searching}
                     rows={3}
                     onKeyDown={handleKeyDown}
                   />
-                  <div className="absolute bottom-3 right-4 text-xs text-muted-foreground/60">
+                  <Button
+                    type="submit"
+                    disabled={searching}
+                    size="icon"
+                    className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 h-10 w-10 min-h-[44px] min-w-[44px]"
+                  >
+                    {searching ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <ArrowRight className="h-5 w-5" />
+                    )}
+                  </Button>
+                  <div className="absolute bottom-1 sm:bottom-2 right-14 sm:right-16 text-[10px] sm:text-xs text-muted-foreground/60">
                     Enter to generate • Shift+Enter for new line
                   </div>
                 </div>
-                <Button 
-                  type="submit" 
-                  disabled={searching} 
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto px-8 py-4 text-lg font-semibold min-h-[44px] transition-all duration-200 hover:scale-105"
-                >
-                  {searching ? (
-                    <>
-                      <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                      Generating ROI Analysis...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="mr-3 h-5 w-5" />
-                      Generate ROI Report
-                    </>
-                  )}
-                </Button>
               </form>
             </div>
           </div>
@@ -220,12 +317,12 @@ export default function Home() {
       </section>
 
       {/* Target Audience Section */}
-      <section className="relative z-10 py-16 flex items-center justify-center" style={{ backgroundColor: 'var(--section-bg)' }}>
+      <section className="relative z-10 py-12 sm:py-16 lg:py-20 flex items-center justify-center" style={{ backgroundColor: 'var(--section-bg)' }}>
         <div className="mx-auto max-w-6xl px-4 text-center">
-          <h2 className="text-3xl font-bold mb-6 text-foreground">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6 text-foreground">
             The first ROI platform built for
           </h2>
-          <div className="flex flex-wrap justify-center gap-4 text-2xl font-semibold">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4 text-xl sm:text-2xl lg:text-3xl font-semibold">
             <span className="text-gradient-orange">consultants</span>
             <span className="text-muted-foreground">,</span>
             <span className="text-gradient-orange">freelancers</span>
@@ -236,14 +333,14 @@ export default function Home() {
       </section>
 
       {/* Benefits Carousel */}
-      <section className="relative z-10 py-20 min-h-[50vh]" style={{ backgroundColor: 'var(--section-bg)' }}>
+      <section className="relative z-10 py-12 sm:py-16 lg:py-20" style={{ backgroundColor: 'var(--section-bg)' }}>
         <div className="mx-auto max-w-6xl px-4">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8 sm:mb-12">
             <Badge variant="outline" className="mb-4">
               <Sparkles className="mr-2 h-3 w-3" />
               Benefits
             </Badge>
-            <h2 className="text-4xl font-bold tracking-tight mb-4 text-foreground">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight mb-4 text-foreground">
               Why Choose Apicus?
             </h2>
           </div>
