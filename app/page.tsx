@@ -190,7 +190,7 @@ export default function Home() {
             
             {/* Analytics Dashboard Group - Left Side in Order */}
             {/* Time Value - First */}
-            <div className="absolute left-[20%] top-[20%] transform rotate-[-5deg] scale-75 opacity-25">
+            <div className="absolute left-[15%] top-[20%] transform rotate-[-5deg] scale-100 opacity-30">
               <Image
                 src="/time-value-analytics-dashboard.png"
                 alt=""
@@ -202,7 +202,7 @@ export default function Home() {
             </div>
             
             {/* Platform Cost - Second */}
-            <div className="absolute left-[20%] top-[40%] transform rotate-[3deg] scale-80 opacity-20">
+            <div className="absolute left-[15%] top-[40%] transform rotate-[3deg] scale-100 opacity-30">
               <Image
                 src="/platform-cost-analytics-dashboard.png"
                 alt=""
@@ -214,7 +214,7 @@ export default function Home() {
             </div>
             
             {/* Net ROI - Third */}
-            <div className="absolute left-[20%] bottom-[15%] transform rotate-[-7deg] scale-75 opacity-25">
+            <div className="absolute left-[15%] bottom-[15%] transform rotate-[-7deg] scale-100 opacity-55">
               <Image
                 src="/net-roi-analytics-dashboard.png"
                 alt=""
@@ -226,7 +226,7 @@ export default function Home() {
             </div>
             
             {/* Automation Nodes - Right Side */}
-            <div className="absolute right-[15%] top-[40%] transform rotate-[5deg] scale-120 opacity-40">
+            <div className="absolute right-[10%] top-[40%] transform rotate-[5deg] scale-160 opacity-40">
               <Image
                 src="/generated-automation-nodes-transparent-background.png"
                 alt=""
@@ -238,7 +238,7 @@ export default function Home() {
             </div>
             
             {/* Analytics Dashboard Stats Bar - above automation nodes */}
-            <div className="absolute right-[15%] top-[38%] transform rotate-[5deg] scale-100 opacity-85">
+            <div className="absolute right-[10%] top-[31%] transform rotate-[5deg] scale-160 opacity-45">
               <Image
                 src="/analytics-dashboard-stats-bar.png"
                 alt=""
