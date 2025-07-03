@@ -2,11 +2,6 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { 
-  DEFAULT_ROI_SETTINGS,
-  ERROR_MESSAGES,
-  SUCCESS_MESSAGES
-} from '@/lib/utils/constants';
 import {
   calculateTimeValue,
   calculateRiskValue,

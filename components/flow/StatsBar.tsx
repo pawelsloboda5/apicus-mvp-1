@@ -14,7 +14,6 @@ import {
   TrendingUp, 
   DollarSign, 
   ShieldCheck, 
-  Plus, 
   MinusIcon, 
   PlusIcon, 
   Coins,
@@ -38,7 +37,6 @@ import {
   pricing, 
   formatROIRatio 
 } from "@/lib/roi";
-import { ROIReportNode } from "./ROIReportNode";
 import { generateROIReportNode } from "@/lib/roi-report-generator";
 import { toast } from "sonner";
 
@@ -128,7 +126,6 @@ export function StatsBar({
   nodes,
   onPlatformChange,
   onOpenROISettings,
-  onAddNode,
   onGenerateEmail,
   isGeneratingEmail = false,
   onCreateGroup,

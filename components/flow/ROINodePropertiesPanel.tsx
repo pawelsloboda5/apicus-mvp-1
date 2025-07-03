@@ -18,10 +18,8 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ROIReportNodeData } from './ROIReportNode';
 import { Node } from '@xyflow/react';
-import { Loader2, RefreshCw, BarChart3, TrendingUp, DollarSign, Clock, Shield, Target, Info, Calculator, Palette, FileText } from 'lucide-react';
+import { Loader2, RefreshCw, TrendingUp, Info, Calculator } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 

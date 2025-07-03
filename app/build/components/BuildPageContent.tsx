@@ -22,7 +22,7 @@ import { useScenarioManager } from "../hooks/useScenarioManager";
 import { useEmailGeneration } from "../hooks/useEmailGeneration";
 
 // Import types
-import { NodeType, Scenario } from "@/lib/types";
+import { NodeType, Scenario, NodeData } from "@/lib/types";
 
 // Import constants
 import { TASK_TYPE_MULTIPLIERS, BENCHMARKS } from "@/lib/utils/constants";
@@ -89,11 +89,7 @@ interface EmailNodeData {
   sectionConnections?: Record<string, { connectedNodeIds: string[] }>;
 }
 
-interface NodeData {
-  label?: string;
-  typeOf?: string;
-  contextValue?: string;
-}
+// NodeData interface is now imported from lib/types.ts
 
 export function BuildPageContent() {
   const router = useRouter();
@@ -535,10 +531,13 @@ export function BuildPageContent() {
             <Toolbox 
               onLoadScenario={(id) => scenarioManager.loadScenario(id.toString())}
               activeScenarioId={scenarioManager.scenario?.id as number | null}
-              emailNodes={nodes.filter(n => n.type === 'emailPreview').map(n => ({
-                id: n.id,
-                title: (n.data as EmailNodeData).nodeTitle || 'Email'
-              }))}
+              emailNodes={nodes.filter(n => n.type === 'emailPreview').map(n => {
+                const emailData = n.data as Partial<EmailNodeData>;
+                return {
+                  id: n.id,
+                  title: emailData.nodeTitle || 'Email'
+                };
+              })}
               onFocusNode={(nodeId) => {
                 const node = nodes.find(n => n.id === nodeId);
                 if (node && rfInstance) {
@@ -673,12 +672,15 @@ export function BuildPageContent() {
                 isGeneratingAIContent={emailGeneration.isGeneratingSection}
                 emailContextNodes={nodes
                   .filter(n => ['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value'].includes(n.type || ''))
-                  .map(n => ({
-                    id: n.id,
-                    type: n.type || '',
-                    label: (n.data as NodeData).label || n.type || '',
-                    value: (n.data as NodeData).contextValue || '',
-                  }))}
+                  .map(n => {
+                    const nodeData = n.data as Partial<NodeData>;
+                    return {
+                      id: n.id,
+                      type: n.type || '',
+                      label: nodeData.label || n.type || '',
+                      value: nodeData.contextValue || '',
+                    };
+                  })}
               />
             )}
 
@@ -726,12 +728,15 @@ export function BuildPageContent() {
                   // Create workflow steps from canvas nodes
                   const workflowSteps = nodes
                     .filter(n => ['trigger', 'action', 'decision'].includes(n.type || ''))
-                    .map(node => ({
-                      id: node.id,
-                      label: (node.data as NodeData).label || node.type || 'Step',
-                      platform: (node.data as any).appName || roi.settings.platform,
-                      description: (node.data as any).action || (node.data as any).typeOf || ''
-                    }));
+                    .map(node => {
+                      const nodeData = node.data as Partial<NodeData>;
+                      return {
+                        id: node.id,
+                        label: nodeData.label || node.type || 'Step',
+                        platform: nodeData.appName || roi.settings.platform,
+                        description: nodeData.action || nodeData.typeOf || ''
+                      };
+                    });
                   
                   // Create a new ROI Report node
                   const center = rfInstance?.getViewport() 

@@ -12,19 +12,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   Download, 
-  Calendar,
   TrendingUp,
-  DollarSign,
   Clock,
   Target,
-  Check,
   Zap,
   FileJson,
   FileText,
   Copy,
-  PlayCircle,
-  GitBranch,
-  ChevronRight,
   CheckSquare,
   Code,
   Sparkles,
@@ -35,6 +29,7 @@ import { Handle, Position } from '@xyflow/react';
 import { pricing } from '@/app/api/data/pricing';
 import { calculatePlatformCost } from '@/lib/roi-utils';
 import { Node } from '@xyflow/react';
+import { NodeData } from '@/lib/types';
 
 export interface ROIReportNodeData {
   nodeTitle?: string;
@@ -134,15 +129,13 @@ const PLATFORM_CONFIG = {
   }
 };
 
-export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
+export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
   const { 
     nodeTitle = "ROI Analysis Report", 
     isLoading = false,
-    reportTitle,
     projectName = "Automation Project",
     clientName = "Your Automation Agency",
     generatedDate = new Date(),
-    workflowSteps = [],
     runsPerMonth = 250,
     minutesPerRun = 3,
     hourlyRate = 40,
@@ -182,8 +175,9 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
     const apps = new Set<string>();
     if (nodes && nodes.length > 0) {
       nodes.forEach(node => {
-        if (node.data && (node.data as any).appName) {
-          apps.add((node.data as any).appName);
+        const nodeData = node.data as Partial<NodeData>;
+        if (nodeData && nodeData.appName) {
+          apps.add(nodeData.appName);
         }
       });
     }

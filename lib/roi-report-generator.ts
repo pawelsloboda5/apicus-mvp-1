@@ -12,7 +12,7 @@ import {
   formatROIRatio
 } from '@/lib/roi-utils';
 import { pricing } from '@/app/api/data/pricing';
-import { PlatformType } from '@/lib/types';
+import { PlatformType, NodeData } from '@/lib/types';
 
 interface ROIGeneratorConfig {
   // Position
@@ -80,14 +80,17 @@ export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIRepor
   const workflowSteps = nodes
     .filter(n => ['trigger', 'action', 'decision'].includes(n.type || ''))
     .slice(0, 5) // Limit to 5 steps for display
-    .map((node, index) => ({
-      id: node.id,
-      label: (node.data as any).label || `${node.type} ${index + 1}`,
-      platform: (node.data as any).appName || platform,
-      icon: node.type === 'trigger' ? 'PlayCircle' : 
-            node.type === 'decision' ? 'GitBranch' : 'Zap',
-      description: (node.data as any).action || (node.data as any).typeOf || ''
-    }));
+    .map((node, index) => {
+      const nodeData = node.data as Partial<NodeData>;
+      return {
+        id: node.id,
+        label: nodeData.label || `${node.type} ${index + 1}`,
+        platform: nodeData.appName || platform,
+        icon: node.type === 'trigger' ? 'PlayCircle' : 
+              node.type === 'decision' ? 'GitBranch' : 'Zap',
+        description: nodeData.action || nodeData.typeOf || ''
+      };
+    });
 
   // Generate business impact text (max 30 words for API)
   const hoursSaved = (runsPerMonth * minutesPerRun) / 60;

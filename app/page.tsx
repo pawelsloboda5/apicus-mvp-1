@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Wand2, BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Rocket, Users, Zap,Crown, ChevronLeft, ChevronRight, Upload, ArrowRight } from "lucide-react";
+import { BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Rocket, Users, Zap,Crown, ChevronLeft, ChevronRight, Upload, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
