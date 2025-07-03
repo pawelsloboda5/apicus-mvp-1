@@ -228,7 +228,7 @@ export default function Home() {
                     </div>
                   </div>
                   <p className="text-xs text-[#97756B] max-w-md">
-                    We'll find the best template from our library and calculate ROI instantly
+                    We&apos;ll find the best template from our library and calculate ROI instantly
                   </p>
                 </form>
               </div>
