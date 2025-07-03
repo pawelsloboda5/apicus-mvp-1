@@ -24,10 +24,17 @@ import {
   Copy,
   PlayCircle,
   GitBranch,
-  ChevronRight
+  ChevronRight,
+  CheckSquare,
+  Code,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { WorkflowStep } from '@/app/build/hooks/useROIGeneration';
 import { Handle, Position } from '@xyflow/react';
+import { pricing } from '@/app/api/data/pricing';
+import { calculatePlatformCost } from '@/lib/roi-utils';
+import { Node } from '@xyflow/react';
 
 export interface ROIReportNodeData {
   nodeTitle?: string;
@@ -86,6 +93,9 @@ export interface ROIReportNodeData {
   taskType?: string;
   taskMultiplier?: number;
   
+  // Workflow nodes for apps extraction
+  nodes?: Node[];
+  
   // Handlers
   onGenerateReport?: () => Promise<void>;
   onRegenerateSection?: (section: string) => Promise<void>;
@@ -110,17 +120,17 @@ const PLATFORM_CONFIG = {
   },
   make: { 
     name: 'Make',
-    icon: Check, 
+    icon: CheckSquare, 
     color: 'text-purple-700',
     bgColor: 'bg-purple-50',
     borderColor: 'border-purple-200',
   },
   n8n: { 
     name: 'n8n',
-    icon: GitBranch, 
-    color: 'text-blue-700',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
+    icon: Code, 
+    color: 'text-red-700',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-200',
   }
 };
 
@@ -130,6 +140,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
     isLoading = false,
     reportTitle,
     projectName = "Automation Project",
+    clientName = "Your Automation Agency",
     generatedDate = new Date(),
     workflowSteps = [],
     runsPerMonth = 250,
@@ -146,11 +157,18 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
     riskValue = 0,
     revenueValue = 4500,
     showPlatformComparison = true,
+    nodes = [],
   } = data;
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(nodeTitle);
+  const [editingSubtitle, setEditingSubtitle] = useState(false);
+  const [subtitleValue, setSubtitleValue] = useState(clientName);
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+  const [isGeneratingImpact, setIsGeneratingImpact] = useState(false);
+  const [businessImpactValue, setBusinessImpactValue] = useState(businessImpact);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const subtitleInputRef = useRef<HTMLInputElement>(null);
 
   const isPositiveROI = netROI > 0;
   const hoursSaved = (runsPerMonth * minutesPerRun) / 60;
@@ -159,6 +177,30 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
     ? Math.ceil(platformCost / (timeValue / runsPerMonth))
     : 0;
 
+  // Extract unique apps from nodes
+  const uniqueApps = React.useMemo(() => {
+    const apps = new Set<string>();
+    if (nodes && nodes.length > 0) {
+      nodes.forEach(node => {
+        if (node.data && (node.data as any).appName) {
+          apps.add((node.data as any).appName);
+        }
+      });
+    }
+    return Array.from(apps);
+  }, [nodes]);
+
+  // Calculate platform costs for all platforms
+  const platformCosts = React.useMemo(() => {
+    const platforms = ['zapier', 'make', 'n8n'] as const;
+    const nodeCount = nodes?.length || 5; // Default to 5 if no nodes
+    
+    return platforms.map(p => ({
+      platform: p,
+      cost: calculatePlatformCost(p, runsPerMonth, pricing, nodeCount)
+    }));
+  }, [runsPerMonth, nodes]);
+
   useEffect(() => {
     if (editingTitle && titleInputRef.current) {
       titleInputRef.current.focus();
@@ -166,12 +208,96 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
     }
   }, [editingTitle]);
 
+  useEffect(() => {
+    if (editingSubtitle && subtitleInputRef.current) {
+      subtitleInputRef.current.focus();
+      subtitleInputRef.current.select();
+    }
+  }, [editingSubtitle]);
+
   const handleTitleSave = () => {
     setEditingTitle(false);
   };
 
+  const handleSubtitleSave = () => {
+    setEditingSubtitle(false);
+  };
+
   const handleExport = (format: 'pdf' | 'json' | 'html') => {
     console.log(`Export as ${format}`);
+  };
+
+  // Generate title using AI
+  const generateTitleAI = async () => {
+    setIsGeneratingTitle(true);
+    try {
+      const response = await fetch('/api/openai/generate-roi-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'title',
+          context: {
+            projectName,
+            clientName: subtitleValue,
+            taskType: data.taskType,
+            platform,
+            roiRatio,
+            paybackDays: paybackPeriod,
+            hoursSaved,
+            netROI,
+            uniqueApps
+          }
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to generate title');
+      
+      const { content } = await response.json();
+      setTitleValue(content);
+      
+    } catch (error) {
+      console.error('Error generating title:', error);
+    } finally {
+      setIsGeneratingTitle(false);
+    }
+  };
+
+  // Generate business impact using AI
+  const generateBusinessImpactAI = async () => {
+    setIsGeneratingImpact(true);
+    try {
+      const response = await fetch('/api/openai/generate-roi-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'businessImpact',
+          context: {
+            projectName,
+            clientName: subtitleValue,
+            taskType: data.taskType,
+            platform,
+            roiRatio,
+            paybackDays: paybackPeriod,
+            hoursSaved,
+            netROI,
+            complianceEnabled: data.complianceEnabled,
+            revenueEnabled: data.revenueEnabled,
+            revenueValue,
+            riskValue
+          }
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to generate business impact');
+      
+      const { content } = await response.json();
+      setBusinessImpactValue(content);
+      
+    } catch (error) {
+      console.error('Error generating business impact:', error);
+    } finally {
+      setIsGeneratingImpact(false);
+    }
   };
 
   // Format currency
@@ -186,7 +312,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
 
   if (isLoading) {
     return (
-      <div className="w-[700px] h-[900px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex items-center justify-center">
+      <div className="w-[800px] h-[900px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto"></div>
           <p className="text-sm text-slate-600">Generating ROI report...</p>
@@ -195,14 +321,14 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
     );
   }
 
-  // Calculate percentages for revenue breakdown
+  // Calculate percentages for revenue breakdown - always show all 3
   const totalRevenue = timeValue + revenueValue + riskValue;
-  const timePercent = totalRevenue > 0 ? (timeValue / totalRevenue) * 100 : 0;
+  const timePercent = totalRevenue > 0 ? (timeValue / totalRevenue) * 100 : 100;
   const revenuePercent = totalRevenue > 0 ? (revenueValue / totalRevenue) * 100 : 0;
   const riskPercent = totalRevenue > 0 ? (riskValue / totalRevenue) * 100 : 0;
 
   return (
-    <div className="relative w-[700px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div className="relative w-[800px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
       {/* Connection handles */}
       <Handle
         type="target"
@@ -221,36 +347,75 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
         {/* Header Section */}
         <div className="border-b border-slate-200 pb-4">
           <div className="flex items-center justify-between">
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-blue-100 rounded-lg">
                   <TrendingUp className="h-5 w-5 text-blue-600" />
                 </div>
-                <div>
-                  {editingTitle ? (
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    {editingTitle ? (
+                      <Input
+                        ref={titleInputRef}
+                        value={titleValue}
+                        onChange={(e) => setTitleValue(e.target.value)}
+                        onBlur={handleTitleSave}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleTitleSave();
+                          if (e.key === 'Escape') {
+                            setTitleValue(nodeTitle);
+                            setEditingTitle(false);
+                          }
+                        }}
+                        className="h-8 text-2xl font-bold px-2 flex-1"
+                      />
+                    ) : (
+                      <h1 
+                        className="text-2xl font-bold text-slate-900 cursor-pointer hover:text-primary transition-colors flex-1"
+                        onClick={() => setEditingTitle(true)}
+                      >
+                        {titleValue}
+                      </h1>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={generateTitleAI}
+                      disabled={isGeneratingTitle}
+                      title="Generate title with AI"
+                    >
+                      {isGeneratingTitle ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  {editingSubtitle ? (
                     <Input
-                      ref={titleInputRef}
-                      value={titleValue}
-                      onChange={(e) => setTitleValue(e.target.value)}
-                      onBlur={handleTitleSave}
+                      ref={subtitleInputRef}
+                      value={subtitleValue}
+                      onChange={(e) => setSubtitleValue(e.target.value)}
+                      onBlur={handleSubtitleSave}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleTitleSave();
+                        if (e.key === 'Enter') handleSubtitleSave();
                         if (e.key === 'Escape') {
-                          setTitleValue(nodeTitle);
-                          setEditingTitle(false);
+                          setSubtitleValue(clientName);
+                          setEditingSubtitle(false);
                         }
                       }}
-                      className="h-8 text-2xl font-bold px-2"
+                      className="h-6 text-sm font-medium px-2 mt-1"
+                      placeholder="Your agency or consultant name"
                     />
                   ) : (
-                    <h1 
-                      className="text-2xl font-bold text-slate-900 cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => setEditingTitle(true)}
+                    <p 
+                      className="text-slate-600 text-sm font-medium cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => setEditingSubtitle(true)}
                     >
-                      {nodeTitle}
-                    </h1>
+                      {subtitleValue}
+                    </p>
                   )}
-                  <p className="text-slate-600 text-sm font-medium">{projectName}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -268,21 +433,21 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
               </div>
             </div>
             
-            {/* Key Metrics Cards */}
-            <div className="flex gap-3">
+            {/* Key Metrics Cards - Better spacing */}
+            <div className="flex gap-6 pl-6">
               <div className="text-center">
                 <p className="text-xs text-slate-600">Total ROI</p>
-                <p className="text-xl font-bold text-green-600">{formatCurrency(netROI)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(netROI)}</p>
                 <p className="text-xs text-slate-500">monthly</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-slate-600">Monthly Cost</p>
-                <p className="text-xl font-bold text-red-600">{formatCurrency(platformCost)}</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(platformCost)}</p>
                 <p className="text-xs text-slate-500">platform + API</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-slate-600">Runs/Month</p>
-                <p className="text-xl font-bold text-blue-600">{runsPerMonth}</p>
+                <p className="text-2xl font-bold text-blue-600">{runsPerMonth.toLocaleString()}</p>
                 <p className="text-xs text-slate-500">automated</p>
               </div>
             </div>
@@ -290,7 +455,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
             {/* Export button */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8 ml-4">
                   <Download className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -312,26 +477,21 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
           </div>
         </div>
 
-        {/* Automation Workflow */}
-        {workflowSteps.length > 0 && (
+        {/* Applications Used Section */}
+        {uniqueApps.length > 0 && (
           <div className="bg-slate-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Automation Workflow</h3>
-            <div className="flex items-center gap-2 overflow-x-auto">
-              {workflowSteps.map((step, index) => {
-                const Icon = step.icon === 'PlayCircle' ? PlayCircle : 
-                           step.icon === 'GitBranch' ? GitBranch : Zap;
-                return (
-                  <React.Fragment key={step.id}>
-                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-md border border-slate-200 whitespace-nowrap">
-                      <Icon className="h-4 w-4 text-slate-500" />
-                      <span className="text-sm font-medium">{step.label}</span>
-                    </div>
-                    {index < workflowSteps.length - 1 && (
-                      <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                    )}
-                  </React.Fragment>
-                );
-              })}
+            <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Applications Used</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              {uniqueApps.slice(0, 4).map((app) => (
+                <div key={app} className="flex items-center gap-2 bg-white px-3 py-2 rounded-md border border-slate-200">
+                  <span className="text-sm font-medium">{app}</span>
+                </div>
+              ))}
+              {uniqueApps.length > 4 && (
+                <span className="text-sm text-slate-500 font-medium">
+                  +{uniqueApps.length - 4} more
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-600 mt-2">
               Avg. processing time: {minutesPerRun < 1 ? `${(minutesPerRun * 60).toFixed(0)} seconds` : `${minutesPerRun} minutes`}
@@ -344,20 +504,20 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
         <div className="grid grid-cols-2 gap-4">
           {/* Left Column */}
           <div className="space-y-4">
-            {/* Revenue Breakdown */}
+            {/* Revenue Breakdown - Always show all 3 */}
             <Card className="p-4">
               <h3 className="text-lg font-bold text-slate-900 mb-3">Revenue Breakdown</h3>
               
               {/* Progress Bar */}
               <div className="mb-4">
                 <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
-                  <div className="bg-blue-500 transition-all duration-500" style={{ width: `${timePercent}%` }}></div>
+                  {timePercent > 0 && <div className="bg-blue-500 transition-all duration-500" style={{ width: `${timePercent}%` }}></div>}
                   {revenuePercent > 0 && <div className="bg-orange-400 transition-all duration-500" style={{ width: `${revenuePercent}%` }}></div>}
                   {riskPercent > 0 && <div className="bg-green-500 transition-all duration-500" style={{ width: `${riskPercent}%` }}></div>}
                 </div>
               </div>
 
-              {/* Breakdown Table */}
+              {/* Breakdown Table - Always show all 3 */}
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
@@ -369,30 +529,26 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
                     <span className="text-slate-500 ml-2">{timePercent.toFixed(0)}%</span>
                   </div>
                 </div>
-                {revenueValue > 0 && (
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                      <span className="font-medium">Revenue Uplift</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-semibold">{formatCurrency(revenueValue)}</span>
-                      <span className="text-slate-500 ml-2">{revenuePercent.toFixed(0)}%</span>
-                    </div>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                    <span className="font-medium">Revenue Uplift</span>
                   </div>
-                )}
-                {riskValue > 0 && (
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                      <span className="font-medium">Risk Reduction</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-semibold">{formatCurrency(riskValue)}</span>
-                      <span className="text-slate-500 ml-2">{riskPercent.toFixed(0)}%</span>
-                    </div>
+                  <div className="text-right">
+                    <span className="font-semibold">{formatCurrency(revenueValue)}</span>
+                    <span className="text-slate-500 ml-2">{revenuePercent.toFixed(0)}%</span>
                   </div>
-                )}
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span className="font-medium">Risk Reduction</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-semibold">{formatCurrency(riskValue)}</span>
+                    <span className="text-slate-500 ml-2">{riskPercent.toFixed(0)}%</span>
+                  </div>
+                </div>
               </div>
             </Card>
 
@@ -420,12 +576,12 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
               </div>
             </Card>
 
-            {/* Platform Comparison */}
+            {/* Platform Comparison - Show all platforms with calculated costs */}
             {showPlatformComparison && (
               <Card className="p-4">
                 <h3 className="text-lg font-bold text-slate-900 mb-3">Platform Comparison</h3>
                 <div className="space-y-2">
-                  {(['zapier', 'make', 'n8n'] as const).map((p) => {
+                  {platformCosts.map(({ platform: p, cost }) => {
                     const config = PLATFORM_CONFIG[p];
                     const isActive = p === platform;
                     return (
@@ -440,7 +596,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
                       >
                         <span className="font-medium text-sm">{config.name}</span>
                         <span className={cn("font-bold", config.color)}>
-                          {isActive ? formatCurrency(platformCost) : '—'}
+                          {formatCurrency(cost)}
                         </span>
                       </div>
                     );
@@ -454,10 +610,26 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ id, data }) => {
           <div className="space-y-4">
             {/* Business Impact */}
             <Card className="p-4">
-              <h3 className="text-lg font-bold text-slate-900 mb-3">Business Impact</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold text-slate-900">Business Impact</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={generateBusinessImpactAI}
+                  disabled={isGeneratingImpact}
+                  title="Generate with AI"
+                >
+                  {isGeneratingImpact ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
               <div className="space-y-3 text-sm">
                 <p className="text-slate-700 leading-relaxed">
-                  {businessImpact}
+                  {businessImpactValue || businessImpact || `Automate ${projectName} to save ${hoursSaved.toFixed(1)} hours monthly with ${roiRatio.toFixed(1)}x ROI and ${Math.ceil(paybackPeriod)}-day payback.`}
                 </p>
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   <div>

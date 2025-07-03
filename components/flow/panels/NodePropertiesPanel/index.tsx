@@ -108,7 +108,7 @@ export function NodePropertiesPanel({
         if (!open) onClose();
       }}
     >
-      <SheetContent side="right" className="w-[480px] sm:w-[540px] p-0 flex flex-col h-screen">
+      <SheetContent side="right" className="w-[480px] sm:w-[540px] p-0 flex flex-col h-screen bg-white dark:bg-gray-950">
         <SheetHeader className="p-6 pb-4 border-b flex-shrink-0">
           <SheetTitle>
             {isEmailContextNode ? 'Email Context Node' : 'Node Properties'}

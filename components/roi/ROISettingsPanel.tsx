@@ -316,7 +316,7 @@ export function ROISettingsPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[480px] sm:w-[540px] overflow-y-auto p-0">
+      <SheetContent side="right" className="w-[480px] sm:w-[540px] overflow-y-auto p-0 bg-white dark:bg-gray-950">
         <SheetHeader className="p-6 pb-4 border-b">
           <SheetTitle className="flex items-center gap-2">
             <Calculator className="h-5 w-5" />

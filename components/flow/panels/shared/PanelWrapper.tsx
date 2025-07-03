@@ -54,7 +54,7 @@ export function PanelWrapper({
       <SheetContent 
         side={side} 
         className={cn(
-          "w-[480px] sm:w-[540px] p-0 flex flex-col h-screen",
+          "w-[480px] sm:w-[540px] p-0 flex flex-col h-screen bg-white dark:bg-gray-950",
           className
         )}
       >

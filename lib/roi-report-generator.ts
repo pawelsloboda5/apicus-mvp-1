@@ -89,13 +89,9 @@ export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIRepor
       description: (node.data as any).action || (node.data as any).typeOf || ''
     }));
 
-  // Generate business impact text
+  // Generate business impact text (max 30 words for API)
   const hoursSaved = (runsPerMonth * minutesPerRun) / 60;
-  const businessImpact = `This automation transforms your ${projectName.toLowerCase()} workflow by saving ${hoursSaved.toFixed(1)} hours monthly. ` +
-    `With ${formatROIRatio(roiRatio)} ROI and payback in just ${Math.ceil(paybackDays)} days, ` +
-    `it ${complianceEnabled ? 'reduces errors by 95% and ' : ''}` +
-    `${revenueEnabled ? `drives $${revenueValue.toFixed(0)} in additional revenue while ` : ''}` +
-    `freeing your team to focus on strategic initiatives.`;
+  const businessImpact = `Save ${hoursSaved.toFixed(1)} hours monthly with ${formatROIRatio(roiRatio)} ROI. ${complianceEnabled ? 'Reduce errors by 95%. ' : ''}${revenueEnabled ? `Generate $${revenueValue.toFixed(0)} additional revenue. ` : ''}Payback in ${Math.ceil(paybackDays)} days.`;
 
   // Generate key benefits
   const keyBenefits = [
@@ -172,6 +168,9 @@ export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIRepor
       // Task config
       taskMultiplier,
       taskType,
+      
+      // Pass nodes for apps extraction
+      nodes,
     },
     draggable: true,
     selectable: true,

@@ -50,7 +50,7 @@ export function GroupPropertiesPanel({
         if (!open) onClose();
       }}
     >
-      <SheetContent side="right" className="w-96">
+      <SheetContent side="right" className="w-96 bg-white dark:bg-gray-950">
         <SheetHeader>
           <SheetTitle>Group Properties</SheetTitle>
           <SheetDescription>

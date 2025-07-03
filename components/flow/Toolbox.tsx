@@ -165,7 +165,7 @@ export function MobileToolboxTrigger({
           Toolbox
         </Button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="h-[35vh] lg:hidden max-h-[350px] min-h-[250px]">
+      <SheetContent side="bottom" className="h-[35vh] lg:hidden max-h-[350px] min-h-[250px] bg-white dark:bg-gray-950">
         <ToolboxContent 
           onLoadScenario={onLoadScenario}
           activeScenarioId={activeScenarioId}
@@ -979,7 +979,7 @@ export function MobileAlternativeTemplatesButton({
           </span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="h-[60vh] lg:hidden">
+      <SheetContent side="bottom" className="h-[60vh] lg:hidden bg-white dark:bg-gray-950">
         <div className="flex flex-col h-full">
           {/* Add proper SheetHeader and SheetTitle for accessibility */}
           <SheetHeader className="pb-4">

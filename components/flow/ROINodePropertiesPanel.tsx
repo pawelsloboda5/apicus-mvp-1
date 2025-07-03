@@ -160,7 +160,7 @@ export function ROINodePropertiesPanel({
     >
       <SheetContent 
         side="right" 
-        className="w-[480px] sm:w-[540px] flex flex-col p-0 h-screen max-h-screen overflow-hidden"
+        className="w-[480px] sm:w-[540px] flex flex-col p-0 h-screen max-h-screen overflow-hidden bg-white dark:bg-gray-950"
       >
         <SheetHeader className="p-6 pb-4 border-b flex-shrink-0">
           <SheetTitle className="text-xl flex items-center gap-2">

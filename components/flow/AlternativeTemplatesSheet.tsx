@@ -79,7 +79,7 @@ export function AlternativeTemplatesSheet({
 
       <SheetContent 
         side="bottom" 
-        className="h-[65vh] max-h-[700px] min-h-[400px] w-full max-w-6xl mx-auto rounded-t-xl flex flex-col p-0 border-x"
+        className="h-[65vh] max-h-[700px] min-h-[400px] w-full max-w-6xl mx-auto rounded-t-xl flex flex-col p-0 border-x bg-white dark:bg-gray-950"
       >
         {/* Proper SheetHeader with required SheetTitle */}
         <SheetHeader className="px-6 py-4 border-b bg-background/95 flex-shrink-0">
