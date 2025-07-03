@@ -29,6 +29,7 @@ import { TASK_TYPE_MULTIPLIERS, BENCHMARKS } from "@/lib/utils/constants";
 
 // Import utilities
 import { transformTemplateNodes, transformTemplateEdges } from "@/lib/flow-utils";
+import { formatROIRatio } from "@/lib/roi-utils";
 
 // Import default template
 import { DEFAULT_TEMPLATE } from "@/lib/templates/default-template";
@@ -45,6 +46,7 @@ import { NodePropertiesPanel } from "@/components/flow/panels/NodePropertiesPane
 import { GroupPropertiesPanel } from "@/components/flow/GroupPropertiesPanel";
 import { EmailNodePropertiesPanel } from "@/components/flow/panels/EmailNodePropertiesPanel";
 import { ROISettingsPanel } from "@/components/roi/ROISettingsPanel";
+import { ROIReportNode } from "@/components/flow/ROIReportNode";
 
 // Dynamic imports for performance
 const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.Toolbox), {
@@ -68,6 +70,7 @@ const createNodeTypes = (handleRegenerateSection: (nodeId: string, section: stri
   socialproof: PixelNode,
   objection: PixelNode,
   value: PixelNode,
+  roiReport: ROIReportNode,
 });
 
 const edgeTypes = {
@@ -593,7 +596,10 @@ export function BuildPageContent() {
                 onUpdateMinutes={roi.setMinutesPerRun}
                 nodes={nodes}
                 onPlatformChange={roi.setPlatform}
-                onOpenROISettings={() => setIsROISettingsOpen(true)}
+                onOpenROISettings={() => {
+                  console.log('Opening ROI Settings Panel');
+                  setIsROISettingsOpen(true);
+                }}
                 onAddNode={() => {
                   // Add a new node at the center of the viewport
                   const center = rfInstance?.getViewport() 
@@ -710,6 +716,94 @@ export function BuildPageContent() {
               taskTypeMultipliers={TASK_TYPE_MULTIPLIERS}
               benchmarks={BENCHMARKS}
               updateScenarioROI={(updates) => scenarioManager.updateScenario(updates)}
+              onGenerateReport={() => {
+                try {
+                  console.log('Generate ROI Report clicked');
+                  console.log('Current ROI metrics:', roi.metrics);
+                  console.log('Current ROI settings:', roi.settings);
+                  console.log('Creating ROI Report node...');
+                  
+                  // Create workflow steps from canvas nodes
+                  const workflowSteps = nodes
+                    .filter(n => ['trigger', 'action', 'decision'].includes(n.type || ''))
+                    .map(node => ({
+                      id: node.id,
+                      label: (node.data as NodeData).label || node.type || 'Step',
+                      platform: (node.data as any).appName || roi.settings.platform,
+                      description: (node.data as any).action || (node.data as any).typeOf || ''
+                    }));
+                  
+                  // Create a new ROI Report node
+                  const center = rfInstance?.getViewport() 
+                    ? { 
+                        x: (window.innerWidth / 2 - 200) / (rfInstance.getViewport().zoom || 1), 
+                        y: (window.innerHeight / 2 - 150) / (rfInstance.getViewport().zoom || 1) 
+                      }
+                    : { x: 400, y: 300 };
+                
+                const newROINode: Node = {
+                  id: `roi-${Date.now()}`,
+                  type: 'roiReport',
+                  position: center,
+                  data: {
+                    nodeTitle: 'ROI Analysis Report',
+                    reportTitle: 'Automation ROI Analysis',
+                    projectName: scenarioManager.scenario?.name || 'Automation Project',
+                    clientName: 'Your Client',
+                    generatedDate: new Date(),
+                    platform: roi.settings.platform,
+                    runsPerMonth: roi.settings.runsPerMonth,
+                    minutesPerRun: roi.settings.minutesPerRun,
+                    hourlyRate: roi.settings.hourlyRate,
+                    taskMultiplier: roi.settings.taskMultiplier,
+                    // Workflow steps
+                    workflowSteps,
+                    // ROI metrics
+                    netROI: roi.metrics.netROI,
+                    roiRatio: roi.metrics.roiRatio,
+                    paybackPeriod: roi.metrics.paybackDays, // Pass the numeric value, not the formatted string
+                    timeValue: roi.metrics.timeValue,
+                    platformCost: roi.metrics.platformCost,
+                    // Additional settings for advanced calculations
+                    riskValue: roi.metrics.riskValue || 0,
+                    revenueValue: roi.metrics.revenueValue || 0,
+                    complianceEnabled: roi.settings.complianceEnabled,
+                    riskLevel: roi.settings.riskLevel,
+                    riskFrequency: roi.settings.riskFrequency,
+                    errorCost: roi.settings.errorCost,
+                    revenueEnabled: roi.settings.revenueEnabled,
+                    monthlyVolume: roi.settings.monthlyVolume,
+                    conversionRate: roi.settings.conversionRate,
+                    valuePerConversion: roi.settings.valuePerConversion,
+                    // Visual options
+                    colorScheme: roi.settings.platform,
+                    showPlatformComparison: true,
+                    showRevenueBreakdown: true,
+                    // Business impact (will be generated)
+                    businessImpact: `This automation will save ${roi.metrics.timeSavedHours.toFixed(1)} hours per month, resulting in ${formatROIRatio(roi.metrics.roiRatio)} return on investment.`,
+                    keyBenefits: [
+                      `Saves ${roi.metrics.timeSavedHours.toFixed(1)} hours of manual work monthly`,
+                      `Delivers ${formatROIRatio(roi.metrics.roiRatio)} ROI with ${roi.metrics.paybackPeriod} payback`,
+                      `Reduces operational costs by automating ${roi.settings.runsPerMonth} tasks`,
+                    ],
+                  },
+                };
+                
+                console.log('Creating new ROI node:', newROINode);
+                
+                // Add the node to the canvas
+                onNodesChange([{ type: 'add', item: newROINode }]);
+                
+                // Close the ROI settings panel
+                setIsROISettingsOpen(false);
+                
+                // Show success message
+                toast.success('ROI Report generated successfully!');
+                } catch (error) {
+                  console.error('Error generating ROI report:', error);
+                  toast.error('Failed to generate ROI report');
+                }
+              }}
             />
           </div>
         ) : (

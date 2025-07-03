@@ -7,6 +7,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
+  SheetFooter,
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import {
   formatPaybackPeriod
 } from "@/lib/roi-utils";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ROISettingsPanelProps {
@@ -71,6 +73,7 @@ interface ROISettingsPanelProps {
     hourlyRate: Record<string, number>;
   };
   updateScenarioROI: (partial: Partial<Scenario>) => void;
+  onGenerateReport?: () => void;
 }
 
 // Helper function for dynamic minute steps
@@ -215,6 +218,7 @@ export function ROISettingsPanel({
   taskTypeMultipliers,
   benchmarks,
   updateScenarioROI,
+  onGenerateReport,
 }: ROISettingsPanelProps) {
   
   const [stepsPerRun] = useState(5); // Average steps per workflow
@@ -671,6 +675,18 @@ export function ROISettingsPanel({
             {renderROISummary()}
           </div>
         </div>
+        
+        {/* Footer with Generate Report button */}
+        <SheetFooter className="p-6 pt-0 border-t">
+          <Button
+            onClick={onGenerateReport}
+            className="w-full"
+            size="lg"
+          >
+            <TrendingUp className="mr-2 h-5 w-5" />
+            Generate ROI Report
+          </Button>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

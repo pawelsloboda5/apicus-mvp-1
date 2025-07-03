@@ -64,12 +64,6 @@ import {
 import { PlatformType as LibPlatformType, NodeType, NodeData } from "@/lib/types";
 import { captureROISnapshot, shouldCaptureSnapshot } from "@/lib/metrics-utils";
 
-
-// Disable SSR for Toolbox because dnd-kit generates ids non-deterministically, which causes hydration mismatch warnings.
-const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.Toolbox), {
-  ssr: false,
-});
-
 // Import the mobile toolbox trigger
 const MobileToolboxTrigger = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.MobileToolboxTrigger), {
   ssr: false,
@@ -77,6 +71,14 @@ const MobileToolboxTrigger = dynamic(() => import("@/components/flow/Toolbox").t
 
 // Import the mobile alternative templates button
 const MobileAlternativeTemplatesButton = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.MobileAlternativeTemplatesButton), {
+  ssr: false,
+});
+
+// Import ROI Report Node
+import { ROIReportNode } from "@/components/flow/ROIReportNode";
+
+// Disable SSR for Toolbox because dnd-kit generates ids non-deterministically, which causes hydration mismatch warnings.
+const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.Toolbox), {
   ssr: false,
 });
 
@@ -765,6 +767,13 @@ function BuildPageContent() {
           const nodeData = node.data as Record<string, unknown>;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { onOpenNodeProperties, ...cleanData } = nodeData;
+          return { ...node, data: cleanData };
+        }
+        if (node.type === 'roiReport' && node.data && typeof node.data === 'object') {
+          // Remove non-serializable properties like functions from ROI report nodes
+          const nodeData = node.data as Record<string, unknown>;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { onGenerateReport, onRegenerateSection, ...cleanData } = nodeData;
           return { ...node, data: cleanData };
         }
         return node;
@@ -1658,6 +1667,13 @@ function BuildPageContent() {
             const { onOpenNodeProperties, ...cleanData } = nodeData;
             return { ...node, data: cleanData };
           }
+          if (node.type === 'roiReport' && node.data && typeof node.data === 'object') {
+            // Remove non-serializable properties like functions from ROI report nodes
+            const nodeData = node.data as Record<string, unknown>;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { onGenerateReport, onRegenerateSection, ...cleanData } = nodeData;
+            return { ...node, data: cleanData };
+          }
           return node;
         });
         
@@ -1714,6 +1730,13 @@ function BuildPageContent() {
             const nodeData = node.data as Record<string, unknown>;
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { onOpenNodeProperties, ...cleanData } = nodeData;
+            return { ...node, data: cleanData };
+          }
+          if (node.type === 'roiReport' && node.data && typeof node.data === 'object') {
+            // Remove non-serializable properties like functions from ROI report nodes
+            const nodeData = node.data as Record<string, unknown>;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { onGenerateReport, onRegenerateSection, ...cleanData } = nodeData;
             return { ...node, data: cleanData };
           }
           return node;
@@ -2092,6 +2115,8 @@ function BuildPageContent() {
     socialproof: PixelNode,
     objection: PixelNode,
     value: PixelNode,
+    // ROI Report node
+    roiReport: ROIReportNode,
   }), [EmailPreviewNodeWrapper]); // Only depends on the stable wrapper
 
   // Removed handleRegenerateSection - now handled by inline editors
@@ -2125,6 +2150,7 @@ function BuildPageContent() {
             minutesPerRun={minutesPerRun}
             hourlyRate={hourlyRate}
             taskMultiplier={taskMultiplier}
+            taskType={taskType}
             onUpdateMinutes={(minutes) => {
               setMinutesPerRun(minutes);
               // Delay the ROI update to avoid sync loops
@@ -2151,6 +2177,115 @@ function BuildPageContent() {
               }, 0);
             }}
             onOpenROISettings={() => setRoiOpen(true)}
+            onGenerateROIReport={(roiNode) => {
+              // Calculate optimal position based on visible nodes
+              if (rfInstance) {
+                const viewport = rfInstance.getViewport();
+                
+                // Calculate viewport bounds manually
+                const viewportBounds = {
+                  x: -viewport.x / viewport.zoom,
+                  y: -viewport.y / viewport.zoom,
+                  width: window.innerWidth / viewport.zoom,
+                  height: window.innerHeight / viewport.zoom
+                };
+                
+                // Get all nodes visible in current viewport
+                const visibleNodes = nodes.filter(node => {
+                  // Check if node is within viewport bounds
+                  const nodeRight = node.position.x + (node.width || 150);
+                  const nodeBottom = node.position.y + (node.height || 40);
+                  
+                  return node.position.x < viewportBounds.x + viewportBounds.width &&
+                         nodeRight > viewportBounds.x &&
+                         node.position.y < viewportBounds.y + viewportBounds.height &&
+                         nodeBottom > viewportBounds.y;
+                });
+                
+                // If there are visible nodes, position below the lowest one
+                if (visibleNodes.length > 0) {
+                  // Find the node with maximum Y position (furthest down)
+                  let maxY = -Infinity;
+                  let totalX = 0;
+                  
+                  visibleNodes.forEach(node => {
+                    const nodeBottom = node.position.y + (node.height || 40);
+                    if (nodeBottom > maxY) {
+                      maxY = nodeBottom;
+                    }
+                    totalX += node.position.x + ((node.width || 150) / 2);
+                  });
+                  
+                  // Calculate center X position of visible nodes
+                  const centerX = totalX / visibleNodes.length;
+                  
+                  // Position ROI report below the lowest node with 100px spacing
+                  roiNode.position = {
+                    x: centerX - 350, // Center the 700px wide ROI report
+                    y: maxY + 100     // 100px below the lowest visible node
+                  };
+                } else {
+                  // No visible nodes, use viewport center
+                  const centerX = viewportBounds.x + viewportBounds.width / 2;
+                  const centerY = viewportBounds.y + viewportBounds.height / 2;
+                  
+                  roiNode.position = {
+                    x: centerX - 350, // Center the 700px wide ROI report
+                    y: centerY - 450  // Center vertically (900px height / 2)
+                  };
+                }
+              }
+              
+              // Add the ROI report node to the canvas
+              setNodes((nds) => [...nds, roiNode]);
+              
+              // Focus on the new node with animation
+              if (rfInstance && roiNode) {
+                setTimeout(() => {
+                  // Fit the view to show both the automation and the ROI report
+                  const padding = 0.15;
+                  const nodesToFit = [...nodes, roiNode];
+                  
+                  if (nodesToFit.length > 1) {
+                    // Calculate bounds that include all nodes
+                    let minX = Infinity, minY = Infinity;
+                    let maxX = -Infinity, maxY = -Infinity;
+                    
+                    nodesToFit.forEach(node => {
+                      const nodeWidth = node.type === 'roiReport' ? 700 : (node.width || 150);
+                      const nodeHeight = node.type === 'roiReport' ? 900 : (node.height || 40);
+                      
+                      minX = Math.min(minX, node.position.x);
+                      minY = Math.min(minY, node.position.y);
+                      maxX = Math.max(maxX, node.position.x + nodeWidth);
+                      maxY = Math.max(maxY, node.position.y + nodeHeight);
+                    });
+                    
+                    // Fit bounds to show all nodes with the ROI report
+                    rfInstance.fitBounds(
+                      {
+                        x: minX,
+                        y: minY,
+                        width: maxX - minX,
+                        height: maxY - minY
+                      },
+                      { padding, duration: 800 }
+                    );
+                  } else {
+                    // Just focus on the ROI report
+                    rfInstance.fitBounds(
+                      {
+                        x: roiNode.position.x,
+                        y: roiNode.position.y,
+                        width: 700,
+                        height: 900
+                      },
+                      { padding, duration: 800 }
+                    );
+                  }
+                }, 100);
+              }
+            }}
             onAddNode={() => {
               console.log("Add Node button clicked"); // Debug log
               setIsManipulatingNodesProgrammatically(true);

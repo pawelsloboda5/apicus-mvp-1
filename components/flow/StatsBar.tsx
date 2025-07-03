@@ -38,6 +38,9 @@ import {
   pricing, 
   formatROIRatio 
 } from "@/lib/roi";
+import { ROIReportNode } from "./ROIReportNode";
+import { generateROIReportNode } from "@/lib/roi-report-generator";
+import { toast } from "sonner";
 
 interface StatsBarProps {
   platform: PlatformType;
@@ -45,6 +48,7 @@ interface StatsBarProps {
   minutesPerRun: number;
   hourlyRate: number;
   taskMultiplier: number;
+  taskType?: string;
   onUpdateRuns: (runs: number) => void;
   onUpdateMinutes: (minutes: number) => void;
   nodes?: Node[];
@@ -63,6 +67,9 @@ interface StatsBarProps {
   selectedIds?: string[];
   selectedGroupId?: string | null;
   isMultiSelectionActive?: boolean;
+  
+  // ROI Report generation
+  onGenerateROIReport?: (node: Node) => void;
 }
 
 // Platform configurations
@@ -115,6 +122,7 @@ export function StatsBar({
   minutesPerRun,
   hourlyRate,
   taskMultiplier,
+  taskType,
   onUpdateRuns,
   onUpdateMinutes,
   nodes,
@@ -128,6 +136,8 @@ export function StatsBar({
   selectedIds = [],
   selectedGroupId,
   isMultiSelectionActive = false,
+  currentScenario,
+  onGenerateROIReport,
 }: StatsBarProps) {
   const { theme, setTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
@@ -242,6 +252,126 @@ export function StatsBar({
     );
   };
 
+  // Platform Controls component (Platform switcher + Generate ROI button)
+  const PlatformControls = () => {
+    const config = PLATFORM_CONFIG[platform];
+    const PlatformIcon = config.icon;
+    
+    if (isUltraCompact) {
+      return (
+        <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className={cn("h-10 w-10", config.color, "text-white border-none")}
+                onClick={() => {
+                  const platforms = Object.keys(PLATFORM_CONFIG) as PlatformType[];
+                  const currentIndex = platforms.indexOf(platform);
+                  const nextIndex = (currentIndex + 1) % platforms.length;
+                  onPlatformChange(platforms[nextIndex]);
+                }}
+              >
+                <PlatformIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Platform: {config.name} (click to switch)</p>
+            </TooltipContent>
+          </Tooltip>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className="h-10 px-3 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                size="sm"
+                onClick={() => {
+                  if (onGenerateROIReport) {
+                    // Generate the ROI report node
+                    const roiNode = generateROIReportNode({
+                      position: { x: 400, y: 200 },
+                      projectName: currentScenario?.name || 'Automation Project',
+                      platform,
+                      runsPerMonth,
+                      minutesPerRun,
+                      hourlyRate,
+                      taskMultiplier,
+                      taskType: taskType || currentScenario?.taskType || 'general',
+                      complianceEnabled: currentScenario?.complianceEnabled || false,
+                      riskLevel: currentScenario?.riskLevel || 3,
+                      riskFrequency: currentScenario?.riskFrequency || 5,
+                      errorCost: currentScenario?.errorCost || 500,
+                      revenueEnabled: currentScenario?.revenueEnabled || false,
+                      monthlyVolume: currentScenario?.monthlyVolume || 100,
+                      conversionRate: currentScenario?.conversionRate || 5,
+                      valuePerConversion: currentScenario?.valuePerConversion || 200,
+                      nodes: nodes || []
+                    });
+                    onGenerateROIReport(roiNode);
+                    toast.success("ROI Report generated successfully!");
+                  }
+                }}
+              >
+                <TrendingUp className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Generate ROI</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-2">
+        <PlatformSwitcher />
+        
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              className="h-10 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+              size="sm"
+              onClick={() => {
+                if (onGenerateROIReport) {
+                  // Generate the ROI report node
+                  const roiNode = generateROIReportNode({
+                    position: { x: 400, y: 200 },
+                    projectName: currentScenario?.name || 'Automation Project',
+                    platform,
+                    runsPerMonth,
+                    minutesPerRun,
+                    hourlyRate,
+                    taskMultiplier,
+                    taskType: taskType || currentScenario?.taskType || 'general',
+                    complianceEnabled: currentScenario?.complianceEnabled || false,
+                    riskLevel: currentScenario?.riskLevel || 3,
+                    riskFrequency: currentScenario?.riskFrequency || 5,
+                    errorCost: currentScenario?.errorCost || 500,
+                    revenueEnabled: currentScenario?.revenueEnabled || false,
+                    monthlyVolume: currentScenario?.monthlyVolume || 100,
+                    conversionRate: currentScenario?.conversionRate || 5,
+                    valuePerConversion: currentScenario?.valuePerConversion || 200,
+                    nodes: nodes || []
+                  });
+                  onGenerateROIReport(roiNode);
+                  toast.success("ROI Report generated successfully!");
+                }
+              }}
+            >
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Generate ROI
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Generate ROI Analysis</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    );
+  };
+
   // Action buttons component
   const ActionButtons = () => {
     if (isUltraCompact) {
@@ -254,15 +384,6 @@ export function StatsBar({
           </PopoverTrigger>
           <PopoverContent className="w-48 p-2">
             <div className="space-y-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="w-full justify-start gap-2"
-                onClick={onAddNode}
-              >
-                <Plus className="h-4 w-4" />
-                Add Node
-              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -276,15 +397,6 @@ export function StatsBar({
                   <Mail className="h-4 w-4" />
                 )}
                 Generate Email
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start gap-2"
-                onClick={onOpenROISettings}
-              >
-                <Coins className="h-4 w-4" />
-                ROI Settings
               </Button>
               {isMounted && (
                 <Button
@@ -330,31 +442,12 @@ export function StatsBar({
 
     return (
       <div className="flex items-center gap-2">
-        {/* Platform switcher next to Add Node button */}
-        <PlatformSwitcher />
-        
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="outline"
-              size="icon"
-              className="h-10 w-10"
-              onClick={onAddNode}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Add Node</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10"
+              size="sm"
+              className="h-10 gap-2 font-medium"
               onClick={onGenerateEmail}
               disabled={isGeneratingEmail}
             >
@@ -363,26 +456,11 @@ export function StatsBar({
               ) : (
                 <Mail className="h-4 w-4" />
               )}
+              {!isCompact && <span>Generate Email</span>}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
             <p>Generate Email</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10"
-              onClick={onOpenROISettings}
-            >
-              <Coins className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>ROI Settings</p>
           </TooltipContent>
         </Tooltip>
 
@@ -870,12 +948,32 @@ export function StatsBar({
             }}
           />
 
+          {/* ROI Settings next to time stats */}
+          {!isUltraCompact && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={onOpenROISettings}
+                >
+                  <Coins className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>ROI Settings</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {/* ROI Metrics Display */}
           <ROIMetricsDisplay />
         </div>
 
-        {/* Right side - Action buttons */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Right side - Platform controls and Action buttons */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <PlatformControls />
           <ActionButtons />
         </div>
       </div>
