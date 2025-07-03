@@ -145,13 +145,6 @@ export default function Home() {
       <section className="relative bg-[#FEFAF0] min-h-screen flex items-center justify-center">
         <div className="relative z-10 w-full px-4 py-12">
           <div className="mx-auto max-w-6xl text-center">
-            <div className="mb-8">
-              <Badge variant="outline" className="mb-6">
-                <Briefcase className="mr-2 h-3 w-3" />
-                For Automation Consultants & Agencies
-              </Badge>
-            </div>
-            
             <h1
               className={cn(
                 "mx-auto mb-8 text-5xl font-black leading-[1.1] tracking-tight text-[#1A1A1A] sm:text-6xl md:text-7xl lg:text-8xl",
@@ -172,50 +165,73 @@ export default function Home() {
 
             {/* CTA Section */}
             <div className={cn(
-              "mt-8 sm:mt-12 flex flex-col items-center gap-6",
+              "mt-8 sm:mt-12 flex flex-col items-center gap-8",
               mounted && "animate-fade-in"
             )} style={{ animationDelay: '400ms' }}>
 
               {/* Primary CTA - Import Workflow */}
-              <Button 
-                size="lg" 
-                onClick={() => setImportDialogOpen(true)}
-                className="bg-[#F15533] hover:bg-[#D4452A] text-white px-8 py-6 text-xl font-bold shadow-lg rounded-lg"
-              >
-                <Upload className="mr-3 h-6 w-6" />
-                Import from Make, n8n, or Zapier
-              </Button>
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-[#1A1A1A] mb-3">
+                  Already have a workflow?
+                </h3>
+                <p className="text-sm text-[#3C3C3C] mb-4 max-w-md mx-auto">
+                  Import your existing JSON exports from automation platforms for instant ROI analysis
+                </p>
+                <Button 
+                  size="lg" 
+                  onClick={() => setImportDialogOpen(true)}
+                  className="bg-[#F15533] hover:bg-[#D4452A] text-white px-8 py-6 text-xl font-bold shadow-lg rounded-lg"
+                >
+                  <Upload className="mr-3 h-6 w-6" />
+                  Import JSON from Make, n8n, or Zapier
+                </Button>
+              </div>
 
-              <span className="text-sm font-medium text-[#97756B]">or</span>
+              <div className="flex items-center gap-4 w-full max-w-lg">
+                <div className="flex-1 h-px bg-[#E2C3B9]"></div>
+                <span className="text-sm font-medium text-[#97756B] px-4">or</span>
+                <div className="flex-1 h-px bg-[#E2C3B9]"></div>
+              </div>
 
               {/* Secondary CTA – Generate */}
-              <form onSubmit={handleGenerate} className="flex flex-col items-center gap-4 w-full max-w-2xl">
-                <div className="relative w-full">
-                  <textarea
-                    ref={inputRef}
-                    placeholder="Describe a repetitive process your client needs automated (e.g., invoice processing, lead routing, data entry)"
-                    className="w-full h-24 border-2 border-[#E2C3B9] bg-white px-6 py-4 pr-16 text-lg font-medium text-[#1A1A1A] placeholder:text-[#97756B] focus:border-[#F15533] focus:outline-none focus:ring-4 focus:ring-[#F15533]/20 resize-none transition-all duration-200 rounded-lg"
-                    disabled={searching}
-                    rows={3}
-                    onKeyDown={handleKeyDown}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={searching}
-                    size="icon"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 bg-[#F15533] hover:bg-[#D4452A]"
-                  >
-                    {searching ? (
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    ) : (
-                      <ArrowRight className="h-6 w-6" />
-                    )}
-                  </Button>
-                  <div className="absolute bottom-2 right-16 text-xs text-[#97756B]">
-                    Enter to generate • Shift+Enter for new line
+              <div className="text-center w-full max-w-2xl">
+                <h3 className="text-lg font-semibold text-[#1A1A1A] mb-3">
+                  Need a new automation workflow?
+                </h3>
+                <p className="text-sm text-[#3C3C3C] mb-4">
+                  Choose from <span className="font-bold text-[#F15533]">2,000+ proven templates</span> based on your description
+                </p>
+                <form onSubmit={handleGenerate} className="flex flex-col items-center gap-4">
+                  <div className="relative w-full">
+                    <textarea
+                      ref={inputRef}
+                      placeholder="Describe what you want to automate (e.g., 'Process invoices from Gmail and update QuickBooks')"
+                      className="w-full h-24 border-2 border-[#E2C3B9] bg-white px-6 py-4 pr-16 text-lg font-medium text-[#1A1A1A] placeholder:text-[#97756B] focus:border-[#F15533] focus:outline-none focus:ring-4 focus:ring-[#F15533]/20 resize-none transition-all duration-200 rounded-lg"
+                      disabled={searching}
+                      rows={3}
+                      onKeyDown={handleKeyDown}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={searching}
+                      size="icon"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 bg-[#F15533] hover:bg-[#D4452A]"
+                    >
+                      {searching ? (
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      ) : (
+                        <ArrowRight className="h-6 w-6" />
+                      )}
+                    </Button>
+                    <div className="absolute bottom-2 right-16 text-xs text-[#97756B]">
+                      Enter to generate • Shift+Enter for new line
+                    </div>
                   </div>
-                </div>
-              </form>
+                  <p className="text-xs text-[#97756B] max-w-md">
+                    We'll find the best template from our library and calculate ROI instantly
+                  </p>
+                </form>
+              </div>
             </div>
           </div>
         </div>
@@ -497,9 +513,9 @@ export default function Home() {
               icon={<Clock className="h-8 w-8" />}
             />
             <StatCard
-              number="7,000+"
-              label="Workflow Templates"
-              description="Extensive library of proven automation patterns across industries and use cases"
+              number="2,000+"
+              label="Proven Templates"
+              description="Curated workflow templates from real automation projects across industries"
               icon={<Zap className="h-8 w-8" />}
             />
           </div>
@@ -523,8 +539,8 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
             <StepCard
               step="1"
-              title="Discover & Import"
-              description="Import existing workflows or describe client pain points to generate automation opportunities"
+              title="Import or Generate"
+              description="Upload JSON from existing workflows or describe your automation needs to find the perfect template"
               icon={<Upload className="h-6 w-6" />}
             />
             <StepCard
