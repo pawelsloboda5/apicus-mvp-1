@@ -43,97 +43,97 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
-  --radius-xl: 0;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
 }
 
 :root {
-  --radius: 0;
+  --radius: 12px;
   --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
   --font-inter-display: 'Inter', system-ui, -apple-system, sans-serif;
   --font-jetbrains-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
   --font-lora: 'Lora', serif;
   --font-vt323: 'VT323', monospace;
 
-  /* Light theme - Clean whites and grays with orange primary */
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.09 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.09 0 0);
+  /* Light theme - Modern Apicus palette for automation consultants */
+  --background: oklch(0.995 0.01 48); /* Warm canvas #FEFAF0 */
+  --foreground: oklch(0.15 0 0); /* Dark neutral #1A1A1A */
+  --card: oklch(1 0 0); /* Pure white */
+  --card-foreground: oklch(0.15 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.09 0 0);
-  --primary: oklch(0.65 0.22 25); /* Orange primary #E85D36 */
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.67 0.29 35); /* Vibrant Orange #FF6B35 */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.97 0.01 240);
-  --secondary-foreground: oklch(0.09 0 0);
-  --muted: oklch(0.98 0.01 240);
-  --muted-foreground: oklch(0.45 0.01 240);
-  --accent: oklch(0.96 0.02 25); /* Light orange accent */
-  --accent-foreground: oklch(0.09 0 0);
-  --success: oklch(0.55 0.15 142);
+  --secondary: oklch(0.56 0.21 255); /* Deep Indigo #4C6EF5 */
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.77 0.06 36); /* Washed Orange #D4A597 */
+  --muted-foreground: oklch(0.35 0 0);
+  --accent: oklch(0.61 0.13 200); /* Electric Teal #15AABF */
+  --accent-foreground: oklch(1 0 0);
+  --success: oklch(0.62 0.19 162); /* Emerald #10B981 */
   --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.75 0.15 70);
-  --warning-foreground: oklch(0.09 0 0);
-  --destructive: oklch(0.6 0.22 25);
-  --border: oklch(0.94 0.01 240);
-  --input: oklch(0.97 0.01 240);
-  --ring: oklch(0.65 0.22 25);
-  --chart-1: oklch(0.65 0.22 25);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.99 0.01 240);
-  --sidebar-foreground: oklch(0.09 0 0);
-  --sidebar-primary: oklch(0.65 0.22 25);
+  --warning: oklch(0.7 0.17 86); /* Amber #F59E0B */
+  --warning-foreground: oklch(0.15 0 0);
+  --destructive: oklch(0.6 0.24 29); /* Coral Red #EF4444 */
+  --border: oklch(0.9 0.01 48); /* Subtle warm border */
+  --input: oklch(0.98 0.005 48); /* Light warm input bg */
+  --ring: oklch(0.67 0.29 35); /* Primary orange for focus */
+  --chart-1: oklch(0.67 0.29 35); /* Orange */
+  --chart-2: oklch(0.56 0.21 255); /* Indigo */
+  --chart-3: oklch(0.61 0.13 200); /* Teal */
+  --chart-4: oklch(0.7 0.17 86); /* Amber */
+  --chart-5: oklch(0.43 0.17 306); /* Deep Purple */
+  --sidebar: oklch(0.985 0.01 48); /* Slightly darker than bg */
+  --sidebar-foreground: oklch(0.15 0 0);
+  --sidebar-primary: oklch(0.67 0.29 35);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.97 0.01 240);
-  --sidebar-accent-foreground: oklch(0.09 0 0);
-  --sidebar-border: oklch(0.94 0.01 240);
-  --sidebar-ring: oklch(0.65 0.22 25);
-  --section-bg: oklch(0.99 0.005 240);
+  --sidebar-accent: oklch(0.95 0.01 48);
+  --sidebar-accent-foreground: oklch(0.15 0 0);
+  --sidebar-border: oklch(0.9 0.01 48);
+  --sidebar-ring: oklch(0.67 0.29 35);
+  --section-bg: oklch(0.99 0.005 48);
 }
 
 .dark {
-  /* Dark mode with improved contrast */
-  --background: oklch(0.08 0 0);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.10 0 0);
+  /* Dark mode with Apicus palette */
+  --background: oklch(0.11 0 0); /* Very dark */
+  --foreground: oklch(0.95 0 0); /* Light text */
+  --card: oklch(0.14 0 0); /* Dark card */
   --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.08 0 0);
+  --popover: oklch(0.12 0 0);
   --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.70 0.22 25); /* Slightly brighter orange for dark mode */
+  --primary: oklch(0.72 0.25 35); /* Brighter orange for dark mode */
   --primary-foreground: oklch(0.05 0 0);
-  --secondary: oklch(0.14 0 0);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.12 0 0);
-  --muted-foreground: oklch(0.60 0 0);
-  --accent: oklch(0.16 0.05 25); /* Soft orange accent */
-  --accent-foreground: oklch(0.95 0 0);
-  --success: oklch(0.60 0.15 142);
+  --secondary: oklch(0.63 0.18 255); /* Lighter indigo */
+  --secondary-foreground: oklch(0.05 0 0);
+  --muted: oklch(0.18 0.02 35); /* Dark muted */
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.66 0.11 200); /* Adjusted teal */
+  --accent-foreground: oklch(0.05 0 0);
+  --success: oklch(0.65 0.17 162); /* Dark mode emerald */
   --success-foreground: oklch(0.05 0 0);
-  --warning: oklch(0.75 0.15 70);
+  --warning: oklch(0.75 0.15 86); /* Dark mode amber */
   --warning-foreground: oklch(0.05 0 0);
-  --destructive: oklch(0.7 0.22 25);
-  --border: oklch(0.20 0 0);
-  --input: oklch(0.16 0 0);
-  --ring: oklch(0.70 0.22 25);
-  --chart-1: oklch(0.70 0.22 25);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.08 0.01 240);
+  --destructive: oklch(0.65 0.22 29); /* Dark mode coral */
+  --border: oklch(0.22 0 0); /* Dark border */
+  --input: oklch(0.16 0 0); /* Dark input */
+  --ring: oklch(0.72 0.25 35); /* Bright orange ring */
+  --chart-1: oklch(0.72 0.25 35);
+  --chart-2: oklch(0.63 0.18 255);
+  --chart-3: oklch(0.66 0.11 200);
+  --chart-4: oklch(0.75 0.15 86);
+  --chart-5: oklch(0.5 0.15 306);
+  --sidebar: oklch(0.1 0 0);
   --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.70 0.22 25);
+  --sidebar-primary: oklch(0.72 0.25 35);
   --sidebar-primary-foreground: oklch(0.05 0 0);
-  --sidebar-accent: oklch(0.14 0 0);
+  --sidebar-accent: oklch(0.15 0 0);
   --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.20 0 0);
-  --sidebar-ring: oklch(0.70 0.22 25);
-  --section-bg: oklch(0.06 0.005 240);
+  --sidebar-border: oklch(0.22 0 0);
+  --sidebar-ring: oklch(0.72 0.25 35);
+  --section-bg: oklch(0.08 0 0);
 }
 
 @layer base {
@@ -199,6 +199,7 @@
       width: 12px !important;
       height: 12px !important;
       border-width: 2px !important;
+      border-radius: 50% !important;
     }
     
     /* Make controls more touch-friendly */
@@ -210,7 +211,7 @@
     
     /* Improve node selection on mobile */
     .react-flow__node.selected {
-      box-shadow: 0 0 0 2px oklch(0.65 0.22 25) !important;
+      box-shadow: 0 0 0 2px var(--primary) !important;
     }
     
     /* Better edge visibility on mobile */
@@ -237,8 +238,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px oklch(0.65 0.22 25 / 0.3); }
-  50% { box-shadow: 0 0 40px oklch(0.65 0.22 25 / 0.6), 0 0 60px oklch(0.65 0.22 25 / 0.2); }
+  0%, 100% { box-shadow: 0 0 20px oklch(from var(--primary) l c h / 0.3); }
+  50% { box-shadow: 0 0 40px oklch(from var(--primary) l c h / 0.6), 0 0 60px oklch(from var(--primary) l c h / 0.2); }
 }
 
 @keyframes shimmer {
@@ -262,23 +263,23 @@
   background: linear-gradient(
     90deg,
     transparent,
-    oklch(0.65 0.22 25 / 0.1),
+    oklch(from var(--primary) l c h / 0.1),
     transparent
   );
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
 }
 
-/* Improved text gradients */
+/* Improved text gradients with new colors */
 .text-gradient {
-  background: linear-gradient(135deg, oklch(0.65 0.22 25), oklch(0.75 0.18 35));
+  background: linear-gradient(135deg, oklch(from var(--primary) l c h), oklch(from var(--secondary) l c h));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-orange {
-  background: linear-gradient(135deg, oklch(0.65 0.22 25), oklch(0.8 0.15 30));
+  background: linear-gradient(135deg, oklch(from var(--primary) l c h), oklch(from var(--accent) l c h));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -287,15 +288,15 @@
 /* Enhanced grid pattern */
 .grid-pattern {
   background-image: 
-    linear-gradient(oklch(0.94 0.01 240 / 0.4) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.94 0.01 240 / 0.4) 1px, transparent 1px);
+    linear-gradient(oklch(from var(--border) l c h / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(from var(--border) l c h / 0.4) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 .dark .grid-pattern {
   background-image: 
-    linear-gradient(oklch(0.20 0.01 25 / 0.4) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.20 0.01 25 / 0.4) 1px, transparent 1px);
+    linear-gradient(oklch(from var(--border) l c h / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(from var(--border) l c h / 0.4) 1px, transparent 1px);
 }
 
 /* Custom scrollbar with improved styling */
@@ -306,12 +307,12 @@
 
 ::-webkit-scrollbar-track {
   background: var(--muted);
-  border-radius: 0;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--primary);
-  border-radius: 0;
+  border-radius: 4px;
   border: 2px solid var(--background);
 }
 
@@ -330,7 +331,7 @@
   border: 2px solid !important;
   z-index: 50 !important;
   position: absolute !important;
-  border-radius: 0 !important;
+  border-radius: 50% !important;
 }
 
 /* Ensure email handles are visible outside node bounds */
@@ -342,17 +343,17 @@
   right: -10px !important;
 }
 
-/* Make email handles more prominent */
+/* Make email handles more prominent with new colors */
 .react-flow__node-emailPreview .react-flow__handle {
-  background: oklch(0.65 0.22 25) !important;
-  border-color: oklch(0.55 0.20 25) !important;
-  box-shadow: 0 0 0 2px oklch(0.65 0.22 25 / 0.2) !important;
+  background: var(--primary) !important;
+  border-color: oklch(from var(--primary) calc(l - 0.1) c h) !important;
+  box-shadow: 0 0 0 2px oklch(from var(--primary) l c h / 0.2) !important;
   transition: all 0.2s ease !important;
 }
 
 .react-flow__node-emailPreview .react-flow__handle:hover {
   transform: scale(1.2) !important;
-  box-shadow: 0 0 0 4px oklch(0.65 0.22 25 / 0.4) !important;
+  box-shadow: 0 0 0 4px oklch(from var(--primary) l c h / 0.4) !important;
 }
 
 /* Ensure handles for connected sections pulse */
