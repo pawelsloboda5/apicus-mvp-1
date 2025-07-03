@@ -120,11 +120,12 @@ Based on `docs/apicus_color_palette.md`:
 
 | Purpose | Color Name | Hex | Usage |
 |---------|-----------|-----|-------|
-| Primary | Vibrant Orange | #FF6B35 | CTAs, primary buttons, active states |
-| Secondary | Deep Indigo | #4C6EF5 | Secondary buttons, links, accents |
-| Background | Warm Canvas | #FEFAF0 | Main page background |
-| Muted | Washed Orange | #D4A597 | Subtle backgrounds, disabled states |
-| Accent | Electric Teal | #15AABF | Highlights, badges, notifications |
+| Primary | apicus-orange | #F15533 | CTAs, primary buttons, active states |
+| Secondary | apicus-deep purple | #37036A | Secondary buttons, links, accents |
+| Background | apicus-canvas | #FEFAF0 | Main page background |
+| Muted | apicus-washed orange | #D4A597 | Subtle backgrounds, disabled states |
+| Accent | apicus-deep purple 300 | #79569B | Highlights, badges, notifications |
+| Foreground | apicus-neutrals 13 | #1A1A1A | Main text color |
 | Success | Emerald | #10B981 | Success messages, positive states |
 | Warning | Amber | #F59E0B | Warning messages, caution states |
 | Destructive | Coral Red | #EF4444 | Error messages, destructive actions |

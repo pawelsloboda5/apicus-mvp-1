@@ -403,14 +403,18 @@ export function StatsBar({
                   variant="ghost"
                   size="sm"
                   className="w-full justify-start gap-2"
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  onClick={() => {
+                    const newTheme = theme === 'dark' ? 'light' : 'dark';
+                    setTheme(newTheme);
+                    console.log('Theme toggled to:', newTheme);
+                  }}
                 >
                   {theme === 'dark' ? (
                     <Sun className="h-4 w-4" />
                   ) : (
                     <Moon className="h-4 w-4" />
                   )}
-                  <span>Toggle Theme</span>
+                  <span>Toggle Theme ({theme})</span>
                 </Button>
               )}
               {isMultiSelectionActive && selectedIds.length > 0 && (
@@ -470,8 +474,12 @@ export function StatsBar({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-10 w-10"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="h-10 w-10 relative"
+                onClick={() => {
+                  const newTheme = theme === 'dark' ? 'light' : 'dark';
+                  setTheme(newTheme);
+                  console.log('Theme toggled to:', newTheme);
+                }}
               >
                 <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -479,7 +487,7 @@ export function StatsBar({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Toggle Theme</p>
+              <p>Toggle Theme (Current: {theme})</p>
             </TooltipContent>
           </Tooltip>
         )}

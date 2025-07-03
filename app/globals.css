@@ -58,82 +58,82 @@
   --font-vt323: 'VT323', monospace;
 
   /* Light theme - Modern Apicus palette for automation consultants */
-  --background: oklch(0.995 0.01 48); /* Warm canvas #FEFAF0 */
-  --foreground: oklch(0.15 0 0); /* Dark neutral #1A1A1A */
-  --card: oklch(1 0 0); /* Pure white */
-  --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0 0);
-  --primary: oklch(0.67 0.29 35); /* Vibrant Orange #FF6B35 */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.56 0.21 255); /* Deep Indigo #4C6EF5 */
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.77 0.06 36); /* Washed Orange #D4A597 */
-  --muted-foreground: oklch(0.35 0 0);
-  --accent: oklch(0.61 0.13 200); /* Electric Teal #15AABF */
-  --accent-foreground: oklch(1 0 0);
-  --success: oklch(0.62 0.19 162); /* Emerald #10B981 */
-  --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.7 0.17 86); /* Amber #F59E0B */
-  --warning-foreground: oklch(0.15 0 0);
-  --destructive: oklch(0.6 0.24 29); /* Coral Red #EF4444 */
-  --border: oklch(0.9 0.01 48); /* Subtle warm border */
-  --input: oklch(0.98 0.005 48); /* Light warm input bg */
-  --ring: oklch(0.67 0.29 35); /* Primary orange for focus */
-  --chart-1: oklch(0.67 0.29 35); /* Orange */
-  --chart-2: oklch(0.56 0.21 255); /* Indigo */
-  --chart-3: oklch(0.61 0.13 200); /* Teal */
-  --chart-4: oklch(0.7 0.17 86); /* Amber */
-  --chart-5: oklch(0.43 0.17 306); /* Deep Purple */
-  --sidebar: oklch(0.985 0.01 48); /* Slightly darker than bg */
-  --sidebar-foreground: oklch(0.15 0 0);
-  --sidebar-primary: oklch(0.67 0.29 35);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.95 0.01 48);
-  --sidebar-accent-foreground: oklch(0.15 0 0);
-  --sidebar-border: oklch(0.9 0.01 48);
-  --sidebar-ring: oklch(0.67 0.29 35);
-  --section-bg: oklch(0.99 0.005 48);
+  --background: 48 34% 99%; /* Warm canvas #FEFAF0 */
+  --foreground: 0 0% 10%; /* Dark neutral #1A1A1A */
+  --card: 0 0% 100%; /* Pure white */
+  --card-foreground: 0 0% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 10%;
+  --primary: 10 86% 57%; /* apicus-orange #F15533 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 266 93% 21%; /* apicus-deep purple #37036A */
+  --secondary-foreground: 0 0% 100%;
+  --muted: 13 37% 74%; /* apicus-washed orange #D4A597 */
+  --muted-foreground: 0 0% 40%;
+  --accent: 283 31% 56%; /* apicus-deep purple 300 #79569B */
+  --accent-foreground: 0 0% 100%;
+  --success: 158 64% 39%; /* Emerald #10B981 */
+  --success-foreground: 0 0% 100%;
+  --warning: 37 92% 50%; /* Amber #F59E0B */
+  --warning-foreground: 0 0% 10%;
+  --destructive: 0 84% 60%; /* Coral Red #EF4444 */
+  --border: 48 34% 94%; /* Subtle warm border */
+  --input: 48 34% 98%; /* Light warm input bg */
+  --ring: 10 86% 57%; /* apicus-orange for focus */
+  --chart-1: 10 86% 57%; /* apicus-orange */
+  --chart-2: 266 93% 21%; /* apicus-deep purple */
+  --chart-3: 13 37% 74%; /* apicus-washed orange */
+  --chart-4: 283 31% 56%; /* apicus-deep purple 300 */
+  --chart-5: 10 82% 72%; /* apicus-orange 200 */
+  --sidebar: 48 34% 97%; /* Slightly darker than bg */
+  --sidebar-foreground: 0 0% 10%;
+  --sidebar-primary: 10 86% 57%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 48 34% 96%;
+  --sidebar-accent-foreground: 0 0% 10%;
+  --sidebar-border: 48 34% 94%;
+  --sidebar-ring: 10 86% 57%;
+  --section-bg: 48 34% 99.5%;
 }
 
 .dark {
   /* Dark mode with Apicus palette */
-  --background: oklch(0.11 0 0); /* Very dark */
-  --foreground: oklch(0.95 0 0); /* Light text */
-  --card: oklch(0.14 0 0); /* Dark card */
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.12 0 0);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.72 0.25 35); /* Brighter orange for dark mode */
-  --primary-foreground: oklch(0.05 0 0);
-  --secondary: oklch(0.63 0.18 255); /* Lighter indigo */
-  --secondary-foreground: oklch(0.05 0 0);
-  --muted: oklch(0.18 0.02 35); /* Dark muted */
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.66 0.11 200); /* Adjusted teal */
-  --accent-foreground: oklch(0.05 0 0);
-  --success: oklch(0.65 0.17 162); /* Dark mode emerald */
-  --success-foreground: oklch(0.05 0 0);
-  --warning: oklch(0.75 0.15 86); /* Dark mode amber */
-  --warning-foreground: oklch(0.05 0 0);
-  --destructive: oklch(0.65 0.22 29); /* Dark mode coral */
-  --border: oklch(0.22 0 0); /* Dark border */
-  --input: oklch(0.16 0 0); /* Dark input */
-  --ring: oklch(0.72 0.25 35); /* Bright orange ring */
-  --chart-1: oklch(0.72 0.25 35);
-  --chart-2: oklch(0.63 0.18 255);
-  --chart-3: oklch(0.66 0.11 200);
-  --chart-4: oklch(0.75 0.15 86);
-  --chart-5: oklch(0.5 0.15 306);
-  --sidebar: oklch(0.1 0 0);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.72 0.25 35);
-  --sidebar-primary-foreground: oklch(0.05 0 0);
-  --sidebar-accent: oklch(0.15 0 0);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.22 0 0);
-  --sidebar-ring: oklch(0.72 0.25 35);
-  --section-bg: oklch(0.08 0 0);
+  --background: 0 0% 7%; /* Very dark */
+  --foreground: 0 0% 95%; /* Light text */
+  --card: 0 0% 9%; /* Dark card */
+  --card-foreground: 0 0% 95%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 10 74% 70%; /* apicus-orange 300 #F68D76 */
+  --primary-foreground: 0 0% 10%;
+  --secondary: 283 23% 61%; /* apicus-deep purple 200 #A38BBA */
+  --secondary-foreground: 0 0% 10%;
+  --muted: 13 18% 40%; /* apicus-washed orange 800 #755B53 */
+  --muted-foreground: 0 0% 65%;
+  --accent: 283 17% 77%; /* apicus-deep purple 100 #C1B1D1 */
+  --accent-foreground: 0 0% 10%;
+  --success: 158 58% 42%; /* Dark mode emerald */
+  --success-foreground: 0 0% 10%;
+  --warning: 37 85% 55%; /* Dark mode amber */
+  --warning-foreground: 0 0% 10%;
+  --destructive: 0 70% 60%; /* Dark mode coral */
+  --border: 0 0% 15%; /* Dark border */
+  --input: 0 0% 11%; /* Dark input */
+  --ring: 10 74% 70%; /* apicus-orange 300 */
+  --chart-1: 10 74% 70%; /* apicus-orange 300 */
+  --chart-2: 283 23% 61%; /* apicus-deep purple 200 */
+  --chart-3: 13 37% 55%; /* apicus-washed orange 500 dark */
+  --chart-4: 283 17% 77%; /* apicus-deep purple 100 */
+  --chart-5: 10 74% 76%; /* apicus-orange 100 */
+  --sidebar: 0 0% 6%;
+  --sidebar-foreground: 0 0% 95%;
+  --sidebar-primary: 10 74% 70%;
+  --sidebar-primary-foreground: 0 0% 10%;
+  --sidebar-accent: 0 0% 10%;
+  --sidebar-accent-foreground: 0 0% 95%;
+  --sidebar-border: 0 0% 15%;
+  --sidebar-ring: 10 74% 70%;
+  --section-bg: 0 0% 5%;
 }
 
 @layer base {
@@ -238,8 +238,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px oklch(from var(--primary) l c h / 0.3); }
-  50% { box-shadow: 0 0 40px oklch(from var(--primary) l c h / 0.6), 0 0 60px oklch(from var(--primary) l c h / 0.2); }
+  0%, 100% { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
+  50% { box-shadow: 0 0 40px hsl(var(--primary) / 0.6), 0 0 60px hsl(var(--primary) / 0.2); }
 }
 
 @keyframes shimmer {
@@ -263,7 +263,7 @@
   background: linear-gradient(
     90deg,
     transparent,
-    oklch(from var(--primary) l c h / 0.1),
+    hsl(var(--primary) / 0.1),
     transparent
   );
   background-size: 200% 100%;
@@ -272,14 +272,14 @@
 
 /* Improved text gradients with new colors */
 .text-gradient {
-  background: linear-gradient(135deg, oklch(from var(--primary) l c h), oklch(from var(--secondary) l c h));
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-orange {
-  background: linear-gradient(135deg, oklch(from var(--primary) l c h), oklch(from var(--accent) l c h));
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -288,15 +288,15 @@
 /* Enhanced grid pattern */
 .grid-pattern {
   background-image: 
-    linear-gradient(oklch(from var(--border) l c h / 0.4) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(from var(--border) l c h / 0.4) 1px, transparent 1px);
+    linear-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.4) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 .dark .grid-pattern {
   background-image: 
-    linear-gradient(oklch(from var(--border) l c h / 0.4) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(from var(--border) l c h / 0.4) 1px, transparent 1px);
+    linear-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.4) 1px, transparent 1px);
 }
 
 /* Custom scrollbar with improved styling */
@@ -317,7 +317,7 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(from var(--primary) l c h / 0.8);
+  background: hsl(var(--primary) / 0.8);
 }
 
 /* React Flow Email Node Handle Overrides */
@@ -345,15 +345,15 @@
 
 /* Make email handles more prominent with new colors */
 .react-flow__node-emailPreview .react-flow__handle {
-  background: var(--primary) !important;
-  border-color: oklch(from var(--primary) calc(l - 0.1) c h) !important;
-  box-shadow: 0 0 0 2px oklch(from var(--primary) l c h / 0.2) !important;
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary) / 0.8) !important;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2) !important;
   transition: all 0.2s ease !important;
 }
 
 .react-flow__node-emailPreview .react-flow__handle:hover {
   transform: scale(1.2) !important;
-  box-shadow: 0 0 0 4px oklch(from var(--primary) l c h / 0.4) !important;
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.4) !important;
 }
 
 /* Ensure handles for connected sections pulse */
@@ -372,9 +372,9 @@
 
 /* Enhanced glass morphism effect */
 .glass-morphism {
-  background: oklch(from var(--background) l c h / 0.8);
+  background: hsl(var(--background) / 0.8);
   backdrop-filter: blur(12px);
-  border: 1px solid oklch(from var(--border) l c h / 0.5);
+  border: 1px solid hsl(var(--border) / 0.5);
 }
 
 /* Improved focus states */
