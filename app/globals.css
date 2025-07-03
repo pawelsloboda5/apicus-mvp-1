@@ -370,6 +370,24 @@
   overflow: visible !important;
 }
 
+/* Default edge styling for better visibility */
+.react-flow__edge-path {
+  stroke: hsl(var(--muted-foreground));
+  stroke-width: 4px !important;
+  opacity: 0.9 !important;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: hsl(var(--foreground));
+}
+
+/* Connection line styling when dragging */
+.react-flow__connection-path {
+  stroke: hsl(var(--muted-foreground)) !important;
+  stroke-width: 4px !important;
+  opacity: 0.9 !important;
+}
+
 /* Enhanced glass morphism effect */
 .glass-morphism {
   background: hsl(var(--background) / 0.8);

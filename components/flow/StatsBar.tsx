@@ -284,7 +284,7 @@ export function StatsBar({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                className="h-10 px-3 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                className="h-10 px-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-md hover:shadow-lg transition-all duration-200 border border-primary/20"
                 size="sm"
                 onClick={() => {
                   if (onGenerateROIReport) {
@@ -331,7 +331,7 @@ export function StatsBar({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              className="h-10 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+              className="h-10 px-4 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-md hover:shadow-lg transition-all duration-200 border border-primary/20"
               size="sm"
               onClick={() => {
                 if (onGenerateROIReport) {

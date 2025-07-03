@@ -454,7 +454,6 @@ function ToolboxContent({
             <div className="shrink-0 mb-6">
               <div className="flex items-center justify-between mb-4 px-1">
                 <h2 className="text-base font-display font-semibold tracking-tight">Email Context</h2>
-                <Badge variant="secondary" className="text-xs">Recommended</Badge>
               </div>
               <p className="text-xs text-muted-foreground mb-4 px-1 leading-relaxed">
                 Drag these nodes to influence email generation
