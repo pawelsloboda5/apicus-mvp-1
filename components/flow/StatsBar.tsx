@@ -631,7 +631,7 @@ export function StatsBar({
                   {displayValue}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-36 p-2">
+              <PopoverContent className="w-36 p-2 bg-white">
                 <Input
                   type="text"
                   inputMode={label.includes("Minutes") ? "decimal" : "numeric"}
@@ -639,7 +639,7 @@ export function StatsBar({
                   onChange={popoverEditConfig.onInputChange}
                   onKeyDown={popoverEditConfig.onInputKeyDown}
                   onBlur={popoverEditConfig.onInputBlur}
-                  className="text-center text-sm h-8 tabular-nums"
+                  className="text-center text-sm h-8 tabular-nums bg-white"
                   autoFocus
                   aria-label={popoverEditConfig.inputAriaLabel}
                 />
@@ -903,7 +903,7 @@ export function StatsBar({
 
   return (
     <TooltipProvider>
-      <div className="flex items-center justify-between gap-3 px-4 py-3 bg-background border-b min-h-[64px]">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 bg-white border-b min-h-[64px]">
         {/* Left side - App name */}
         <div className="flex items-center flex-shrink-0">
           <h1 className="text-lg font-display font-bold tracking-tight text-foreground">
@@ -912,7 +912,7 @@ export function StatsBar({
         </div>
 
         {/* Center - Stats */}
-        <div className="flex items-center gap-3 md:gap-6 flex-1 justify-center">
+        <div className="flex items-center gap-3 md:gap-6 flex-1 justify-center bg-white">
           <StatItem
             label="Runs"
             value={runsPerMonth >= 1000 ? `${(runsPerMonth / 1000).toFixed(1)}k` : runsPerMonth}
