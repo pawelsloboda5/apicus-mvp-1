@@ -262,6 +262,22 @@ export function StatsBar({
               <Button
                 variant="outline"
                 size="icon"
+                className="h-10 w-10"
+                onClick={onOpenROISettings}
+              >
+                <Coins className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>ROI Settings</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
                 className={cn("h-10 w-10", config.color, "text-white border-none")}
                 onClick={() => {
                   const platforms = Object.keys(PLATFORM_CONFIG) as PlatformType[];
@@ -323,6 +339,22 @@ export function StatsBar({
 
     return (
       <div className="flex items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+              onClick={onOpenROISettings}
+            >
+              <Coins className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>ROI Settings</p>
+          </TooltipContent>
+        </Tooltip>
+
         <PlatformSwitcher />
         
         <Tooltip>
@@ -911,70 +943,53 @@ export function StatsBar({
           </h1>
         </div>
 
-        {/* Center - Stats */}
-        <div className="flex items-center gap-3 md:gap-6 flex-1 justify-center bg-white">
-          <StatItem
-            label="Runs"
-            value={runsPerMonth >= 1000 ? `${(runsPerMonth / 1000).toFixed(1)}k` : runsPerMonth}
-            icon={Zap}
-            color="text-primary"
-            onIncrement={incrementRuns}
-            onDecrement={decrementRuns}
-            popoverEditConfig={{
-              isOpen: editingRuns,
-              onOpenChange: setEditingRuns,
-              inputValue: tempRuns,
-              onInputChange: handleRunsChangeInput,
-              onInputKeyDown: handleRunsKeyDown,
-              onInputBlur: handleRunsBlur,
-              inputAriaLabel: "Edit runs per month",
-              helpText: "Number of automation runs per month."
-            }}
-          />
-          
-          {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
+                  {/* Center - Stats */}
+          <div className="flex items-center gap-3 md:gap-6 flex-1 justify-center bg-white">
+            {/* ROI Metrics Display - First */}
+            <ROIMetricsDisplay />
+            
+            {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
 
-          <StatItem
-            label="Minutes"
-            value={minutesPerRun}
-            icon={Clock}
-            color="text-primary"
-            onIncrement={incrementMinutes}
-            onDecrement={decrementMinutes}
-            popoverEditConfig={{
-              isOpen: editingMinutes,
-              onOpenChange: setEditingMinutes,
-              inputValue: tempMinutes,
-              onInputChange: handleMinutesChangeInput,
-              onInputKeyDown: handleMinutesKeyDown,
-              onInputBlur: handleMinutesBlur,
-              inputAriaLabel: "Edit average minutes saved per run",
-              helpText: "Minutes saved per run (e.g., 0.5, 5)."
-            }}
-          />
+            <StatItem
+              label="Runs"
+              value={runsPerMonth >= 1000 ? `${(runsPerMonth / 1000).toFixed(1)}k` : runsPerMonth}
+              icon={Zap}
+              color="text-primary"
+              onIncrement={incrementRuns}
+              onDecrement={decrementRuns}
+              popoverEditConfig={{
+                isOpen: editingRuns,
+                onOpenChange: setEditingRuns,
+                inputValue: tempRuns,
+                onInputChange: handleRunsChangeInput,
+                onInputKeyDown: handleRunsKeyDown,
+                onInputBlur: handleRunsBlur,
+                inputAriaLabel: "Edit runs per month",
+                helpText: "Number of automation runs per month."
+              }}
+            />
+            
+            {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
 
-          {/* ROI Settings next to time stats */}
-          {!isUltraCompact && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={onOpenROISettings}
-                >
-                  <Coins className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>ROI Settings</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {/* ROI Metrics Display */}
-          <ROIMetricsDisplay />
-        </div>
+            <StatItem
+              label="Minutes"
+              value={minutesPerRun}
+              icon={Clock}
+              color="text-primary"
+              onIncrement={incrementMinutes}
+              onDecrement={decrementMinutes}
+              popoverEditConfig={{
+                isOpen: editingMinutes,
+                onOpenChange: setEditingMinutes,
+                inputValue: tempMinutes,
+                onInputChange: handleMinutesChangeInput,
+                onInputKeyDown: handleMinutesKeyDown,
+                onInputBlur: handleMinutesBlur,
+                inputAriaLabel: "Edit average minutes saved per run",
+                helpText: "Minutes saved per run (e.g., 0.5, 5)."
+              }}
+            />
+          </div>
 
         {/* Right side - Platform controls and Action buttons */}
         <div className="flex items-center gap-3 flex-shrink-0">
