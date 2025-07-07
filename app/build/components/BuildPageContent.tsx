@@ -738,13 +738,30 @@ export function BuildPageContent() {
                       };
                     });
                   
-                  // Create a new ROI Report node
-                  const center = rfInstance?.getViewport() 
-                    ? { 
-                        x: (window.innerWidth / 2 - 200) / (rfInstance.getViewport().zoom || 1), 
-                        y: (window.innerHeight / 2 - 150) / (rfInstance.getViewport().zoom || 1) 
-                      }
-                    : { x: 400, y: 300 };
+                  // Find the optimal position for ROI report to avoid overlap
+                  const getOptimalROIPosition = () => {
+                    if (!rfInstance?.getViewport()) {
+                      return { x: 400, y: 700 };
+                    }
+                    
+                    const viewport = rfInstance.getViewport();
+                    const zoom = viewport.zoom || 1;
+                    
+                    // Find the lowest Y position among existing nodes
+                    const maxY = nodes.reduce((max, node) => {
+                      return Math.max(max, node.position.y);
+                    }, 0);
+                    
+                    // Place ROI report 300px below the lowest node, or at minimum 600px from top
+                    const optimalY = Math.max(maxY + 300, 600);
+                    
+                    return {
+                      x: (window.innerWidth / 2 - 400) / zoom, // Centered horizontally, accounting for ROI report width
+                      y: optimalY / zoom
+                    };
+                  };
+
+                  const center = getOptimalROIPosition();
                 
                 const newROINode: Node = {
                   id: `roi-${Date.now()}`,
@@ -798,6 +815,18 @@ export function BuildPageContent() {
                 
                 // Add the node to the canvas
                 onNodesChange([{ type: 'add', item: newROINode }]);
+                
+                // Center the camera on the newly created ROI report
+                if (rfInstance) {
+                  setTimeout(() => {
+                    rfInstance.fitBounds({
+                      x: center.x - 100,
+                      y: center.y - 100,
+                      width: 1000, // ROI report width (800px) + padding
+                      height: 1000, // ROI report height (~800-900px) + padding
+                    }, { padding: 0.1, duration: 800 });
+                  }, 100); // Small delay to ensure node is rendered
+                }
                 
                 // Close the ROI settings panel
                 setIsROISettingsOpen(false);
