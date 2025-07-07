@@ -950,45 +950,46 @@ export function StatsBar({
             
             {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
 
-            <StatItem
-              label="Runs"
-              value={runsPerMonth >= 1000 ? `${(runsPerMonth / 1000).toFixed(1)}k` : runsPerMonth}
-              icon={Zap}
-              color="text-primary"
-              onIncrement={incrementRuns}
-              onDecrement={decrementRuns}
-              popoverEditConfig={{
-                isOpen: editingRuns,
-                onOpenChange: setEditingRuns,
-                inputValue: tempRuns,
-                onInputChange: handleRunsChangeInput,
-                onInputKeyDown: handleRunsKeyDown,
-                onInputBlur: handleRunsBlur,
-                inputAriaLabel: "Edit runs per month",
-                helpText: "Number of automation runs per month."
-              }}
-            />
-            
-            {!isUltraCompact && <Separator orientation="vertical" className="h-10" />}
-
-            <StatItem
-              label="Minutes"
-              value={minutesPerRun}
-              icon={Clock}
-              color="text-primary"
-              onIncrement={incrementMinutes}
-              onDecrement={decrementMinutes}
-              popoverEditConfig={{
-                isOpen: editingMinutes,
-                onOpenChange: setEditingMinutes,
-                inputValue: tempMinutes,
-                onInputChange: handleMinutesChangeInput,
-                onInputKeyDown: handleMinutesKeyDown,
-                onInputBlur: handleMinutesBlur,
-                inputAriaLabel: "Edit average minutes saved per run",
-                helpText: "Minutes saved per run (e.g., 0.5, 5)."
-              }}
-            />
+            {/* Runs and Minutes grouped closer together */}
+            <div className="flex items-center gap-2">
+              <StatItem
+                label="Runs"
+                value={runsPerMonth >= 1000 ? `${(runsPerMonth / 1000).toFixed(1)}k` : runsPerMonth}
+                icon={Zap}
+                color="text-primary"
+                onIncrement={incrementRuns}
+                onDecrement={decrementRuns}
+                popoverEditConfig={{
+                  isOpen: editingRuns,
+                  onOpenChange: setEditingRuns,
+                  inputValue: tempRuns,
+                  onInputChange: handleRunsChangeInput,
+                  onInputKeyDown: handleRunsKeyDown,
+                  onInputBlur: handleRunsBlur,
+                  inputAriaLabel: "Edit runs per month",
+                  helpText: "Number of automation runs per month."
+                }}
+              />
+              
+              <StatItem
+                label="Minutes"
+                value={minutesPerRun}
+                icon={Clock}
+                color="text-primary"
+                onIncrement={incrementMinutes}
+                onDecrement={decrementMinutes}
+                popoverEditConfig={{
+                  isOpen: editingMinutes,
+                  onOpenChange: setEditingMinutes,
+                  inputValue: tempMinutes,
+                  onInputChange: handleMinutesChangeInput,
+                  onInputKeyDown: handleMinutesKeyDown,
+                  onInputBlur: handleMinutesBlur,
+                  inputAriaLabel: "Edit average minutes saved per run",
+                  helpText: "Minutes saved per run (e.g., 0.5, 5)."
+                }}
+              />
+            </div>
           </div>
 
         {/* Right side - Platform controls and Action buttons */}
