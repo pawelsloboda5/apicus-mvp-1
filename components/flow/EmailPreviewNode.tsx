@@ -150,7 +150,7 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="w-[800px] h-[600px] bg-card text-card-foreground border border-border rounded-lg shadow-lg overflow-visible flex flex-col font-sans">
+      <div className="w-[800px] h-[600px] bg-white text-card-foreground border border-border rounded-lg shadow-lg overflow-visible flex flex-col font-sans">
         <div className="p-3 bg-muted/50 border-b border-border text-sm font-semibold text-foreground flex items-center justify-between">
           <span>{nodeTitle}</span>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -172,7 +172,7 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
   }
 
   return (
-    <div className="relative w-[800px] min-h-[600px] bg-card text-card-foreground border border-border rounded-lg shadow-lg flex flex-col font-sans overflow-hidden">
+    <div className="relative w-[800px] min-h-[600px] bg-white text-card-foreground border border-border rounded-lg shadow-lg flex flex-col font-sans overflow-hidden">
       {/* Header Bar */}
       <div className="p-3 bg-muted/50 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2 flex-1">
