@@ -274,13 +274,13 @@ export default function Home() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               
-              <div className="mx-auto max-w-4xl">
-                <Card className="border-[#E2C3B9] bg-white shadow-sm transition-all hover:shadow-lg min-h-[280px]">
-                  <CardContent className="p-12 text-center">
+              <div className="mx-auto w-full max-w-4xl">
+                <Card className="border-[#E2C3B9] bg-white shadow-sm transition-all hover:shadow-lg h-[320px] w-full">
+                  <CardContent className="p-12 text-center h-full flex flex-col items-center justify-center">
                     <div className={cn("mb-8 inline-flex h-16 w-16 items-center justify-center rounded-lg", benefits[currentBenefit].color)}>
                       {benefits[currentBenefit].icon}
                     </div>
-                    <h3 className="text-2xl font-bold leading-relaxed text-[#1A1A1A]">
+                    <h3 className="text-2xl font-bold leading-relaxed text-[#1A1A1A] flex-1 flex items-center text-center">
                       {benefits[currentBenefit].title}
                     </h3>
                   </CardContent>
