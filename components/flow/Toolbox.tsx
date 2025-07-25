@@ -7,6 +7,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -287,7 +288,7 @@ export function Toolbox({
       style={{
         display: isCollapsed ? 'none' : 'grid',
         gridTemplateRows: activeTab === 'canvas' 
-          ? '30% 12% 40% 18%' // Email Context, Basic Nodes, Scenarios, Emails
+          ? '30% 12% 40% 18%' // Email Context (30%), Basic Nodes (12%), Scenarios (40%), Emails (18%)
           : '1fr', // Analytics takes full space
       }}
       >
@@ -378,15 +379,46 @@ function ToolboxContent({
     }
   };
 
-  const handleAddNewScenario = async () => {
+  const handleAddNewScenario = () => {
+    setNewScenarioModalOpen(true);
+  };
+
+  const handleCreateFromScratch = async () => {
     const newScenarioName = "Untitled Scenario";
     const newId = await createScenario(newScenarioName);
+    setNewScenarioModalOpen(false);
+    setPromptInput("");
     router.push(`/build?sid=${newId}`);
     if (onLoadScenario) {
       onLoadScenario(newId);
     }
     if (isMobile && onClose) {
       onClose();
+    }
+  };
+
+  const handleGenerateFromPrompt = async () => {
+    if (!promptInput.trim()) return;
+    
+    setIsGeneratingFromPrompt(true);
+    try {
+      // For now, create a scenario with the prompt as the name
+      // Later this could call an AI API to generate the workflow
+      const scenarioName = promptInput.trim();
+      const newId = await createScenario(scenarioName);
+      setNewScenarioModalOpen(false);
+      setPromptInput("");
+      router.push(`/build?sid=${newId}`);
+      if (onLoadScenario) {
+        onLoadScenario(newId);
+      }
+      if (isMobile && onClose) {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Failed to generate scenario from prompt:', error);
+    } finally {
+      setIsGeneratingFromPrompt(false);
     }
   };
 
@@ -471,6 +503,11 @@ function ToolboxContent({
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedPlatformFilter, setSelectedPlatformFilter] = useState<'all' | 'zapier' | 'make' | 'n8n'>('all');
+  
+  // New scenario modal state
+  const [newScenarioModalOpen, setNewScenarioModalOpen] = useState(false);
+  const [promptInput, setPromptInput] = useState("");
+  const [isGeneratingFromPrompt, setIsGeneratingFromPrompt] = useState(false);
   
   // Debounce search to avoid too many API calls
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -630,9 +667,9 @@ function ToolboxContent({
         // Desktop layout with fixed grid
         <>
           {activeTab === 'canvas' ? (
-            // Canvas mode with 5 sections
+            // Canvas mode with 4 sections
             <>
-              {/* Section 1: Email Context (25%) */}
+              {/* Section 1: Email Context (30%) */}
               <div className="overflow-hidden flex flex-col p-4 border-b">
                 <div className="flex items-center justify-between mb-3 shrink-0">
                   <h2 className="text-sm font-display font-semibold tracking-tight">Email Context</h2>
@@ -669,7 +706,7 @@ function ToolboxContent({
                 </div>
               </div>
 
-              {/* Section 2: Basic Nodes (10%) */}
+              {/* Section 2: Basic Nodes (12%) */}
               <div className="p-4 border-b flex flex-col">
                 <h2 className="mb-2 text-sm font-display font-semibold tracking-tight text-muted-foreground shrink-0">
                   Basic Nodes
@@ -688,7 +725,7 @@ function ToolboxContent({
                 </ul>
               </div>
 
-              {/* Section 3: My Scenarios (35%) */}
+              {/* Section 3: My Scenarios (40%) */}
               <div className="overflow-hidden flex flex-col p-4 border-b">
                 {/* Action Bar */}
                 <div className="flex items-center justify-between mb-3 shrink-0">
@@ -711,7 +748,7 @@ function ToolboxContent({
                     variant="outline" 
                     size="sm"
                     className="h-8 text-xs"
-                    disabled
+                    onClick={handleAddNewScenario}
                   >
                     <Import className="h-3.5 w-3.5 mr-1" />
                     Import
@@ -850,6 +887,77 @@ function ToolboxContent({
                     </DialogContent>
                   </Dialog>
                 </div>
+
+                {/* New Scenario Modal */}
+                <Dialog open={newScenarioModalOpen} onOpenChange={(open) => {
+                  setNewScenarioModalOpen(open);
+                  if (!open) {
+                    setPromptInput("");
+                    setIsGeneratingFromPrompt(false);
+                  }
+                }}>
+                  <DialogContent className="sm:max-w-[500px] bg-white dark:bg-white">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-display font-semibold">Create New Automation</DialogTitle>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Generate a workflow from a prompt or start building from scratch
+                      </p>
+                    </DialogHeader>
+                    <div className="py-6 space-y-6">
+                      {/* AI Generation Option */}
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-medium text-foreground">Generate with AI</h3>
+                        <div className="space-y-3">
+                          <Textarea
+                            placeholder="Describe the automation you want to build... e.g., 'Send a welcome email when someone signs up and add them to a CRM'"
+                            value={promptInput}
+                            onChange={(e) => setPromptInput(e.target.value)}
+                            className="min-h-[100px] resize-none"
+                            disabled={isGeneratingFromPrompt}
+                          />
+                          <Button
+                            onClick={handleGenerateFromPrompt}
+                            disabled={!promptInput.trim() || isGeneratingFromPrompt}
+                            className="w-full font-medium"
+                          >
+                            {isGeneratingFromPrompt ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="h-4 w-4 mr-2" />
+                                Generate Automation
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 h-px bg-border"></div>
+                        <span className="text-xs text-muted-foreground font-medium">OR</span>
+                        <div className="flex-1 h-px bg-border"></div>
+                      </div>
+
+                      {/* Manual Creation Option */}
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-medium text-foreground">Start from Scratch</h3>
+                        <Button
+                          variant="outline"
+                          onClick={handleCreateFromScratch}
+                          className="w-full font-medium"
+                          disabled={isGeneratingFromPrompt}
+                        >
+                          <PlusCircle className="h-4 w-4 mr-2" />
+                          Create Blank Automation
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 
                 {/* Scenarios List */}
                 <div className="flex-1 overflow-hidden">
@@ -936,8 +1044,8 @@ function ToolboxContent({
                 </div>
               </div>
 
-              {/* Section 4: Generated Emails (20%) */}
-              <div className="overflow-hidden flex flex-col p-4 border-b">
+              {/* Section 4: Generated Emails (18%) */}
+              <div className="overflow-hidden flex flex-col p-4">
                 <h2 className="mb-3 text-sm font-display font-semibold tracking-tight shrink-0 text-muted-foreground">
                   Generated Emails
                 </h2>
@@ -968,28 +1076,6 @@ function ToolboxContent({
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Section 5: Quick Actions (10%) */}
-              <div className="p-4 flex items-center justify-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="h-8 text-xs flex-1"
-                  disabled
-                >
-                  <Workflow className="h-3.5 w-3.5 mr-1" />
-                  Find Templates
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="h-8 text-xs flex-1"
-                  disabled
-                >
-                  <Import className="h-3.5 w-3.5 mr-1" />
-                  Import Workflow
-                </Button>
               </div>
             </>
           ) : (
