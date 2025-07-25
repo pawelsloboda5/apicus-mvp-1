@@ -4,7 +4,7 @@
  */
 
 import { Node } from "@xyflow/react";
-import { NodeType, PlatformType } from "@/lib/types";
+import { NodeType, PlatformType, AppPricingData } from "@/lib/types";
 import type { PlatformPricing } from "@/app/api/data/pricing";
 import { NODE_TIME_FACTORS } from "@/lib/utils/constants";
 
@@ -65,6 +65,37 @@ export function calculateRevenueValue(
 }
 
 /**
+ * Calculate monthly app costs from app pricing data
+ * @param appPricingMap Map of app IDs to pricing data
+ * @param selectedTiers Optional map of app IDs to selected tier names
+ * @returns Total monthly cost for all apps
+ */
+export function calculateAppCosts(
+  appPricingMap?: Record<string, AppPricingData>,
+  selectedTiers?: Record<string, string>
+): number {
+  if (!appPricingMap) return 0;
+  
+  let totalCost = 0;
+  
+  Object.entries(appPricingMap).forEach(([appId, pricingData]) => {
+    // If no tier is selected and app has no free tier, use lowest monthly price
+    if (!selectedTiers?.[appId] && !pricingData.hasFreeTier) {
+      totalCost += pricingData.lowestMonthlyPrice || 0;
+    }
+    // If a specific tier is selected, we'd need the tier pricing details
+    // For now, we'll use the lowest monthly price as a conservative estimate
+    else if (selectedTiers?.[appId] && !pricingData.hasFreeTier) {
+      totalCost += pricingData.lowestMonthlyPrice || 0;
+    }
+    // If app has free tier and no tier selected, assume free
+    // If free tier is selected explicitly, cost is 0
+  });
+  
+  return totalCost;
+}
+
+/**
  * Calculates the platform cost for automation
  * @param platform Automation platform (zapier, make, n8n)
  * @param runsPerMonth Number of runs per month
@@ -116,26 +147,31 @@ export function calculateTotalValue(
  * Calculate net ROI
  * @param totalValue Total value from automation
  * @param platformCost Cost of automation platform
+ * @param appCosts Optional total cost of apps used
  * @returns Net ROI in dollars
  */
 export function calculateNetROI(
   totalValue: number,
-  platformCost: number
+  platformCost: number,
+  appCosts: number = 0
 ): number {
-  return totalValue - platformCost;
+  return totalValue - platformCost - appCosts;
 }
 
 /**
  * Calculate ROI ratio
  * @param totalValue Total value from automation
  * @param platformCost Cost of automation platform
+ * @param appCosts Optional total cost of apps used
  * @returns ROI ratio as a number
  */
 export function calculateROIRatio(
   totalValue: number,
-  platformCost: number
+  platformCost: number,
+  appCosts: number = 0
 ): number {
-  return platformCost > 0 ? totalValue / platformCost : 0;
+  const totalCost = platformCost + appCosts;
+  return totalCost > 0 ? totalValue / totalCost : 0;
 }
 
 /**
@@ -229,6 +265,8 @@ export function calculateNodeTimeSavings(
  * @param nodeIds Array of node IDs in the group
  * @param nodes All nodes in the workflow
  * @param baseParams Base ROI parameters
+ * @param pricing Platform pricing data
+ * @param appPricingMap Optional app pricing data map
  * @returns Object with aggregated ROI metrics
  */
 export function calculateGroupROI(
@@ -241,7 +279,8 @@ export function calculateGroupROI(
     taskMultiplier: number;
     platform: string;
   },
-  pricing: Record<"zapier" | "make" | "n8n", PlatformPricing>
+  pricing: Record<"zapier" | "make" | "n8n", PlatformPricing>,
+  appPricingMap?: Record<string, AppPricingData>
 ) {
   const { runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, platform } = baseParams;
   
@@ -251,9 +290,14 @@ export function calculateGroupROI(
   // Calculate total time saved by group nodes
   let totalMinutesSaved = 0;
   
+  // Track unique apps used to calculate costs
+  const uniqueApps = new Set<string>();
+  
   groupNodes.forEach(node => {
     const nodeType = node.type as NodeType;
-    const operationType = (node.data as Record<string, unknown>)?.typeOf as string | undefined;
+    const nodeData = node.data as Record<string, unknown>;
+    const operationType = nodeData?.typeOf as string | undefined;
+    const appId = nodeData?.appId as string | undefined;
     
     // Calculate this node's time contribution
     const nodeMinutes = calculateNodeTimeSavings(
@@ -265,20 +309,56 @@ export function calculateGroupROI(
     );
     
     totalMinutesSaved += nodeMinutes;
+    
+    // Track unique apps
+    if (appId) {
+      uniqueApps.add(appId);
+    }
   });
+  
+  // Calculate app costs for unique apps in the group
+  const appCosts = appPricingMap ? calculateAppCostsForApps(
+    Array.from(uniqueApps),
+    appPricingMap
+  ) : 0;
   
   // Calculate metrics
   const timeValue = calculateTimeValue(runsPerMonth, totalMinutesSaved, hourlyRate, taskMultiplier);
   const platformCost = calculatePlatformCost(platform as PlatformType, runsPerMonth, pricing, 5);
-  const netROI = timeValue - platformCost;
-  const roiRatio = calculateROIRatio(timeValue, platformCost);
+  const netROI = calculateNetROI(timeValue, platformCost, appCosts);
+  const roiRatio = calculateROIRatio(timeValue, platformCost, appCosts);
   
   return {
     timeValue,
     platformCost,
+    appCosts,
+    totalCost: platformCost + appCosts,
     netROI,
     roiRatio,
     totalMinutesSaved,
     nodeCount: groupNodes.length,
+    uniqueAppCount: uniqueApps.size,
   };
+}
+
+/**
+ * Calculate app costs for specific apps
+ * @param appIds Array of app IDs to calculate costs for
+ * @param appPricingMap Map of app IDs to pricing data
+ * @returns Total monthly cost for specified apps
+ */
+export function calculateAppCostsForApps(
+  appIds: string[],
+  appPricingMap: Record<string, AppPricingData>
+): number {
+  let totalCost = 0;
+  
+  appIds.forEach(appId => {
+    const pricingData = appPricingMap[appId];
+    if (pricingData && !pricingData.hasFreeTier) {
+      totalCost += pricingData.lowestMonthlyPrice || 0;
+    }
+  });
+  
+  return totalCost;
 } 

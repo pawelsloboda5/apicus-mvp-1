@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Scenario } from '@/lib/types';
 import { Node } from '@xyflow/react';
-import { useScenarioMetrics } from '@/lib/db';
+import { useScenarioMetrics } from '@/lib/db-hooks';
 import { RoiGauge, WaterfallChart, TrendChart, FlowTimeChart } from '@/app/chart-kit';
 import { useRoiMetrics } from '@/app/chart-kit/hooks';
 import { transformToFlowTimeData } from '@/lib/chart-utils';

@@ -1,6 +1,5 @@
 import Dexie, { Table } from "dexie";
 import { nanoid } from "nanoid";
-import { useLiveQuery } from "dexie-react-hooks";
 import { AppPricingData } from "./types";
 
 /**
@@ -105,6 +104,8 @@ export interface MetricSnapshot {
     riskValue?: number;
     revenueValue?: number;
     platformCost: number;
+    appCosts?: number; // Added for app costs
+    totalCosts?: number; // Added for total costs (platform + apps)
     runsPerMonth: number;
     minutesPerRun: number;
     hourlyRate: number;
@@ -114,6 +115,8 @@ export interface MetricSnapshot {
     totalValue: number;
     paybackPeriod?: string;
     breakEvenRuns?: number;
+    // App-specific breakdown
+    appCostBreakdown?: Record<string, number>; // appId -> monthly cost
   };
   // Metadata about what triggered this snapshot
   trigger: 'manual' | 'save' | 'platform_change' | 'major_edit' | 'scheduled';
@@ -244,6 +247,25 @@ class ApicusDB extends Dexie {
           if (!sc.templatePricingData) sc.templatePricingData = {};
         });
       });
+
+    // Version 9 – Add app costs to metrics
+    this.version(9)
+      .stores({
+        scenarios: "++id, slug, name, updatedAt, platform, originalTemplateId, searchQuery, emailYourName",
+        nodes: "++id, scenarioId, reactFlowId, type",
+        edges: "++id, scenarioId, reactFlowId",
+        metrics: "++id, scenarioId, timestamp, [scenarioId+timestamp]",
+      })
+      .upgrade(tx => {
+        // Update existing metrics to include app costs fields with defaults
+        tx.table("metrics").toCollection().modify((metric: MetricSnapshot) => {
+          if (!("appCosts" in metric.metrics)) {
+            metric.metrics.appCosts = 0;
+            metric.metrics.totalCosts = metric.metrics.platformCost;
+            metric.metrics.appCostBreakdown = {};
+          }
+        });
+      });
   }
 }
 
@@ -321,15 +343,6 @@ export async function createScenario(name: string): Promise<number> {
 }
 
 /**
- * Convenience hook to subscribe to a scenario record using dexie-react-hooks.
- * Usage: const scenario = useScenario(id);
- */
-export function useScenario(id?: number) {
-  const dexie = getDb();
-  return useLiveQuery(() => (id ? dexie.scenarios.get(id) : undefined), [id]);
-}
-
-/**
  * Helper to create a metric snapshot for a scenario
  */
 export async function createMetricSnapshot(
@@ -381,14 +394,4 @@ export async function cleanupOldMetrics(): Promise<void> {
   
   // TODO: Implement aggregation for 30-90 day old metrics
   // This would involve grouping by day and keeping only one summary per day
-}
-
-/**
- * Hook to subscribe to metrics for a scenario
- */
-export function useScenarioMetrics(scenarioId?: number, limit: number = 30) {
-  return useLiveQuery(
-    () => (scenarioId ? getRecentMetrics(scenarioId, limit) : undefined),
-    [scenarioId, limit]
-  );
 } 

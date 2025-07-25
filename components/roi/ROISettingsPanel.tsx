@@ -19,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { pricing } from "@/app/api/data/pricing";
 import type { Scenario } from "@/lib/db";
-import { PlatformType } from "@/lib/types";
+import { PlatformType, AppPricingData } from "@/lib/types";
 import {
   calculateTimeValue,
   calculateRiskValue,
@@ -30,7 +30,8 @@ import {
   calculateROIRatio,
   formatROIRatio,
   calculatePaybackPeriod,
-  formatPaybackPeriod
+  formatPaybackPeriod,
+  calculateAppCosts,
 } from "@/lib/roi-utils";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,8 @@ interface ROISettingsPanelProps {
   };
   updateScenarioROI: (partial: Partial<Scenario>) => void;
   onGenerateReport?: () => void;
+  appPricingMap?: Record<string, AppPricingData>;
+  selectedTiers?: Record<string, string>;
 }
 
 // Helper function for dynamic minute steps
@@ -219,6 +222,8 @@ export function ROISettingsPanel({
   benchmarks,
   updateScenarioROI,
   onGenerateReport,
+  appPricingMap,
+  selectedTiers,
 }: ROISettingsPanelProps) {
   
   const [stepsPerRun] = useState(5); // Average steps per workflow
@@ -229,9 +234,11 @@ export function ROISettingsPanel({
     const revenueValue = calculateRevenueValue(revenueEnabled, monthlyVolume, conversionRate, valuePerConversion);
     const totalValue = calculateTotalValue(timeValue, riskValue, revenueValue);
     const platformCostVal = calculatePlatformCost(platform, runsPerMonth, pricing);
-    const netROIValue = calculateNetROI(totalValue, platformCostVal);
-    const roiRatioValue = calculateROIRatio(totalValue, platformCostVal);
-    const paybackDays = calculatePaybackPeriod(platformCostVal, netROIValue);
+    const appCostVal = calculateAppCosts(appPricingMap, selectedTiers);
+    const netROIValue = calculateNetROI(totalValue, platformCostVal, appCostVal);
+    const roiRatioValue = calculateROIRatio(totalValue, platformCostVal, appCostVal);
+    const totalCost = platformCostVal + appCostVal;
+    const paybackDays = calculatePaybackPeriod(totalCost, netROIValue);
 
     return (
       <div className="space-y-6">
@@ -292,6 +299,13 @@ export function ROISettingsPanel({
             <span className="text-sm text-muted-foreground">Platform cost</span>
             <span className="font-medium text-red-600 dark:text-red-400">-${platformCostVal.toFixed(2)}</span>
           </div>
+          
+          {appCostVal > 0 && (
+            <div className="flex justify-between items-center py-2 border-b">
+              <span className="text-sm text-muted-foreground">App costs</span>
+              <span className="font-medium text-red-600 dark:text-red-400">-${appCostVal.toFixed(2)}</span>
+            </div>
+          )}
           
           <div className="flex justify-between items-center py-2 font-medium">
             <span>ROI Ratio</span>

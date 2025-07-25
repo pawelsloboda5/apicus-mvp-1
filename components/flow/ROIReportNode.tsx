@@ -22,14 +22,37 @@ import {
   CheckSquare,
   Code,
   Sparkles,
-  Loader2
+  Loader2,
+  Filter,
+  Search,
+  FileInput,
+  FileOutput,
+  Database,
+  MessageSquare,
+  Wrench,
+  Settings,
+  Cloud,
+  Globe
 } from 'lucide-react';
 import { WorkflowStep } from '@/app/build/hooks/useROIGeneration';
 import { Handle, Position } from '@xyflow/react';
 import { pricing } from '@/app/api/data/pricing';
 import { calculatePlatformCost } from '@/lib/roi-utils';
 import { Node } from '@xyflow/react';
-import { NodeData } from '@/lib/types';
+import { NodeData, AppPricingData } from '@/lib/types';
+import Image from 'next/image';
+import { nanoid } from "nanoid";
+import { 
+  calculateTimeValue,
+  calculateRiskValue,
+  calculateRevenueValue,
+  calculateNetROI,
+  calculateROIRatio,
+  calculatePaybackPeriod,
+  formatROIRatio,
+  calculateAppCosts,
+  calculateAppCostsForApps,
+} from '@/lib/roi-utils';
 
 export interface ROIReportNodeData {
   nodeTitle?: string;
@@ -129,6 +152,79 @@ const PLATFORM_CONFIG = {
   }
 };
 
+// Extended fallback icons for different operation types
+const getFallbackIcon = (typeOf?: string, action?: string, appName?: string) => {
+  // Check app name for specific services
+  if (appName?.toLowerCase().includes('gmail')) return MessageSquare;
+  if (appName?.toLowerCase().includes('sheets')) return Database;
+  if (appName?.toLowerCase().includes('slack')) return MessageSquare;
+  if (appName?.toLowerCase().includes('hubspot')) return Database;
+  
+  // Check typeOf first
+  if (typeOf === 'filter') return Filter;
+  if (typeOf === 'search') return Search;
+  if (typeOf === 'read' || typeOf === 'fetch') return FileInput;
+  if (typeOf === 'write' || typeOf === 'create') return FileOutput;
+  if (typeOf === 'data_processing' || typeOf === 'transform') return Database;
+  if (typeOf === 'messaging' || typeOf === 'send') return MessageSquare;
+  if (typeOf === 'webhook') return Globe;
+  if (typeOf === 'api') return Cloud;
+  
+  // Check action as fallback
+  if (action?.includes('filter')) return Filter;
+  if (action?.includes('search')) return Search;
+  if (action?.includes('process')) return Wrench;
+  if (action?.includes('config')) return Settings;
+  
+  // Default to Sparkles
+  return Sparkles;
+};
+
+// Logo component with lazy loading and caching
+const AppLogo: React.FC<{ 
+  logoUrl?: string; 
+  appName?: string;
+  typeOf?: string;
+  action?: string;
+  size?: number;
+}> = ({ logoUrl, appName, typeOf, action, size = 32 }) => {
+  const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const FallbackIcon = getFallbackIcon(typeOf, action, appName);
+  
+  if (!logoUrl || imageError) {
+    return (
+      <div className={cn(
+        "flex items-center justify-center rounded-lg",
+        "bg-muted/30",
+        "text-muted-foreground"
+      )} style={{ width: size, height: size }}>
+        <FallbackIcon className="h-5 w-5" />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      {isLoading && (
+        <div className="absolute inset-0 animate-pulse bg-muted rounded-lg" />
+      )}
+      <Image
+        src={logoUrl}
+        alt={appName || 'App logo'}
+        width={size}
+        height={size}
+        className="rounded-lg object-contain"
+        onError={() => setImageError(true)}
+        onLoad={() => setIsLoading(false)}
+        loading="lazy"
+        unoptimized // For external URLs
+      />
+    </div>
+  );
+};
+
 export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
   const { 
     nodeTitle = "ROI Analysis Report", 
@@ -170,19 +266,75 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
     ? Math.ceil(platformCost / (timeValue / runsPerMonth))
     : 0;
 
-  // Extract unique apps from nodes
+  // Extract unique apps with their logos and pricing data
   const uniqueApps = React.useMemo(() => {
-    const apps = new Set<string>();
+    const appsMap = new Map<string, {
+      appName: string;
+      logoUrl?: string;
+      typeOf?: string;
+      action?: string;
+      appId?: string;
+      pricingData?: {
+        hasFreeTier?: boolean;
+        lowestMonthlyPrice?: number | null;
+        priceModelType?: string[];
+        isPricingPublic?: boolean;
+        hasUsageBasedPricing?: boolean;
+        currency?: string;
+        appName?: string;
+      };
+    }>();
+    
     if (nodes && nodes.length > 0) {
       nodes.forEach(node => {
-        const nodeData = node.data as Partial<NodeData>;
-        if (nodeData && nodeData.appName) {
-          apps.add(nodeData.appName);
+        const nodeData = node.data as unknown as NodeData;
+        if (nodeData?.appName) {
+          appsMap.set(nodeData.appName, {
+            appName: nodeData.appName,
+            appId: nodeData.appId,
+            logoUrl: nodeData.logoUrl,
+            typeOf: nodeData.typeOf,
+            action: nodeData.action,
+            pricingData: nodeData.pricingData,
+          });
         }
       });
     }
-    return Array.from(apps);
+    return Array.from(appsMap.values());
   }, [nodes]);
+
+  // Calculate app costs
+  const appCosts = React.useMemo(() => {
+    if (!uniqueApps.length) return 0;
+    
+    // Create a simplified pricing map from the unique apps
+    const simplifiedPricingMap: Record<string, AppPricingData> = {};
+    uniqueApps.forEach(app => {
+      if (app.appId && app.pricingData) {
+        simplifiedPricingMap[app.appId] = {
+          appId: app.appId,
+          appName: app.appName,
+          appSlug: '', // Not needed for cost calculation
+          hasFreeTier: app.pricingData.hasFreeTier || false,
+          hasFreeTrial: false, // Not available in simplified data
+          currency: app.pricingData.currency || 'USD',
+          lowestMonthlyPrice: app.pricingData.lowestMonthlyPrice || 0,
+          highestMonthlyPrice: 0, // Not available in simplified data
+          tierCount: 0, // Not available in simplified data
+          hasUsageBasedPricing: app.pricingData.hasUsageBasedPricing || false,
+          hasAIFeatures: false, // Not available in simplified data
+        };
+      }
+    });
+    
+    // Calculate costs for apps that have pricing data
+    return calculateAppCosts(simplifiedPricingMap);
+  }, [uniqueApps]);
+
+  // Include app costs in total costs
+  const totalCosts = platformCost + appCosts;
+  const adjustedNetROI = netROI - appCosts; // Adjust net ROI to account for app costs
+  const adjustedROIRatio = calculateROIRatio(timeValue + riskValue + revenueValue, platformCost, appCosts);
 
   // Calculate platform costs for all platforms
   const platformCosts = React.useMemo(() => {
@@ -431,13 +583,13 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
             <div className="flex gap-6 pl-6">
               <div className="text-center">
                 <p className="text-xs text-slate-600">Total ROI</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(netROI)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(adjustedNetROI)}</p>
                 <p className="text-xs text-slate-500">monthly</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-slate-600">Monthly Cost</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(platformCost)}</p>
-                <p className="text-xs text-slate-500">platform + API</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(totalCosts)}</p>
+                <p className="text-xs text-slate-500">platform + apps</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-slate-600">Runs/Month</p>
@@ -475,21 +627,57 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         {uniqueApps.length > 0 && (
           <div className="bg-slate-50 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Applications Used</h3>
-            <div className="flex items-center gap-2 flex-wrap">
-              {uniqueApps.slice(0, 4).map((app) => (
-                <div key={app} className="flex items-center gap-2 bg-white px-3 py-2 rounded-md border border-slate-200">
-                  <span className="text-sm font-medium">{app}</span>
+            <div className="flex items-center gap-3 flex-wrap">
+              {uniqueApps.slice(0, 6).map((app) => (
+                <div 
+                  key={app.appName} 
+                  className={cn(
+                    "flex items-center gap-2.5 bg-white px-3 py-2 rounded-lg border border-slate-200",
+                    "hover:border-slate-300 transition-colors"
+                  )}
+                  title={app.appName}
+                >
+                  <div className={cn(
+                    "p-1 rounded-md",
+                    "bg-slate-50 dark:bg-slate-800",
+                    "border border-slate-100 dark:border-slate-700"
+                  )}>
+                    <AppLogo 
+                      logoUrl={app.logoUrl} 
+                      appName={app.appName}
+                      typeOf={app.typeOf}
+                      action={app.action}
+                      size={32}
+                    />
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-slate-700">{app.appName}</span>
+                    {app.pricingData && (
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        {app.pricingData.hasFreeTier ? (
+                          <span className="text-green-600 font-medium">Free tier</span>
+                        ) : app.pricingData.lowestMonthlyPrice ? (
+                          <span>From ${app.pricingData.lowestMonthlyPrice}/mo</span>
+                        ) : app.pricingData.isPricingPublic === false ? (
+                          <span className="text-muted-foreground">Custom pricing</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
-              {uniqueApps.length > 4 && (
-                <span className="text-sm text-slate-500 font-medium">
-                  +{uniqueApps.length - 4} more
+              {uniqueApps.length > 6 && (
+                <span className="text-sm text-slate-500 font-medium px-2">
+                  +{uniqueApps.length - 6} more
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-600 mt-2">
+            <p className="text-xs text-slate-600 mt-3">
               Avg. processing time: {minutesPerRun < 1 ? `${(minutesPerRun * 60).toFixed(0)} seconds` : `${minutesPerRun} minutes`}
               {breakEvenRuns > 0 && ` • Success rate: ${confidence}%`}
+              {appCosts > 0 && ` • Total app costs: ${formatCurrency(appCosts)}/mo`}
             </p>
           </div>
         )}
@@ -641,25 +829,40 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
             {/* ROI Summary */}
             <Card className="p-4 bg-slate-50">
               <h3 className="text-lg font-bold text-slate-900 mb-3">ROI Summary</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Monthly Revenue Impact:</span>
-                  <span className="font-bold text-green-600">+{formatCurrency(timeValue + revenueValue + riskValue)}</span>
+              <div className="space-y-3">
+                <div className="text-center mb-4">
+                  <p className="text-3xl font-bold text-green-600">{formatROIRatio(adjustedROIRatio)}</p>
+                  <p className="text-xs text-slate-600 mt-1">Return on Investment</p>
                 </div>
-                <div className="flex justify-between">
-                  <span>Monthly Platform Cost:</span>
-                  <span className="font-bold text-red-600">-{formatCurrency(platformCost)}</span>
-                </div>
-                <hr className="my-2" />
-                <div className="flex justify-between text-lg">
-                  <span className="font-bold">Net Monthly ROI:</span>
-                  <span className={cn("font-bold", isPositiveROI ? "text-green-600" : "text-red-600")}>
-                    {formatCurrency(netROI)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs text-slate-600">
-                  <span>Annual Projection:</span>
-                  <span>{formatCurrency(netROI * 12)}</span>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-slate-600">Total Value</p>
+                    <p className="font-bold text-green-600">{formatCurrency(timeValue + riskValue + revenueValue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-600">Platform Cost</p>
+                    <p className="font-bold text-red-600">{formatCurrency(platformCost)}</p>
+                  </div>
+                  {appCosts > 0 && (
+                    <>
+                      <div>
+                        <p className="text-slate-600">App Costs</p>
+                        <p className="font-bold text-red-600">{formatCurrency(appCosts)}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-600">Total Costs</p>
+                        <p className="font-bold text-red-600">{formatCurrency(totalCosts)}</p>
+                      </div>
+                    </>
+                  )}
+                  <div>
+                    <p className="text-slate-600">Monthly Net ROI</p>
+                    <p className="font-bold text-green-600">{formatCurrency(adjustedNetROI)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-600">Annual Net ROI</p>
+                    <p className="font-bold text-green-600">{formatCurrency(adjustedNetROI * 12)}</p>
+                  </div>
                 </div>
               </div>
             </Card>

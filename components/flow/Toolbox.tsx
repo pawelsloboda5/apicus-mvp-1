@@ -1,9 +1,10 @@
 import { useDraggable } from "@dnd-kit/core";
-import { Sparkles, GitBranch, PlayCircle, Zap, PlusCircle, Trash2, Edit3, Check, X, MailOpen, Menu, ChevronLeft, ChevronRight, GripVertical, Workflow, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, BarChart3, FileText, Download, Filter, Palette, Mail } from "lucide-react";
+import { Sparkles, GitBranch, PlayCircle, Zap, PlusCircle, Trash2, Edit3, Check, X, MailOpen, Menu, ChevronLeft, ChevronRight, GripVertical, Workflow, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, BarChart3, FileText, Download, Filter, Palette, Mail, Copy, Search, Import, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NodeType, PlatformType } from "@/lib/types";
 import { db, Scenario, createScenario } from "@/lib/db";
 import { useLiveQuery } from "dexie-react-hooks";
+import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,10 +27,24 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AlternativeTemplateForDisplay } from "./AlternativeTemplatesSheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TemplateResponse } from "@/lib/types";
 
 const ITEMS: { type: NodeType; label: string }[] = [
   { type: "trigger", label: "Trigger" },
@@ -225,7 +240,7 @@ export function Toolbox({
   return (
     <aside 
       className={cn(
-        "border-r bg-muted/30 flex flex-col transition-all duration-300 relative",
+        "border-r bg-muted/30 flex flex-col transition-all duration-300 relative h-full",
         isCollapsed ? 'w-12' : ''
       )}
       style={{ width: isCollapsed ? '48px' : `${width}px` }}
@@ -251,9 +266,9 @@ export function Toolbox({
         </div>
       )}
 
-      {/* Tabs - Always visible at top */}
+      {/* Tabs - Header Section (5%) */}
       {!isCollapsed && onActiveTabChange && (
-        <div className="p-4 pb-3">
+        <div className="flex-shrink-0 p-4 pb-3 border-b">
           <Tabs value={activeTab} onValueChange={(value) => onActiveTabChange(value as 'canvas' | 'analytics')}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="canvas" className="font-medium">Canvas</TabsTrigger>
@@ -263,8 +278,19 @@ export function Toolbox({
         </div>
       )}
 
-      {/* Content */}
-      <div className={cn("flex-1 overflow-hidden", isCollapsed ? 'hidden' : 'block')}>
+      {/* Main Content Area with Fixed Grid Layout */}
+      <div className={cn(
+        "flex-1 overflow-hidden", 
+        isCollapsed ? 'hidden' : 'grid',
+        !isCollapsed && "grid-rows-[minmax(0,1fr)]"
+      )}
+      style={{
+        display: isCollapsed ? 'none' : 'grid',
+        gridTemplateRows: activeTab === 'canvas' 
+          ? '30% 12% 40% 18%' // Email Context, Basic Nodes, Scenarios, Emails
+          : '1fr', // Analytics takes full space
+      }}
+      >
         <ToolboxContent 
           onLoadScenario={onLoadScenario}
           activeScenarioId={activeScenarioId}
@@ -400,6 +426,135 @@ function ToolboxContent({
     setEditingScenarioId(null);
     setEditingName("");
   };
+
+  const handleDuplicateScenario = async (scenario: Scenario) => {
+    const duplicateName = `${scenario.name} (Copy)`;
+    const newId = await db.scenarios.add({
+      name: duplicateName,
+      slug: nanoid(8), // Generate a new slug for the duplicate
+      platform: scenario.platform,
+      nodesSnapshot: scenario.nodesSnapshot,
+      edgesSnapshot: scenario.edgesSnapshot,
+      viewport: scenario.viewport,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      // Copy all ROI data
+      runsPerMonth: scenario.runsPerMonth,
+      minutesPerRun: scenario.minutesPerRun,
+      hourlyRate: scenario.hourlyRate,
+      taskMultiplier: scenario.taskMultiplier,
+      taskType: scenario.taskType,
+      complianceEnabled: scenario.complianceEnabled,
+      riskLevel: scenario.riskLevel,
+      riskFrequency: scenario.riskFrequency,
+      errorCost: scenario.errorCost,
+      revenueEnabled: scenario.revenueEnabled,
+      monthlyVolume: scenario.monthlyVolume,
+      conversionRate: scenario.conversionRate,
+      valuePerConversion: scenario.valuePerConversion,
+      // Copy template data
+      originalTemplateId: scenario.originalTemplateId,
+      searchQuery: scenario.searchQuery,
+      templatePricingData: scenario.templatePricingData,
+    });
+    
+    if (newId && typeof newId === 'number') {
+      router.push(`/build?sid=${newId}`);
+      if (onLoadScenario) onLoadScenario(newId);
+    }
+  };
+
+  // Template search dialog state
+  const [templateSearchOpen, setTemplateSearchOpen] = useState(false);
+  const [templateSearchQuery, setTemplateSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<TemplateResponse[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [selectedPlatformFilter, setSelectedPlatformFilter] = useState<'all' | 'zapier' | 'make' | 'n8n'>('all');
+  
+  // Debounce search to avoid too many API calls
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Template search functionality
+  const performTemplateSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchError(null);
+
+    try {
+      const response = await fetch(`/api/templates/search?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to search templates');
+      }
+
+      setSearchResults(data.templates || []);
+    } catch (error) {
+      console.error('Template search error:', error);
+      setSearchError(error instanceof Error ? error.message : 'Failed to search templates');
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle search input changes with debouncing
+  const handleSearchInputChange = (value: string) => {
+    setTemplateSearchQuery(value);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      performTemplateSearch(value);
+    }, 500); // 500ms debounce
+  };
+
+  // Create scenario from template
+  const handleCreateFromTemplate = async (template: TemplateResponse) => {
+    try {
+      // Create a new scenario with the template data
+      const newId = await db.scenarios.add({
+        name: template.title || 'Untitled Scenario',
+        slug: nanoid(8),
+        platform: template.platform as PlatformType | undefined,
+        nodesSnapshot: template.nodes,
+        edgesSnapshot: template.edges,
+        originalTemplateId: template.templateId,
+        searchQuery: templateSearchQuery,
+        templatePricingData: template.appPricingMap,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      
+      if (newId && typeof newId === 'number') {
+        setTemplateSearchOpen(false);
+        setTemplateSearchQuery('');
+        setSearchResults([]);
+        router.push(`/build?sid=${newId}`);
+        if (onLoadScenario) onLoadScenario(newId);
+      }
+    } catch (error) {
+      console.error('Failed to create scenario from template:', error);
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
   
   useEffect(() => {
     if (editingScenarioId && inputRef.current) {
@@ -439,280 +594,433 @@ function ToolboxContent({
   };
 
   return (
-    <div className={cn("flex flex-col h-full overflow-hidden", isMobile ? "p-4" : "px-4 pb-4")}>
-      {isMobile && (
-        <SheetHeader className="px-0 pb-4 shrink-0">
-          <SheetTitle className="text-lg font-display">Toolbox</SheetTitle>
-        </SheetHeader>
-      )}
-      
-      {/* Canvas Mode Content */}
-      {activeTab === 'canvas' && (
-        <>
-          {/* Section 1: Email Context Nodes - Now primary and expanded by default */}
-          {!isMobile && (
-            <div className="shrink-0 mb-6">
-              <div className="flex items-center justify-between mb-4 px-1">
-                <h2 className="text-base font-display font-semibold tracking-tight">Email Context</h2>
-              </div>
-              <p className="text-xs text-muted-foreground mb-4 px-1 leading-relaxed">
-                Drag these nodes to influence email generation
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {EMAIL_CONTEXT_ITEMS.slice(0, 4).map((item) => (
-                  <EmailContextToolboxItem
-                    key={item.type}
-                    {...item}
-                    isSelected={selectedNodeType === item.type}
-                    onSelect={onNodeTypeSelect}
-                  />
-                ))}
-              </div>
-              <details className="mt-3 group">
-                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground px-1 py-2">
-                  Show more context nodes ({EMAIL_CONTEXT_ITEMS.length - 4} more)
-                </summary>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {EMAIL_CONTEXT_ITEMS.slice(4).map((item) => (
-                    <EmailContextToolboxItem
-                      key={item.type}
-                      {...item}
+    <>
+      {isMobile ? (
+        // Mobile layout - keep existing implementation
+        <div className={cn("flex flex-col h-full overflow-hidden p-4")}>
+          <SheetHeader className="px-0 pb-4 shrink-0">
+            <SheetTitle className="text-lg font-display">Toolbox</SheetTitle>
+          </SheetHeader>
+          
+          {/* Mobile content - simplified for now */}
+          {activeTab === 'canvas' && (
+            <>
+              <div className="shrink-0 mb-6">
+                <ul className="grid grid-cols-3 gap-2">
+                  {ITEMS.map((item) => (
+                    <ToolboxItem 
+                      key={item.type} 
+                      {...item} 
+                      isMobile={true}
                       isSelected={selectedNodeType === item.type}
                       onSelect={onNodeTypeSelect}
                     />
                   ))}
-                </div>
-              </details>
-            </div>
+                </ul>
+              </div>
+              
+              <div className="flex-grow min-h-0">
+                <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1">My Scenarios</h2>
+                {/* Mobile scenarios list */}
+              </div>
+            </>
           )}
-
-          {/* Section 2: Basic Node Types - Smaller and secondary */}
-          <div className="shrink-0 mb-6">
-            {!isMobile && <h2 className="mb-3 text-sm font-display font-semibold tracking-tight px-1 text-muted-foreground">Basic Nodes</h2>}
-            <ul className={cn("flex gap-2", isMobile && "grid grid-cols-3")}>
-              {ITEMS.map((item) => (
-                <ToolboxItem 
-                  key={item.type} 
-                  {...item} 
-                  isMobile={isMobile}
-                  isSelected={selectedNodeType === item.type}
-                  onSelect={onNodeTypeSelect}
-                  compact={!isMobile}
-                />
-              ))}
-            </ul>
-          </div>
-          
-
-        </>
-      )}
-      
-      {/* Analytics Mode Content */}
-      {activeTab === 'analytics' && (
+        </div>
+      ) : (
+        // Desktop layout with fixed grid
         <>
-          {/* Analytics Tools */}
-          <div className="shrink-0 mb-6">
-            <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1">Analytics Tools</h2>
-            <div className="space-y-2">
-              {ANALYTICS_ITEMS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Button
-                    key={item.label}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-sm h-auto py-3 px-3 hover:bg-muted/80"
-                    disabled
-                  >
-                    <Icon className="h-4 w-4 mr-3 shrink-0" />
-                    <div className="flex-1 text-left">
-                      <div className="font-medium">{item.label}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{item.description}</div>
-                    </div>
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-          
-          {/* Metrics Summary - Placeholder */}
-          <div className="border-t pt-6 mb-6">
-            <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1">Quick Stats</h2>
-            <div className="space-y-3 px-1">
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-sm text-muted-foreground">Snapshots Taken</span>
-                <span className="text-sm font-semibold font-mono">0</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-sm text-muted-foreground">Charts Created</span>
-                <span className="text-sm font-semibold font-mono">2</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-sm text-muted-foreground">Last Export</span>
-                <span className="text-sm font-semibold font-mono">Never</span>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-      
-      {/* Section 3: My Scenarios - Now with higher priority */}
-      <div className={cn("pt-6 flex flex-col", isMobile ? "flex-grow min-h-0" : "flex-grow", "border-t")}>
-        <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1 flex justify-between items-center shrink-0">
-          My Scenarios
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleAddNewScenario} title="Add new scenario">
-            <PlusCircle className="h-4 w-4" />
-          </Button>
-        </h2>
-        {filteredScenarios && filteredScenarios.length > 0 ? (
-          <div className={cn("overflow-hidden flex-1 min-h-0")}>
-            <ScrollArea className="h-full pr-1">
-              <ul className="space-y-2 pb-2">
-                {filteredScenarios.map((scenario) => (
-                  <li key={scenario.id} className="flex items-center group relative rounded-lg hover:bg-muted/60 transition-colors duration-200">
-                    {editingScenarioId === scenario.id ? (
-                      <div className="flex items-center w-full p-2">
-                        <Input
-                          ref={inputRef}
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveRename(scenario.id!);
-                            if (e.key === 'Escape') handleCancelRename();
-                          }}
-                          className="h-8 text-sm flex-grow px-2 py-1 mr-2"
+          {activeTab === 'canvas' ? (
+            // Canvas mode with 5 sections
+            <>
+              {/* Section 1: Email Context (25%) */}
+              <div className="overflow-hidden flex flex-col p-4 border-b">
+                <div className="flex items-center justify-between mb-3 shrink-0">
+                  <h2 className="text-sm font-display font-semibold tracking-tight">Email Context</h2>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3 shrink-0">
+                  Drag these nodes to influence email generation
+                </p>
+                <div className="flex-1 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-2">
+                    {EMAIL_CONTEXT_ITEMS.slice(0, 4).map((item) => (
+                      <EmailContextToolboxItem
+                        key={item.type}
+                        {...item}
+                        isSelected={selectedNodeType === item.type}
+                        onSelect={onNodeTypeSelect}
+                      />
+                    ))}
+                  </div>
+                  <details className="mt-3 group">
+                    <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground px-1 py-2">
+                      Show more context nodes ({EMAIL_CONTEXT_ITEMS.length - 4} more)
+                    </summary>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {EMAIL_CONTEXT_ITEMS.slice(4).map((item) => (
+                        <EmailContextToolboxItem
+                          key={item.type}
+                          {...item}
+                          isSelected={selectedNodeType === item.type}
+                          onSelect={onNodeTypeSelect}
                         />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleSaveRename(scenario.id!)} title="Save name">
-                          <Check className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCancelRename} title="Cancel edit">
-                          <X className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant={activeScenarioId === scenario.id ? "secondary" : "ghost"}
-                        size="sm"
-                        className="w-full justify-start text-sm h-auto py-3 px-3 truncate flex-grow font-medium hover:bg-muted/80"
-                        onClick={() => handleScenarioClick(scenario.id!)}
-                        title={scenario.name}
-                      >
-                        <span className={cn("mr-3 h-3 w-3 rounded-full shrink-0", getPlatformColor(scenario.platform))} />
-                        <span className="truncate flex-grow text-left group-hover:mr-16 transition-all duration-200 ease-in-out">{scenario.name}</span>
-                      </Button>
-                    )}
-                    
-                    {editingScenarioId !== scenario.id && (
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-background/90 backdrop-blur-sm rounded-md">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRenameScenario(scenario)} title="Rename scenario">
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete scenario">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the scenario &quot;{scenario.name}&quot;.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteScenario(scenario.id!)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </ScrollArea>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center px-4 py-8">
-            <p className="text-sm text-muted-foreground italic text-center">No saved scenarios yet. Click &apos;+&apos; to add one.</p>
-          </div>
-        )}
-      </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              </div>
 
-      {/* Section 4: Generated Emails - Compact and secondary */}
-      {!isMobile && activeTab === 'canvas' && (
-        <div className="border-t pt-4 flex flex-col flex-shrink-0">
-          <h2 className="mb-3 text-sm font-display font-semibold tracking-tight px-1 shrink-0 text-muted-foreground">
-            Generated Emails
-          </h2>
-          <div className="overflow-hidden h-[15vh] min-h-[80px]">
-            <ScrollArea className="h-full pr-1">
-              {emailNodes && emailNodes.length > 0 ? (
-                <ul className="space-y-2 pb-2">
-                  {emailNodes.map((emailNode) => (
-                    <li key={emailNode.id} className="flex items-center group relative rounded-lg hover:bg-muted/60 transition-colors duration-200">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-sm h-auto py-3 px-3 truncate flex-grow font-medium hover:bg-muted/80"
-                        onClick={() => handleEmailNodeClick(emailNode.id)}
-                        title={emailNode.title}
-                      >
-                        <MailOpen className="mr-3 h-4 w-4 shrink-0 text-primary" />
-                        <span className="truncate flex-grow text-left">
-                          {emailNode.title}
-                        </span>
-                      </Button>
-                    </li>
+              {/* Section 2: Basic Nodes (10%) */}
+              <div className="p-4 border-b flex flex-col">
+                <h2 className="mb-2 text-sm font-display font-semibold tracking-tight text-muted-foreground shrink-0">
+                  Basic Nodes
+                </h2>
+                <ul className="flex gap-2 flex-1 items-center">
+                  {ITEMS.map((item) => (
+                    <ToolboxItem 
+                      key={item.type} 
+                      {...item} 
+                      isMobile={false}
+                      isSelected={selectedNodeType === item.type}
+                      onSelect={onNodeTypeSelect}
+                      compact={true}
+                    />
                   ))}
                 </ul>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-muted-foreground italic text-center">
-                    No emails generated yet.
-                  </p>
+              </div>
+
+              {/* Section 3: My Scenarios (35%) */}
+              <div className="overflow-hidden flex flex-col p-4 border-b">
+                {/* Action Bar */}
+                <div className="flex items-center justify-between mb-3 shrink-0">
+                  <h2 className="text-sm font-display font-semibold tracking-tight">
+                    My Scenarios
+                    {filteredScenarios && ` (${filteredScenarios.length})`}
+                  </h2>
                 </div>
-              )}
-            </ScrollArea>
-          </div>
-        </div>
-      )}
-      
-      {/* Section 3: Generated Emails - Mobile version only shows when emails exist - Only in Canvas mode */}
-      {isMobile && emailNodes && emailNodes.length > 0 && activeTab === 'canvas' && (
-        <div className="border-t pt-6 flex flex-col min-h-0">
-          <h2 className="mb-4 text-base font-display font-semibold tracking-tight px-1 shrink-0">
-            Generated Emails
-          </h2>
-          <div className="overflow-hidden max-h-24">
-            <ScrollArea className="h-full pr-1">
-              <ul className="space-y-2 pb-2">
-                {emailNodes.map((emailNode) => (
-                  <li key={emailNode.id} className="flex items-center group relative rounded-lg hover:bg-muted/60 transition-colors duration-200">
+                <div className="flex gap-2 mb-3 shrink-0">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleAddNewScenario}
+                    className="h-8 text-xs"
+                  >
+                    <PlusCircle className="h-3.5 w-3.5 mr-1" />
+                    New
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="h-8 text-xs"
+                    disabled
+                  >
+                    <Import className="h-3.5 w-3.5 mr-1" />
+                    Import
+                  </Button>
+                  <Dialog open={templateSearchOpen} onOpenChange={setTemplateSearchOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="h-8 text-xs"
+                      >
+                        <Search className="h-3.5 w-3.5 mr-1" />
+                        Search
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[700px] max-h-[80vh] bg-white dark:bg-gray-950">
+                      <DialogHeader>
+                        <DialogTitle>Search Templates</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <Input
+                          placeholder="Search for automation templates..."
+                          value={templateSearchQuery}
+                          onChange={(e) => handleSearchInputChange(e.target.value)}
+                          className="mb-4"
+                          autoFocus
+                        />
+                        
+                        {isSearching && (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                          </div>
+                        )}
+                        
+                        {searchError && (
+                          <div className="text-center text-destructive py-4">
+                            <AlertCircle className="h-5 w-5 mx-auto mb-2" />
+                            <p className="text-sm">{searchError}</p>
+                          </div>
+                        )}
+                        
+                        {!isSearching && !searchError && searchResults.length === 0 && templateSearchQuery && (
+                          <div className="text-center text-muted-foreground py-8">
+                            <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No templates found for "{templateSearchQuery}"</p>
+                            <p className="text-xs mt-1">Try different keywords or browse all templates</p>
+                          </div>
+                        )}
+                        
+                        {searchResults.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="text-sm font-display font-semibold tracking-tight">
+                                Found {searchResults.length} template{searchResults.length !== 1 ? 's' : ''}
+                              </h3>
+                              <select
+                                value={selectedPlatformFilter}
+                                onChange={(e) => setSelectedPlatformFilter(e.target.value as any)}
+                                className="text-xs border rounded px-2 py-1"
+                                disabled
+                              >
+                                <option value="all">All Platforms</option>
+                                <option value="zapier">Zapier</option>
+                                <option value="make">Make.com</option>
+                                <option value="n8n">n8n</option>
+                              </select>
+                            </div>
+                            
+                            <ScrollArea className="h-[400px] pr-4">
+                              <div className="space-y-3">
+                                {searchResults.map((template) => (
+                                  <div
+                                    key={template.templateId}
+                                    className="group relative p-4 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/30 transition-all duration-200 cursor-pointer"
+                                    onClick={() => handleCreateFromTemplate(template)}
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <h4 className="font-display font-semibold text-sm line-clamp-1">
+                                            {template.title || 'Untitled Template'}
+                                          </h4>
+                                          <Badge variant="outline" className="text-xs shrink-0">
+                                            {template.platform?.toUpperCase() || 'UNKNOWN'}
+                                          </Badge>
+                                        </div>
+                                        
+                                        {template.richDescription && (
+                                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                                            {template.richDescription}
+                                          </p>
+                                        )}
+                                        
+                                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                          <span className="flex items-center gap-1">
+                                            <Workflow className="h-3 w-3" />
+                                            {template.stepCount || template.nodes?.length || 0} steps
+                                          </span>
+                                          {template.appNames && template.appNames.length > 0 && (
+                                            <span className="flex items-center gap-1">
+                                              <Zap className="h-3 w-3" />
+                                              {template.appNames.slice(0, 3).join(', ')}
+                                              {template.appNames.length > 3 && ` +${template.appNames.length - 3}`}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 px-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCreateFromTemplate(template);
+                                        }}
+                                      >
+                                        Use Template
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                        )}
+                        
+                        {!isSearching && !templateSearchQuery && (
+                          <div className="text-center text-muted-foreground py-12">
+                            <Search className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                            <p className="text-sm font-medium">Search for automation templates</p>
+                            <p className="text-xs mt-1">Try "email marketing", "lead generation", or "data sync"</p>
+                          </div>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                
+                {/* Scenarios List */}
+                <div className="flex-1 overflow-hidden">
+                  {filteredScenarios && filteredScenarios.length > 0 ? (
+                    <ScrollArea className="h-full">
+                      <ul className="space-y-1 pr-2">
+                        {filteredScenarios.map((scenario) => (
+                          <li key={scenario.id} className="group relative">
+                            {editingScenarioId === scenario.id ? (
+                              <div className="flex items-center p-1.5 rounded-lg bg-muted/60">
+                                <Input
+                                  ref={inputRef}
+                                  type="text"
+                                  value={editingName}
+                                  onChange={(e) => setEditingName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveRename(scenario.id!);
+                                    if (e.key === 'Escape') handleCancelRename();
+                                  }}
+                                  className="h-7 text-sm flex-grow px-2 py-1 mr-1"
+                                />
+                                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleSaveRename(scenario.id!)} title="Save name">
+                                  <Check className="h-3.5 w-3.5 text-green-600" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCancelRename} title="Cancel edit">
+                                  <X className="h-3.5 w-3.5 text-red-600" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center group rounded-lg hover:bg-muted/60 transition-colors duration-200">
+                                <Button
+                                  variant={activeScenarioId === scenario.id ? "secondary" : "ghost"}
+                                  size="sm"
+                                  className="flex-1 justify-start text-sm h-8 px-2 py-1 font-medium overflow-hidden"
+                                  onClick={() => handleScenarioClick(scenario.id!)}
+                                >
+                                  <span className={cn("mr-2 h-2.5 w-2.5 rounded-full shrink-0", getPlatformColor(scenario.platform))} />
+                                  <span className="truncate pr-8">{scenario.name}</span>
+                                </Button>
+                                
+                                {/* Always visible action menu */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 shrink-0 mr-1"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <MoreVertical className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-40">
+                                    <DropdownMenuItem onClick={() => handleDuplicateScenario(scenario)}>
+                                      <Copy className="h-3.5 w-3.5 mr-2" />
+                                      Duplicate
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRenameScenario(scenario)}>
+                                      <Edit3 className="h-3.5 w-3.5 mr-2" />
+                                      Rename
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleDeleteScenario(scenario.id!)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </ScrollArea>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-sm text-muted-foreground italic text-center">
+                        No saved scenarios yet.<br/>Click '+ New' to create one.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 4: Generated Emails (20%) */}
+              <div className="overflow-hidden flex flex-col p-4 border-b">
+                <h2 className="mb-3 text-sm font-display font-semibold tracking-tight shrink-0 text-muted-foreground">
+                  Generated Emails
+                </h2>
+                <div className="flex-1 overflow-hidden">
+                  {emailNodes && emailNodes.length > 0 ? (
+                    <ScrollArea className="h-full">
+                      <ul className="space-y-1 pr-2">
+                        {emailNodes.map((emailNode) => (
+                          <li key={emailNode.id} className="group relative">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full justify-start text-sm h-8 px-2 py-1 font-medium hover:bg-muted/60"
+                              onClick={() => handleEmailNodeClick(emailNode.id)}
+                            >
+                              <MailOpen className="mr-2 h-3.5 w-3.5 shrink-0 text-primary" />
+                              <span className="truncate">{emailNode.title}</span>
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </ScrollArea>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-sm text-muted-foreground italic text-center">
+                        No emails generated yet.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 5: Quick Actions (10%) */}
+              <div className="p-4 flex items-center justify-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="h-8 text-xs flex-1"
+                  disabled
+                >
+                  <Workflow className="h-3.5 w-3.5 mr-1" />
+                  Find Templates
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="h-8 text-xs flex-1"
+                  disabled
+                >
+                  <Import className="h-3.5 w-3.5 mr-1" />
+                  Import Workflow
+                </Button>
+              </div>
+            </>
+          ) : (
+            // Analytics mode - takes full space
+            <div className="p-4 overflow-y-auto h-full">
+              <h2 className="mb-4 text-base font-display font-semibold tracking-tight">Analytics Tools</h2>
+              <div className="space-y-2">
+                {ANALYTICS_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  return (
                     <Button
+                      key={item.label}
                       variant="ghost"
                       size="sm"
-                      className="w-full justify-start text-sm h-auto py-3 px-3 truncate flex-grow font-medium hover:bg-muted/80"
-                      onClick={() => handleEmailNodeClick(emailNode.id)}
-                      title={emailNode.title}
+                      className="w-full justify-start text-sm h-auto py-3 px-3 hover:bg-muted/80"
+                      disabled
                     >
-                      <MailOpen className="mr-3 h-4 w-4 shrink-0 text-primary" />
-                      <span className="truncate flex-grow text-left">
-                        {emailNode.title}
-                      </span>
+                      <Icon className="h-4 w-4 mr-3 shrink-0" />
+                      <div className="flex-1 text-left">
+                        <div className="font-medium">{item.label}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{item.description}</div>
+                      </div>
                     </Button>
-                  </li>
-                ))}
-              </ul>
-            </ScrollArea>
-          </div>
-        </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
       )}
-    </div>
+    </>
   );
 }
 

@@ -9,10 +9,11 @@ import {
   calculateNetROI,
   calculateROIRatio,
   calculatePaybackPeriod,
-  formatROIRatio
+  formatROIRatio,
+  calculateAppCosts,
 } from '@/lib/roi-utils';
 import { pricing } from '@/app/api/data/pricing';
-import { PlatformType, NodeData } from '@/lib/types';
+import { PlatformType, NodeData, AppPricingData } from '@/lib/types';
 
 interface ROIGeneratorConfig {
   // Position
@@ -66,15 +67,44 @@ export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIRepor
     nodes = []
   } = config;
 
+  // Extract app pricing data from nodes
+  const appPricingMap: Record<string, AppPricingData> = {};
+  const uniqueApps = new Set<string>();
+  
+  nodes.forEach(node => {
+    const nodeData = node.data as Partial<NodeData>;
+    if (nodeData?.appId && nodeData?.pricingData) {
+      uniqueApps.add(nodeData.appId);
+      if (!appPricingMap[nodeData.appId]) {
+        appPricingMap[nodeData.appId] = {
+          appId: nodeData.appId,
+          appName: nodeData.appName || '',
+          appSlug: '',
+          hasFreeTier: nodeData.pricingData.hasFreeTier || false,
+          hasFreeTrial: false,
+          currency: nodeData.pricingData.currency || 'USD',
+          lowestMonthlyPrice: nodeData.pricingData.lowestMonthlyPrice || 0,
+          highestMonthlyPrice: 0,
+          tierCount: 0,
+          hasUsageBasedPricing: nodeData.pricingData.hasUsageBasedPricing || false,
+          hasAIFeatures: false,
+        };
+      }
+    }
+  });
+
   // Calculate all ROI values
   const timeValue = calculateTimeValue(runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier);
   const riskValue = calculateRiskValue(complianceEnabled, runsPerMonth, riskFrequency, errorCost, riskLevel);
   const revenueValue = calculateRevenueValue(revenueEnabled, monthlyVolume, conversionRate, valuePerConversion);
   
   const platformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodes.length);
-  const netROI = calculateNetROI(timeValue + riskValue + revenueValue, platformCost);
-  const roiRatio = calculateROIRatio(timeValue + riskValue + revenueValue, platformCost);
-  const paybackDays = calculatePaybackPeriod(platformCost, netROI);
+  const appCosts = calculateAppCosts(appPricingMap);
+  const totalValue = timeValue + riskValue + revenueValue;
+  const netROI = calculateNetROI(totalValue, platformCost, appCosts);
+  const roiRatio = calculateROIRatio(totalValue, platformCost, appCosts);
+  const totalCosts = platformCost + appCosts;
+  const paybackDays = calculatePaybackPeriod(totalCosts, netROI);
 
   // Extract workflow steps from nodes
   const workflowSteps = nodes
@@ -94,7 +124,7 @@ export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIRepor
 
   // Generate business impact text (max 30 words for API)
   const hoursSaved = (runsPerMonth * minutesPerRun) / 60;
-  const businessImpact = `Save ${hoursSaved.toFixed(1)} hours monthly with ${formatROIRatio(roiRatio)} ROI. ${complianceEnabled ? 'Reduce errors by 95%. ' : ''}${revenueEnabled ? `Generate $${revenueValue.toFixed(0)} additional revenue. ` : ''}Payback in ${Math.ceil(paybackDays)} days.`;
+  const businessImpact = `Save ${hoursSaved.toFixed(1)} hours monthly with ${formatROIRatio(roiRatio)} ROI. ${complianceEnabled ? 'Reduce errors by 95%. ' : ''}${revenueEnabled ? `Generate $${revenueValue.toFixed(0)} additional revenue. ` : ''}Payback in ${Math.ceil(paybackDays)} days.${appCosts > 0 ? ` Total costs: $${totalCosts.toFixed(0)}/mo.` : ''}`;
 
   // Generate key benefits
   const keyBenefits = [
@@ -110,6 +140,10 @@ export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIRepor
   
   if (revenueEnabled && revenueValue > 0) {
     keyBenefits.push(`Generate $${revenueValue.toFixed(0)} additional monthly revenue`);
+  }
+  
+  if (appCosts > 0) {
+    keyBenefits.push(`Total platform & app costs: $${totalCosts.toFixed(0)}/month`);
   }
 
   // Create the ROI report node

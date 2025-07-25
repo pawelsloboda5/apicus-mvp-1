@@ -1,10 +1,89 @@
 "use client";
-import React from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
-import { PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, MailOpen, Zap, CheckSquare, Code, Link2, DollarSign, CreditCard } from "lucide-react";
+import { 
+  PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, MailOpen, Zap, CheckSquare, Code, Link2, DollarSign, CreditCard,
+  Filter, Search, FileInput, FileOutput, Database, MessageSquare, Wrench, Settings, Cloud, Webhook, Globe, Terminal, Layers, Package, Hash, Bot, FileText, FileCode, Activity
+} from "lucide-react";
+import { calculateNodeWidth, generateContentHash } from "@/lib/utils/constants";
+import Image from "next/image";
 
-export function PixelNode({ data, type, selected }: NodeProps) {
+// Enhanced fallback icons for different operation types
+const getFallbackIcon = (typeOf?: string, action?: string, appName?: string) => {
+  // Check app name for more specific icons
+  const lowerAppName = appName?.toLowerCase() || '';
+  if (lowerAppName.includes('http') || lowerAppName.includes('webhook')) return Webhook;
+  if (lowerAppName.includes('openai') || lowerAppName.includes('claude') || lowerAppName.includes('gpt')) return Bot;
+  if (lowerAppName.includes('database') || lowerAppName.includes('sql')) return Database;
+  if (lowerAppName.includes('email') || lowerAppName.includes('gmail') || lowerAppName.includes('outlook')) return MessageSquare;
+  if (lowerAppName.includes('sheets') || lowerAppName.includes('excel')) return FileText;
+  if (lowerAppName.includes('slack') || lowerAppName.includes('teams')) return Hash;
+  if (lowerAppName.includes('api')) return Globe;
+  
+  // Check typeOf first for more specific matches
+  if (typeOf === 'filter') return Filter;
+  if (typeOf === 'search') return Search;
+  if (typeOf === 'read' || typeOf === 'fetch') return FileInput;
+  if (typeOf === 'write' || typeOf === 'create' || typeOf === 'update') return FileOutput;
+  if (typeOf === 'data_processing' || typeOf === 'transform' || typeOf === 'parse') return Database;
+  if (typeOf === 'messaging' || typeOf === 'send' || typeOf === 'notification') return MessageSquare;
+  if (typeOf === 'webhook') return Webhook;
+  if (typeOf === 'api' || typeOf === 'request') return Globe;
+  if (typeOf === 'script' || typeOf === 'code') return Terminal;
+  if (typeOf === 'aggregate' || typeOf === 'merge') return Layers;
+  if (typeOf === 'package' || typeOf === 'bundle') return Package;
+  
+  // Check action as fallback
+  if (action?.includes('filter')) return Filter;
+  if (action?.includes('search') || action?.includes('find')) return Search;
+  if (action?.includes('process') || action?.includes('transform')) return Wrench;
+  if (action?.includes('config') || action?.includes('setting')) return Settings;
+  if (action?.includes('analyze') || action?.includes('metrics')) return Activity;
+  if (action?.includes('generate') || action?.includes('create')) return FileCode;
+  
+  // Default to Sparkles for generic actions
+  return Sparkles;
+};
+
+// Logo component with lazy loading and caching
+const AppLogo: React.FC<{ 
+  logoUrl?: string; 
+  appName?: string;
+  typeOf?: string;
+  action?: string;
+  size?: number;
+}> = ({ logoUrl, appName, typeOf, action, size = 32 }) => {
+  const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const FallbackIcon = getFallbackIcon(typeOf, action, appName);
+  
+  if (!logoUrl || imageError) {
+    return <FallbackIcon className="text-current" style={{ width: size, height: size }} />;
+  }
+  
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      {isLoading && (
+        <div className="absolute inset-0 animate-pulse bg-muted rounded-md" />
+      )}
+      <Image
+        src={logoUrl}
+        alt={appName || 'App logo'}
+        width={size}
+        height={size}
+        className="rounded-md object-contain"
+        onError={() => setImageError(true)}
+        onLoad={() => setIsLoading(false)}
+        loading="lazy"
+        unoptimized // For external URLs
+      />
+    </div>
+  );
+};
+
+export function PixelNode({ data, type, selected, id }: NodeProps) {
   const Icon = 
     type === "trigger" ? PlayCircle :
     type === "action" ? Sparkles :
@@ -31,6 +110,10 @@ export function PixelNode({ data, type, selected }: NodeProps) {
     category?: string;
     isConnectedToEmail?: boolean;
     appId?: string;
+    calculatedWidth?: number;
+    calculatedHeight?: number;
+    lastContentHash?: string;
+    logoUrl?: string;
     pricingData?: {
       hasFreeTier?: boolean;
       lowestMonthlyPrice?: number | null;
@@ -38,6 +121,17 @@ export function PixelNode({ data, type, selected }: NodeProps) {
       isPricingPublic?: boolean;
     };
   };
+
+  // DEBUG: Log node data for nodes with appName
+  if (nodeData.appName) {
+    console.log(`[PixelNode ${id}] Rendering:`, {
+      appName: nodeData.appName,
+      appId: nodeData.appId,
+      logoUrl: nodeData.logoUrl,
+      hasPricingData: !!nodeData.pricingData,
+      pricingData: nodeData.pricingData
+    });
+  }
 
   const isEmailContext = nodeData.isEmailContext || [
     "persona", "industry", "painpoint", "metric", 
@@ -95,11 +189,67 @@ export function PixelNode({ data, type, selected }: NodeProps) {
   const platform = nodeData.platform;
   const PlatformIcon = platform ? platformConfig[platform]?.icon : null;
 
+  // Calculate dynamic width based on content
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const [calculatedWidth, setCalculatedWidth] = useState<number>(
+    nodeData.calculatedWidth || 180
+  );
+
+  useEffect(() => {
+    const primaryText = nodeData.appName || nodeData.label || type || '';
+    const secondaryText = nodeData.action || nodeData.contextValue || '';
+    const contentString = `${primaryText}${secondaryText}${nodeData.typeOf || ''}`;
+    const contentHash = generateContentHash(contentString);
+    
+    // Only recalculate if content has changed
+    if (contentHash !== nodeData.lastContentHash) {
+      const newWidth = calculateNodeWidth(
+        primaryText,
+        secondaryText,
+        !!nodeData.typeOf,
+        true, // All nodes have icons
+        isEmailContext,
+        !!nodeData.pricingData // Pass hasPricing parameter
+      );
+      
+      setCalculatedWidth(newWidth);
+      
+      // Update node data with new width and content hash
+      // This will be handled by the parent component through a callback
+      if (nodeRef.current) {
+        nodeRef.current.style.width = `${newWidth}px`;
+        
+        // Dispatch a custom event to notify parent about width change
+        const event = new CustomEvent('nodeWidthChanged', {
+          detail: {
+            nodeId: id,
+            width: newWidth,
+            height: nodeData.calculatedHeight || 60,
+            contentHash
+          }
+        });
+        nodeRef.current.dispatchEvent(event);
+      }
+    }
+  }, [
+    nodeData.appName,
+    nodeData.label,
+    nodeData.action,
+    nodeData.contextValue,
+    nodeData.typeOf,
+    nodeData.lastContentHash,
+    nodeData.pricingData, // Add as dependency
+    type,
+    isEmailContext,
+    id
+  ]);
+
   return (
     <div
+      ref={nodeRef}
       className={cn(
         "pixel-node group relative focus-ring",
-        "min-w-[180px] max-w-[260px] rounded-xl border-2 shadow-sm transition-all duration-200",
+        "rounded-xl border-2 shadow-sm transition-all duration-200",
         "hover:shadow-md hover:scale-[1.02] cursor-pointer",
         selected && "ring-2 ring-primary ring-offset-2 shadow-lg scale-[1.02]",
         isConnectedToEmail && "animate-pulse-glow",
@@ -112,6 +262,7 @@ export function PixelNode({ data, type, selected }: NodeProps) {
               : "border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-500/50"
             )
       )}
+      style={{ width: `${calculatedWidth}px` }}
     >
       {/* All nodes now have left/right handles with larger hitboxes */}
       {/* Target handle (left) with invisible expanded hitbox */}
@@ -193,16 +344,35 @@ export function PixelNode({ data, type, selected }: NodeProps) {
                 ? "bg-gradient-to-br from-blue-500/20 to-blue-600/20 dark:from-blue-500/30 dark:to-blue-600/30" 
                 : "bg-gradient-to-br from-amber-500/20 to-amber-600/20 dark:from-amber-500/30 dark:to-amber-600/30"
             )}>
-              <Icon 
-                className={cn(
-                  "h-6 w-6",
-                  type === "trigger" 
-                    ? "text-green-600 dark:text-green-400" 
-                    : type === "action" 
-                    ? "text-blue-600 dark:text-blue-400" 
-                    : "text-amber-600 dark:text-amber-400"
-                )}
-              />
+              {/* Show app logo if available, otherwise show type icon */}
+              {nodeData.appName && nodeData.logoUrl ? (
+                <div className={cn(
+                  "p-1 rounded-lg",
+                  "bg-white/70 dark:bg-black/30",
+                  "backdrop-blur-sm",
+                  "border border-white/20 dark:border-white/10",
+                  "shadow-sm"
+                )}>
+                  <AppLogo 
+                    logoUrl={nodeData.logoUrl} 
+                    appName={nodeData.appName}
+                    typeOf={nodeData.typeOf}
+                    action={nodeData.action}
+                    size={32}
+                  />
+                </div>
+              ) : (
+                <Icon 
+                  className={cn(
+                    "h-6 w-6",
+                    type === "trigger" 
+                      ? "text-green-600 dark:text-green-400" 
+                      : type === "action" 
+                      ? "text-blue-600 dark:text-blue-400" 
+                      : "text-amber-600 dark:text-amber-400"
+                  )}
+                />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               {/* App name or label as primary text */}
@@ -254,15 +424,14 @@ export function PixelNode({ data, type, selected }: NodeProps) {
               ) : nodeData.pricingData.lowestMonthlyPrice ? (
                 <div className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 rounded-full" 
                      title={`From $${nodeData.pricingData.lowestMonthlyPrice}/mo`}>
-                  <DollarSign className="h-3 w-3 text-primary" />
                   <span className="text-xs font-medium text-primary">
-                    ${nodeData.pricingData.lowestMonthlyPrice}
+                    ${nodeData.pricingData.lowestMonthlyPrice}/mo
                   </span>
                 </div>
               ) : nodeData.pricingData.isPricingPublic === false ? (
                 <div className="flex items-center gap-1 px-2 py-0.5 bg-muted/50 rounded-full" title="Custom pricing">
                   <CreditCard className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">Quote</span>
+                  <span className="text-xs font-medium text-muted-foreground">Custom</span>
                 </div>
               ) : null}
             </div>

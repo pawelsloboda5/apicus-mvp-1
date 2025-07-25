@@ -29,14 +29,16 @@ import {
   Timer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PlatformType, Scenario } from "@/lib/types";
+import { PlatformType, Scenario, NodeData, AppPricingData } from "@/lib/types";
 import { Node } from "@xyflow/react";
 import { 
   calculateTimeValue, 
-  calculatePlatformCost, 
-  pricing, 
-  formatROIRatio 
-} from "@/lib/roi";
+  calculatePlatformCost,
+  calculateAppCosts,
+  calculateROIRatio,
+  formatROIRatio,
+} from "@/lib/roi-utils";
+import { pricing } from "@/app/api/data/pricing";
 import { generateROIReportNode } from "@/lib/roi-report-generator";
 import { toast } from "sonner";
 
@@ -173,10 +175,46 @@ export function StatsBar({
       const nodeCount = nodes?.length || 0;
       const newPlatformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodeCount);
       
+      // Calculate app costs from nodes
+      let appCost = 0;
+      if (nodes && nodes.length > 0) {
+        // Extract app pricing data from nodes
+        const appPricingMap: Record<string, AppPricingData> = {};
+        const uniqueApps = new Set<string>();
+        
+        nodes.forEach(node => {
+          const nodeData = node.data as unknown as NodeData;
+          if (nodeData?.appId && nodeData?.pricingData) {
+            uniqueApps.add(nodeData.appId);
+            if (!appPricingMap[nodeData.appId]) {
+              appPricingMap[nodeData.appId] = {
+                appId: nodeData.appId,
+                appName: nodeData.appName || '',
+                appSlug: '',
+                hasFreeTier: nodeData.pricingData.hasFreeTier || false,
+                hasFreeTrial: false,
+                currency: nodeData.pricingData.currency || 'USD',
+                lowestMonthlyPrice: nodeData.pricingData.lowestMonthlyPrice || 0,
+                highestMonthlyPrice: 0,
+                tierCount: 0,
+                hasUsageBasedPricing: nodeData.pricingData.hasUsageBasedPricing || false,
+                hasAIFeatures: false,
+              };
+            }
+          }
+        });
+        
+        appCost = calculateAppCosts(appPricingMap);
+      }
+      
+      const totalCost = newPlatformCost + appCost;
+      const adjustedNetROI = newTimeValue - totalCost;
+      const adjustedRoiRatio = calculateROIRatio(newTimeValue, newPlatformCost, appCost);
+      
       setTimeValue(newTimeValue);
-      setPlatformCost(newPlatformCost);
-      setNetROI(newTimeValue - newPlatformCost);
-      setRoiRatio(newPlatformCost ? newTimeValue / newPlatformCost : 0);
+      setPlatformCost(totalCost); // Show total cost including apps
+      setNetROI(adjustedNetROI);
+      setRoiRatio(adjustedRoiRatio);
     }, 200);
     
     return () => clearTimeout(debounceTimeout);

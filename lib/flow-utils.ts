@@ -1,5 +1,6 @@
 import { Node, Edge } from "@xyflow/react";
 import { nanoid } from "nanoid";
+import { CANVAS_CONFIG } from '@/lib/utils/constants';
 
 /**
  * Adds a new node to the React Flow canvas
@@ -57,7 +58,7 @@ export function snapToGrid(x: number, y: number, gridSize: number = 8) {
 export function getNonOverlappingPosition(
   nodes: Node[],
   nodeWidth: number = 150,
-  gridSize: number = 8
+  gridSize: number = CANVAS_CONFIG.gridSize
 ) {
   // Start with a base position
   let x = 100;
@@ -70,12 +71,12 @@ export function getNonOverlappingPosition(
       node.position.x > max.position.x ? node : max
     , nodes[0]);
     
-    // Position to the right of that node
-    x = rightmostNode.position.x + nodeWidth + gridSize * 2;
+    // Position to the right of that node using consistent spacing
+    x = rightmostNode.position.x + nodeWidth + CANVAS_CONFIG.nodeGap;
     y = rightmostNode.position.y;
   }
   
-  return snapToGrid(x, y);
+  return snapToGrid(x, y, gridSize);
 }
 
 /**
@@ -282,7 +283,7 @@ export function transformTemplateNodes(nodes: TemplateNodeData[], templateId?: s
   return nodes.map((node, index) => ({
     id: node.id || node.reactFlowId || `node-${templateId || 'template'}-${index}-${nanoid(6)}`,
     type: node.type || 'action',
-    position: node.position || { x: 250 * index, y: 200 },
+    position: node.position || { x: CANVAS_CONFIG.rankSpacing * index, y: 200 },
     data: {
       label: node.label || node.data?.label || 'Node',
       ...node.data,

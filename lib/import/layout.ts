@@ -1,6 +1,7 @@
 import dagre from 'dagre';
 import { Node, Edge } from '@xyflow/react';
 import { LayoutConfig } from './types';
+import { CANVAS_CONFIG } from '@/lib/utils/constants';
 
 const DEFAULT_NODE_WIDTH = 150;
 const DEFAULT_NODE_HEIGHT = 40;
@@ -19,8 +20,8 @@ export function autoLayout(
   edges: Edge[],
   config: LayoutConfig = {
     direction: 'LR',
-    nodeSpacing: 100,
-    rankSpacing: 150,
+    nodeSpacing: CANVAS_CONFIG.nodeSpacing,
+    rankSpacing: CANVAS_CONFIG.rankSpacing,
     animate: false
   }
 ): Node[] {
@@ -89,7 +90,7 @@ export function autoLayout(
 export function sequentialLayout(
   nodes: Node[],
   direction: 'horizontal' | 'vertical' = 'horizontal',
-  spacing: number = 150
+  spacing: number = CANVAS_CONFIG.nodeSpacing
 ): Node[] {
   let currentX = 0;
   let currentY = 0;
@@ -126,8 +127,8 @@ export function layoutGroups(
   edges: Edge[],
   config: LayoutConfig = {
     direction: 'LR',
-    nodeSpacing: 100,
-    rankSpacing: 150,
+    nodeSpacing: CANVAS_CONFIG.nodeSpacing,
+    rankSpacing: CANVAS_CONFIG.rankSpacing,
     animate: false
   }
 ): Node[] {

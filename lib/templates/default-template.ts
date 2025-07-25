@@ -50,7 +50,7 @@ export const DEFAULT_TEMPLATE_NODES: Node[] = [
   {
     id: 'action-2',
     type: 'action',
-    position: { x: 850, y: 100 },
+    position: { x: 850, y: 80 },
     data: {
       label: 'Send Welcome Email',
       appName: 'Gmail',
@@ -62,7 +62,7 @@ export const DEFAULT_TEMPLATE_NODES: Node[] = [
   {
     id: 'action-3',
     type: 'action',
-    position: { x: 850, y: 300 },
+    position: { x: 850, y: 320 },
     data: {
       label: 'Add to Nurture List',
       appName: 'Mailchimp',

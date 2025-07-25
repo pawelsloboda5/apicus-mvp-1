@@ -7,6 +7,24 @@ import { TemplateSearchResponse, TemplateResponse } from "@/lib/types";
 export const runtime = "nodejs"; // Use Node.js runtime for MongoDB driver compatibility
 // This is necessary because the MongoDB driver relies on Node.js core modules
 
+// Simple embedding cache to avoid repeated Azure OpenAI calls
+const embeddingCache = new Map<string, { embedding: number[], timestamp: number }>();
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+function getCachedEmbedding(query: string): number[] | null {
+  const cached = embeddingCache.get(query);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log("Using cached embedding for query:", query);
+    return cached.embedding;
+  }
+  return null;
+}
+
+function setCachedEmbedding(query: string, embedding: number[]): void {
+  embeddingCache.set(query, { embedding, timestamp: Date.now() });
+  console.log("Cached embedding for query:", query);
+}
+
 // GET /api/templates/search?q=...
 export async function GET(req: Request) {
   try {
@@ -100,6 +118,8 @@ export async function GET(req: Request) {
               vector: embedding,
               path: "embedding",
               k: 6,
+              index: "embedding_index_v2", // Use the optimized index
+              nprobes: 16, // Use the benchmark-recommended nprobes
             },
           },
         },
@@ -180,11 +200,12 @@ export async function GET(req: Request) {
         const atlasPipeline = [
           {
             $vectorSearch: {
-              index: "vector_index", // Make sure this matches your actual index name
+              index: "embedding_index_v2", // Updated to use the new optimized index
               path: "embedding",
               queryVector: embedding,
               numCandidates: 100,
               limit: 6,
+              nprobes: 16, // Added based on benchmark recommendation for optimal speed/recall balance
             },
           },
           { 
@@ -218,7 +239,7 @@ export async function GET(req: Request) {
         ];
 
         const rawResults = await collection.aggregate(atlasPipeline).toArray();
-        console.log("Atlas search successful, results:", rawResults.length);
+        console.log("Atlas search (optimized index v2) successful, results:", rawResults.length);
         
         // Transform results to TemplateResponse format
         const templates: TemplateResponse[] = rawResults.map(doc => ({

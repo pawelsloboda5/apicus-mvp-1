@@ -140,6 +140,23 @@ export interface NodeData {
   appId?: string;
   appSlug?: string;
   index?: number;
+  
+  // Visual data
+  logoUrl?: string;
+  
+  // Pricing data for the app
+  pricingData?: {
+    hasFreeTier?: boolean;
+    lowestMonthlyPrice?: number | null;
+    priceModelType?: string[];
+    isPricingPublic?: boolean;
+    hasUsageBasedPricing?: boolean;
+    currency?: string;
+    appName?: string;
+  };
+  
+  // Selected pricing tier for the app
+  selectedTier?: string;
 }
 
 export interface GroupData {

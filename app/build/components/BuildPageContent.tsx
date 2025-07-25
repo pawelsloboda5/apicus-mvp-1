@@ -25,7 +25,7 @@ import { useEmailGeneration } from "../hooks/useEmailGeneration";
 import { NodeType, Scenario, NodeData } from "@/lib/types";
 
 // Import constants
-import { TASK_TYPE_MULTIPLIERS, BENCHMARKS } from "@/lib/utils/constants";
+import { TASK_TYPE_MULTIPLIERS, BENCHMARKS, CANVAS_CONFIG } from "@/lib/utils/constants";
 
 // Import utilities
 import { transformTemplateNodes, transformTemplateEdges } from "@/lib/flow-utils";
@@ -157,7 +157,7 @@ export function BuildPageContent() {
         loadedNodes = [{
           id: 'default-trigger',
           type: 'trigger',
-          position: { x: 250, y: 200 },
+          position: { x: CANVAS_CONFIG.rankSpacing, y: 200 },
           data: { label: 'Start Here', typeOf: 'webhook' }
         }];
         console.log('Added default trigger node since scenario was empty');
@@ -204,7 +204,7 @@ export function BuildPageContent() {
       const emailNode: Node = {
         id: `email-${Date.now()}`,
         type: 'emailPreview',
-        position: { x: 400, y: 200 },
+        position: { x: CANVAS_CONFIG.nodeSpacing * 2, y: 200 },
         data: {
           ...email,
           nodeTitle: 'Generated Email',

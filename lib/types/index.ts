@@ -41,6 +41,31 @@ export interface NodeData {
   // Connection state for email context nodes
   isConnectedToEmail?: boolean;
   
+  // Dynamic size tracking
+  calculatedWidth?: number;
+  calculatedHeight?: number;
+  lastContentHash?: string; // Hash of content to detect changes
+  
+  // Template-derived data
+  appId?: string;
+  appSlug?: string;
+  index?: number;
+  logoUrl?: string;
+  
+  // Pricing data for the app
+  pricingData?: {
+    hasFreeTier?: boolean;
+    lowestMonthlyPrice?: number | null;
+    priceModelType?: string[];
+    isPricingPublic?: boolean;
+    hasUsageBasedPricing?: boolean;
+    currency?: string;
+    appName?: string;
+  };
+  
+  // Selected pricing tier for the app
+  selectedTier?: string;
+  
   [key: string]: unknown;
 }
 

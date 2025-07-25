@@ -61,7 +61,7 @@ import {
   calculatePaybackPeriod,
   formatPaybackPeriod
 } from "@/lib/roi-utils";
-import { PlatformType as LibPlatformType, NodeType, NodeData } from "@/lib/types";
+import { PlatformType as LibPlatformType, NodeType, NodeData, AppPricingData } from "@/lib/types";
 import { captureROISnapshot, shouldCaptureSnapshot } from "@/lib/metrics-utils";
 
 // Import the mobile toolbox trigger
@@ -337,7 +337,36 @@ function BuildPageContent() {
     const loadedNodes = (scenario.nodesSnapshot as Node<Record<string, unknown>>[] || []).map(node => {
       // Don't add functions to node data as they can't be saved to IndexedDB
       // The click handling should be done at the component level instead
-      return node;
+      
+      // Enrich node with pricing data if available
+      const nodeData = { ...node.data };
+      const appId = nodeData.appId as string | undefined;
+      
+      // Check if we have pricing data stored in the scenario
+      if (appId && scenario.templatePricingData && scenario.templatePricingData[appId]) {
+        const pricingData = scenario.templatePricingData[appId];
+        
+        // Add pricing data to node if not already present
+        if (!nodeData.logoUrl) {
+          nodeData.logoUrl = pricingData.logoUrl;
+        }
+        if (!nodeData.pricingData) {
+          nodeData.pricingData = {
+            hasFreeTier: pricingData.hasFreeTier,
+            lowestMonthlyPrice: pricingData.lowestMonthlyPrice,
+            hasUsageBasedPricing: pricingData.hasUsageBasedPricing,
+            currency: pricingData.currency,
+            appName: pricingData.appName,
+          };
+        }
+        
+        console.log(`[LoadScenarioData] Enriched node ${node.id} with pricing for ${nodeData.appName}`);
+      }
+      
+      return {
+        ...node,
+        data: nodeData
+      };
     });
     
     setNodes(loadedNodes);
@@ -424,6 +453,7 @@ function BuildPageContent() {
         }>;
         platform?: string;
         source?: string;
+        appPricingMap?: Record<string, AppPricingData>;
       } | null = null;
 
       if (activeScenarioIdToLoad) {
@@ -496,17 +526,72 @@ function BuildPageContent() {
           primaryTemplateData = await res.json();
 
           if (primaryTemplateData && primaryTemplateData.nodes && primaryTemplateData.edges && activeScenarioIdToLoad) {
+            // Extract appPricingMap from the template response
+            const appPricingMap = primaryTemplateData.appPricingMap || {};
+            
+            // DEBUG: Log the pricing map
+            console.log('[Template Enrichment] appPricingMap:', appPricingMap);
+            console.log('[Template Enrichment] Number of apps with pricing:', Object.keys(appPricingMap).length);
+            
+            // Enrich nodes with pricing data including logo URLs
+            const enrichedNodes = primaryTemplateData.nodes.map((n) => {
+              const nodeData = { ...n.data };
+              
+              // Check if this node has an appId and if pricing data exists for it
+              const appId = nodeData.appId as string | undefined;
+              
+              // DEBUG: Log each node's appId
+              console.log(`[Node ${n.reactFlowId}] appId:`, appId, 'appName:', nodeData.appName);
+              
+              if (appId && appPricingMap[appId]) {
+                const pricingData = appPricingMap[appId];
+                
+                // DEBUG: Log when we find pricing data
+                console.log(`[Node ${n.reactFlowId}] Found pricing data for ${nodeData.appName}:`, {
+                  logoUrl: pricingData.logoUrl,
+                  hasFreeTier: pricingData.hasFreeTier,
+                  lowestMonthlyPrice: pricingData.lowestMonthlyPrice
+                });
+                
+                // Add pricing data to node
+                nodeData.logoUrl = pricingData.logoUrl;
+                nodeData.pricingData = {
+                  hasFreeTier: pricingData.hasFreeTier,
+                  lowestMonthlyPrice: pricingData.lowestMonthlyPrice,
+                  hasUsageBasedPricing: pricingData.hasUsageBasedPricing,
+                  currency: pricingData.currency,
+                  appName: pricingData.appName,
+                };
+              } else {
+                // DEBUG: Log when no pricing data found
+                console.log(`[Node ${n.reactFlowId}] No pricing data found for ${nodeData.appName} (appId: ${appId})`);
+              }
+              
+              return {
+                id: n.reactFlowId,
+                type: n.type,
+                position: n.position,
+                data: nodeData,
+              };
+            });
+            
+            // DEBUG: Summary
+            console.log('[Template Enrichment] Summary:', {
+              totalNodes: enrichedNodes.length,
+              nodesWithPricing: enrichedNodes.filter(n => n.data.logoUrl).length,
+              nodesWithoutPricing: enrichedNodes.filter(n => !n.data.logoUrl).length
+            });
+            
             const updatedScenarioData: Partial<Scenario> = {
               name: primaryTemplateData.title || scenarioToLoad.name,
-              nodesSnapshot: primaryTemplateData.nodes.map((n) => ({
-                id: n.reactFlowId, type: n.type, position: n.position, data: n.data,
-              })),
+              nodesSnapshot: enrichedNodes,
               edgesSnapshot: primaryTemplateData.edges.map((e) => ({
                 id: e.reactFlowId, source: e.data?.source, target: e.data?.target, label: e.label, data: e.data, type: 'custom',
               })),
               platform: (primaryTemplateData.platform || primaryTemplateData.source || scenarioToLoad.platform) as LibPlatformType,
               originalTemplateId: templateIdParam,
               searchQuery: queryParam || scenarioToLoad.searchQuery,
+              templatePricingData: appPricingMap, // Store the pricing map in the scenario
               updatedAt: Date.now(),
             };
             await db.scenarios.update(activeScenarioIdToLoad, updatedScenarioData);
@@ -1231,22 +1316,138 @@ function BuildPageContent() {
     await saveCurrentWorkflowAsScenario(`Backup of ${currentScenario.name}`);
     const newCreatedScenarioId = await createScenario(fullAlternativeScenario.name || `Loaded: ${fullAlternativeScenario.originalTemplateId}`); // Define newCreatedScenarioId
     
-    const scenarioUpdateData: Partial<Scenario> = {
-        name: fullAlternativeScenario.name || `Loaded: ${fullAlternativeScenario.originalTemplateId}`,
-        nodesSnapshot: fullAlternativeScenario.nodesSnapshot || [], edgesSnapshot: fullAlternativeScenario.edgesSnapshot || [],
-        platform: fullAlternativeScenario.platform as LibPlatformType || "zapier", originalTemplateId: fullAlternativeScenario.originalTemplateId,
-        searchQuery: fullAlternativeScenario.searchQuery || currentScenario.searchQuery,
-        runsPerMonth: fullAlternativeScenario.runsPerMonth || 250, minutesPerRun: fullAlternativeScenario.minutesPerRun || 3,
-        hourlyRate: fullAlternativeScenario.hourlyRate || 30, taskMultiplier: fullAlternativeScenario.taskMultiplier || 1.5,
-        taskType: fullAlternativeScenario.taskType || "general", complianceEnabled: fullAlternativeScenario.complianceEnabled || false,
-        revenueEnabled: fullAlternativeScenario.revenueEnabled || false, riskLevel: fullAlternativeScenario.riskLevel || 3,
-        riskFrequency: fullAlternativeScenario.riskFrequency || 5, errorCost: fullAlternativeScenario.errorCost || 500,
-        monthlyVolume: fullAlternativeScenario.monthlyVolume || 100, conversionRate: fullAlternativeScenario.conversionRate || 5,
-        valuePerConversion: fullAlternativeScenario.valuePerConversion || 200,
-        updatedAt: Date.now(), alternativeTemplatesCache: [],
-    };
-    await db.scenarios.update(newCreatedScenarioId, scenarioUpdateData); // Use newCreatedScenarioId
-    router.replace(`/build?sid=${newCreatedScenarioId}&tid=${fullAlternativeScenario.originalTemplateId}&q=${encodeURIComponent(scenarioUpdateData.searchQuery || '')}`, { scroll: false }); // Use newCreatedScenarioId
+    // Fetch the full template data to get pricing information
+    try {
+      const templateRes = await fetch(`/api/templates/${fullAlternativeScenario.originalTemplateId}`);
+      if (templateRes.ok) {
+        const fullTemplateData = await templateRes.json();
+        
+        // Extract appPricingMap from the template response
+        const appPricingMap = fullTemplateData.appPricingMap || {};
+        
+        // DEBUG: Log alternative template pricing data
+        console.log('[Alternative Template] Loading template:', fullAlternativeScenario.originalTemplateId);
+        console.log('[Alternative Template] appPricingMap:', appPricingMap);
+        console.log('[Alternative Template] Apps with pricing:', Object.keys(appPricingMap).length);
+        
+        // Enrich nodes with pricing data including logo URLs
+        const nodesSnapshot = fullAlternativeScenario.nodesSnapshot as Node<Record<string, unknown>>[] || [];
+        const enrichedNodes = nodesSnapshot.map((node) => {
+          const nodeData = { ...node.data };
+          const appId = nodeData.appId as string | undefined;
+          
+          // DEBUG: Log each node
+          console.log(`[Alternative Node ${node.id}] appId:`, appId, 'appName:', nodeData.appName);
+          
+          if (appId && appPricingMap[appId]) {
+            const pricingData = appPricingMap[appId];
+            
+            // DEBUG: Log pricing match
+            console.log(`[Alternative Node ${node.id}] Found pricing for ${nodeData.appName}`);
+            
+            nodeData.logoUrl = pricingData.logoUrl;
+            nodeData.pricingData = {
+              hasFreeTier: pricingData.hasFreeTier,
+              lowestMonthlyPrice: pricingData.lowestMonthlyPrice,
+              hasUsageBasedPricing: pricingData.hasUsageBasedPricing,
+              currency: pricingData.currency,
+              appName: pricingData.appName,
+            };
+          } else {
+            console.log(`[Alternative Node ${node.id}] No pricing for ${nodeData.appName}`);
+          }
+          
+          return {
+            ...node,
+            data: nodeData
+          };
+        });
+        
+        const scenarioUpdateData: Partial<Scenario> = {
+            name: fullAlternativeScenario.name || `Loaded: ${fullAlternativeScenario.originalTemplateId}`,
+            nodesSnapshot: enrichedNodes, // Use enriched nodes instead
+            edgesSnapshot: fullAlternativeScenario.edgesSnapshot || [],
+            platform: fullAlternativeScenario.platform as LibPlatformType || "zapier", 
+            originalTemplateId: fullAlternativeScenario.originalTemplateId,
+            searchQuery: fullAlternativeScenario.searchQuery || currentScenario.searchQuery,
+            templatePricingData: appPricingMap, // Store the pricing map
+            runsPerMonth: fullAlternativeScenario.runsPerMonth || 250, 
+            minutesPerRun: fullAlternativeScenario.minutesPerRun || 3,
+            hourlyRate: fullAlternativeScenario.hourlyRate || 30, 
+            taskMultiplier: fullAlternativeScenario.taskMultiplier || 1.5,
+            taskType: fullAlternativeScenario.taskType || "general", 
+            complianceEnabled: fullAlternativeScenario.complianceEnabled || false,
+            revenueEnabled: fullAlternativeScenario.revenueEnabled || false, 
+            riskLevel: fullAlternativeScenario.riskLevel || 3,
+            riskFrequency: fullAlternativeScenario.riskFrequency || 5, 
+            errorCost: fullAlternativeScenario.errorCost || 500,
+            monthlyVolume: fullAlternativeScenario.monthlyVolume || 100, 
+            conversionRate: fullAlternativeScenario.conversionRate || 5,
+            valuePerConversion: fullAlternativeScenario.valuePerConversion || 200,
+            updatedAt: Date.now(), 
+            alternativeTemplatesCache: [],
+        };
+        await db.scenarios.update(newCreatedScenarioId, scenarioUpdateData); // Use newCreatedScenarioId
+        router.replace(`/build?sid=${newCreatedScenarioId}&tid=${fullAlternativeScenario.originalTemplateId}&q=${encodeURIComponent(scenarioUpdateData.searchQuery || '')}`, { scroll: false }); // Use newCreatedScenarioId
+      } else {
+        // Fallback to original behavior if template fetch fails
+        const scenarioUpdateData: Partial<Scenario> = {
+            name: fullAlternativeScenario.name || `Loaded: ${fullAlternativeScenario.originalTemplateId}`,
+            nodesSnapshot: fullAlternativeScenario.nodesSnapshot || [], 
+            edgesSnapshot: fullAlternativeScenario.edgesSnapshot || [],
+            platform: fullAlternativeScenario.platform as LibPlatformType || "zapier", 
+            originalTemplateId: fullAlternativeScenario.originalTemplateId,
+            searchQuery: fullAlternativeScenario.searchQuery || currentScenario.searchQuery,
+            runsPerMonth: fullAlternativeScenario.runsPerMonth || 250, 
+            minutesPerRun: fullAlternativeScenario.minutesPerRun || 3,
+            hourlyRate: fullAlternativeScenario.hourlyRate || 30, 
+            taskMultiplier: fullAlternativeScenario.taskMultiplier || 1.5,
+            taskType: fullAlternativeScenario.taskType || "general", 
+            complianceEnabled: fullAlternativeScenario.complianceEnabled || false,
+            revenueEnabled: fullAlternativeScenario.revenueEnabled || false, 
+            riskLevel: fullAlternativeScenario.riskLevel || 3,
+            riskFrequency: fullAlternativeScenario.riskFrequency || 5, 
+            errorCost: fullAlternativeScenario.errorCost || 500,
+            monthlyVolume: fullAlternativeScenario.monthlyVolume || 100, 
+            conversionRate: fullAlternativeScenario.conversionRate || 5,
+            valuePerConversion: fullAlternativeScenario.valuePerConversion || 200,
+            updatedAt: Date.now(), 
+            alternativeTemplatesCache: [],
+        };
+        await db.scenarios.update(newCreatedScenarioId, scenarioUpdateData); // Use newCreatedScenarioId
+        router.replace(`/build?sid=${newCreatedScenarioId}&tid=${fullAlternativeScenario.originalTemplateId}&q=${encodeURIComponent(scenarioUpdateData.searchQuery || '')}`, { scroll: false }); // Use newCreatedScenarioId
+      }
+    } catch (error) {
+      console.error('Error loading alternative template:', error);
+      // Fallback to original behavior
+      const scenarioUpdateData: Partial<Scenario> = {
+          name: fullAlternativeScenario.name || `Loaded: ${fullAlternativeScenario.originalTemplateId}`,
+          nodesSnapshot: fullAlternativeScenario.nodesSnapshot || [], 
+          edgesSnapshot: fullAlternativeScenario.edgesSnapshot || [],
+          platform: fullAlternativeScenario.platform as LibPlatformType || "zapier", 
+          originalTemplateId: fullAlternativeScenario.originalTemplateId,
+          searchQuery: fullAlternativeScenario.searchQuery || currentScenario.searchQuery,
+          runsPerMonth: fullAlternativeScenario.runsPerMonth || 250, 
+          minutesPerRun: fullAlternativeScenario.minutesPerRun || 3,
+          hourlyRate: fullAlternativeScenario.hourlyRate || 30, 
+          taskMultiplier: fullAlternativeScenario.taskMultiplier || 1.5,
+          taskType: fullAlternativeScenario.taskType || "general", 
+          complianceEnabled: fullAlternativeScenario.complianceEnabled || false,
+          revenueEnabled: fullAlternativeScenario.revenueEnabled || false, 
+          riskLevel: fullAlternativeScenario.riskLevel || 3,
+          riskFrequency: fullAlternativeScenario.riskFrequency || 5, 
+          errorCost: fullAlternativeScenario.errorCost || 500,
+          monthlyVolume: fullAlternativeScenario.monthlyVolume || 100, 
+          conversionRate: fullAlternativeScenario.conversionRate || 5,
+          valuePerConversion: fullAlternativeScenario.valuePerConversion || 200,
+          updatedAt: Date.now(), 
+          alternativeTemplatesCache: [],
+      };
+      await db.scenarios.update(newCreatedScenarioId, scenarioUpdateData); // Use newCreatedScenarioId
+      router.replace(`/build?sid=${newCreatedScenarioId}&tid=${fullAlternativeScenario.originalTemplateId}&q=${encodeURIComponent(scenarioUpdateData.searchQuery || '')}`, { scroll: false }); // Use newCreatedScenarioId
+    }
+    
+    setIsLoading(false);
   }, [currentScenario, saveCurrentWorkflowAsScenario, router, alternativeTemplates]);
 
   const handleLoadScenario = useCallback(async (idToLoad: number) => {

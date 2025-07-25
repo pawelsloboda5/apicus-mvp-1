@@ -1,6 +1,6 @@
 import { Node, Edge } from '@xyflow/react';
 import { NodeType, NodeData, GroupData, EmailPreviewNodeData } from '@/lib/types';
-import { NODE_DEFAULTS } from '@/lib/utils/constants';
+import { NODE_DEFAULTS, CANVAS_CONFIG } from '@/lib/utils/constants';
 
 /**
  * Create a new node with the specified type and position
@@ -212,11 +212,11 @@ export function getOptimalNodePosition(
 ): { x: number; y: number } {
   const basePosition = preferredPosition || { x: 100, y: 100 };
   
-  // Check if the position is already occupied
+  // Check if the position is already occupied using consistent spacing
   const isPositionOccupied = (pos: { x: number; y: number }) => {
     return existingNodes.some(node => 
-      Math.abs(node.position.x - pos.x) < 50 && 
-      Math.abs(node.position.y - pos.y) < 50
+      Math.abs(node.position.x - pos.x) < CANVAS_CONFIG.nodeGap && 
+      Math.abs(node.position.y - pos.y) < CANVAS_CONFIG.nodeGap
     );
   };
 
@@ -224,11 +224,11 @@ export function getOptimalNodePosition(
   let attempts = 0;
   const maxAttempts = 100;
 
-  // Find an unoccupied position
+  // Find an unoccupied position using consistent spacing
   while (isPositionOccupied(position) && attempts < maxAttempts) {
     position = {
-      x: basePosition.x + (attempts % 10) * 60,
-      y: basePosition.y + Math.floor(attempts / 10) * 80,
+      x: basePosition.x + (attempts % 10) * CANVAS_CONFIG.nodeSpacing,
+      y: basePosition.y + Math.floor(attempts / 10) * CANVAS_CONFIG.verticalGap,
     };
     attempts++;
   }

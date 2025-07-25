@@ -76,12 +76,36 @@ export const BENCHMARKS = {
  * Node Configuration
  */
 export const NODE_DEFAULTS = {
-  width: 150,
+  width: 180,
   height: 40,
   emailNodeWidth: 700,
   emailNodeHeight: 900,
   groupMinWidth: 200,
   groupMinHeight: 100,
+  minWidth: 150,
+  maxWidth: 500,
+  padding: 20,
+  iconSize: 32,
+  textPadding: 12,
+} as const;
+
+/**
+ * Width calculation utilities
+ */
+export const WIDTH_CALCULATION = {
+  // Character width estimation (pixels)
+  charWidth: 8.5,
+  // Font sizes
+  primaryFontSize: 16,
+  secondaryFontSize: 14,
+  // Line height multiplier
+  lineHeight: 1.2,
+  // Additional padding for badges, icons, etc.
+  badgePadding: 30,
+  iconPadding: 48,
+  pricingPadding: 45,
+  // Minimum spacing between elements
+  elementSpacing: 12,
 } as const;
 
 /**
@@ -113,7 +137,10 @@ export const CANVAS_CONFIG = {
   minZoom: 0.1,
   maxZoom: 4,
   defaultViewport: { x: 0, y: 0, zoom: 1 },
-  nodeSpacing: 150,
+  nodeSpacing: 200,          // Increased from 150 for better spacing
+  rankSpacing: 250,          // New: spacing between columns/ranks
+  nodeGap: 80,              // New: minimum gap between nodes
+  verticalGap: 100,         // New: vertical spacing for positioning
   groupPadding: 20,
 } as const;
 
@@ -276,4 +303,70 @@ export const STORAGE_KEYS = {
   canvasPosition: 'apicus_canvasPosition',
   toolboxWidth: 'apicus_toolboxWidth',
   toolboxCollapsed: 'apicus_toolboxCollapsed',
-} as const; 
+} as const;
+
+/**
+ * Width calculation utilities
+ */
+export function calculateNodeWidth(
+  primaryText: string,
+  secondaryText?: string,
+  hasBadge?: boolean,
+  hasIcon?: boolean,
+  isEmailContext?: boolean,
+  hasPricing?: boolean
+): number {
+  const { charWidth, badgePadding, iconPadding, pricingPadding, elementSpacing } = WIDTH_CALCULATION;
+  const { minWidth, maxWidth, padding } = NODE_DEFAULTS;
+  
+  // Calculate primary text width with more generous spacing
+  const primaryWidth = primaryText.length * charWidth * 1.1; // Add 10% extra for letter spacing
+  
+  // Calculate secondary text width if present
+  const secondaryWidth = secondaryText ? secondaryText.length * charWidth : 0;
+  
+  // Take the larger of primary or secondary text
+  const textWidth = Math.max(primaryWidth, secondaryWidth);
+  
+  // Add padding and spacing
+  let totalWidth = textWidth + (padding * 2);
+  
+  // Add icon space if present (now larger)
+  if (hasIcon) {
+    totalWidth += iconPadding;
+  }
+  
+  // Add badge space if present
+  if (hasBadge) {
+    totalWidth += badgePadding;
+  }
+  
+  // Add pricing space if present
+  if (hasPricing) {
+    totalWidth += pricingPadding;
+  }
+  
+  // Add extra spacing for email context nodes
+  if (isEmailContext) {
+    totalWidth += elementSpacing * 2;
+  }
+  
+  // Add minimum padding to ensure text doesn't feel cramped
+  totalWidth += elementSpacing;
+  
+  // Ensure within min/max bounds
+  return Math.max(minWidth, Math.min(maxWidth, totalWidth));
+}
+
+/**
+ * Generate a simple hash for content to detect changes
+ */
+export function generateContentHash(content: string): string {
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return hash.toString(16);
+} 
