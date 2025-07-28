@@ -1474,6 +1474,112 @@ function BuildPageContent() {
     setIsLoading(false);
   }, [loadScenarioDataToState, router]);
 
+  const handleDuplicateScenario = useCallback(async () => {
+    if (!currentScenario || !currentScenario.id) {
+      console.warn('No current scenario to duplicate');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Create a new scenario with duplicated data
+      const duplicateName = `${currentScenario.name} (Copy)`;
+      const newScenarioId = await db.scenarios.add({
+        name: duplicateName,
+        slug: nanoid(8), // Generate a new slug for the duplicate
+        platform: currentScenario.platform,
+        nodesSnapshot: currentScenario.nodesSnapshot,
+        edgesSnapshot: currentScenario.edgesSnapshot,
+        viewport: currentScenario.viewport,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        // Copy all ROI data
+        runsPerMonth: currentScenario.runsPerMonth,
+        minutesPerRun: currentScenario.minutesPerRun,
+        hourlyRate: currentScenario.hourlyRate,
+        taskMultiplier: currentScenario.taskMultiplier,
+        taskType: currentScenario.taskType,
+        complianceEnabled: currentScenario.complianceEnabled,
+        riskLevel: currentScenario.riskLevel,
+        riskFrequency: currentScenario.riskFrequency,
+        errorCost: currentScenario.errorCost,
+        revenueEnabled: currentScenario.revenueEnabled,
+        monthlyVolume: currentScenario.monthlyVolume,
+        conversionRate: currentScenario.conversionRate,
+        valuePerConversion: currentScenario.valuePerConversion,
+        // Copy template data
+        originalTemplateId: currentScenario.originalTemplateId,
+        searchQuery: currentScenario.searchQuery,
+        templatePricingData: currentScenario.templatePricingData,
+        // Copy email data
+        emailFirstName: currentScenario.emailFirstName,
+        emailYourName: currentScenario.emailYourName,
+        emailYourCompany: currentScenario.emailYourCompany,
+        emailYourEmail: currentScenario.emailYourEmail,
+        emailCalendlyLink: currentScenario.emailCalendlyLink,
+        emailPdfLink: currentScenario.emailPdfLink,
+        emailHookText: currentScenario.emailHookText,
+        emailCtaText: currentScenario.emailCtaText,
+        emailSubjectLine: currentScenario.emailSubjectLine,
+        emailOfferText: currentScenario.emailOfferText,
+        emailPsText: currentScenario.emailPsText,
+        emailTestimonialText: currentScenario.emailTestimonialText,
+        emailUrgencyText: currentScenario.emailUrgencyText,
+      });
+      
+      if (newScenarioId && typeof newScenarioId === 'number') {
+        // Navigate to the new duplicated scenario
+        router.push(`/build?sid=${newScenarioId}`);
+      }
+    } catch (error) {
+      console.error('Failed to duplicate scenario:', error);
+      alert('Failed to duplicate scenario. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentScenario, router]);
+
+  const handleDeleteScenario = useCallback(async () => {
+    if (!currentScenario || !currentScenario.id) {
+      console.warn('No current scenario to delete');
+      return;
+    }
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${currentScenario.name}"? This action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setIsLoading(true);
+      const scenarioIdToDelete = currentScenario.id;
+      
+      // Delete the scenario from the database
+      await db.scenarios.delete(scenarioIdToDelete);
+      
+      // Find another scenario to navigate to
+      const remainingScenarios = await db.scenarios.orderBy('updatedAt').reverse().toArray();
+      const otherScenario = remainingScenarios.find(s => s.id !== scenarioIdToDelete);
+      
+      if (otherScenario && otherScenario.id) {
+        // Navigate to another existing scenario
+        router.push(`/build?sid=${otherScenario.id}`);
+      } else {
+        // No other scenarios exist, create a new one
+        const newId = await createScenario("Untitled Scenario");
+        router.push(`/build?sid=${newId}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete scenario:', error);
+      alert('Failed to delete scenario. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentScenario, router]);
+
   const focusOnNode = useCallback((nodeId: string) => {
     if (!rfInstance) return;
     const node = rfInstance.getNode(nodeId);
@@ -2617,6 +2723,8 @@ function BuildPageContent() {
                     titleInputRef={titleInputRef}
                     selectedNodeType={selectedNodeType}
                     onNodeTypeChange={setSelectedNodeType}
+                    onDuplicateScenario={handleDuplicateScenario}
+                    onDeleteScenario={handleDeleteScenario}
                   />
 
                   {/* Property Panels - existing code... */}

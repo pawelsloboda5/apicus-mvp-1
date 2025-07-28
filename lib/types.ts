@@ -246,6 +246,10 @@ export interface FlowCanvasProps {
   // Props for floating node selector
   selectedNodeType?: NodeType;
   onNodeTypeChange?: (type: NodeType) => void;
+  
+  // Props for scenario actions
+  onDuplicateScenario?: () => void;
+  onDeleteScenario?: () => void;
 }
 
 export interface Scenario {

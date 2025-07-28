@@ -16,7 +16,7 @@ import "@xyflow/react/dist/style.css";
 import { FlowCanvasProps, NodeType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Edit2Icon } from "lucide-react";
+import { Edit2Icon, Copy, Trash2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { FloatingNodeSelector } from "./FloatingNodeSelector";
 import { addSectionConnection, removeSectionConnection, EmailSectionConnections } from "@/lib/flow-utils";
@@ -47,6 +47,8 @@ export function FlowCanvas({
   setDroppableRef,
   selectedNodeType = 'action',
   onNodeTypeChange,
+  onDuplicateScenario,
+  onDeleteScenario,
 }: FlowCanvasProps & { 
   isOver?: boolean; 
   setDroppableRef?: (ref: HTMLDivElement | null) => void;
@@ -557,15 +559,49 @@ export function FlowCanvas({
             </h2>
           )}
           {!isEditingTitle && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => onToggleEditTitle(true)} 
-              className={`ml-2 flex-shrink-0 ${isMobile ? 'h-8 w-8' : 'h-7 w-7'}`}
-              title="Edit scenario name"
-            >
-              <Edit2Icon className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
-            </Button>
+            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onDuplicateScenario) {
+                    onDuplicateScenario();
+                  } else {
+                    console.log('Duplicate scenario clicked - handler not connected yet');
+                  }
+                }}
+                className={`group/duplicate hover:bg-muted hover:scale-105 transition-all duration-200 ${isMobile ? 'h-8 w-8' : 'h-7 w-7'}`}
+                title="Duplicate scenario"
+              >
+                <Copy className={`text-muted-foreground group-hover/duplicate:text-foreground transition-colors duration-200 ${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}`} />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onDeleteScenario) {
+                    onDeleteScenario();
+                  } else {
+                    console.log('Delete scenario clicked - handler not connected yet');
+                  }
+                }}
+                className={`group/delete hover:bg-destructive/10 hover:text-destructive hover:scale-105 transition-all duration-200 ${isMobile ? 'h-8 w-8' : 'h-7 w-7'}`}
+                title="Delete scenario"
+              >
+                <Trash2 className={`text-muted-foreground group-hover/delete:text-destructive transition-colors duration-200 ${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}`} />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => onToggleEditTitle(true)} 
+                className={`group/edit hover:bg-muted hover:scale-105 transition-all duration-200 ${isMobile ? 'h-8 w-8' : 'h-7 w-7'}`}
+                title="Edit scenario name"
+              >
+                <Edit2Icon className={`text-muted-foreground group-hover/edit:text-foreground transition-colors duration-200 ${isMobile ? "h-5 w-5" : "h-4 w-4"}`} />
+              </Button>
+            </div>
           )}
         </div>
       )}

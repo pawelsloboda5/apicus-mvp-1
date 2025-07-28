@@ -45,6 +45,14 @@ This document enumerates every sub-task required to ship the first-pass Visual W
 - [x] Multi-select nodes with Shift key.
 - [x] Group/Ungroup selected nodes.
 
+## 4.5 Scenario Management UI (1 hr)
+- [x] **Duplicate Scenario** button in canvas title with enhanced hover states.
+- [x] **Delete Scenario** button in canvas title with confirmation dialog.
+- [x] Implement duplicate functionality using Dexie - copies all scenario data (nodes, edges, ROI settings, email content).
+- [x] Implement delete functionality using Dexie with smart navigation to remaining scenarios.
+- [x] Enhanced hover states for all title buttons (scale animation, color transitions).
+- [x] Connect scenario action handlers to FlowCanvas component props.
+
 ---
 ## 5 Live Task/Op/Exec Estimator  (1 hr)
 - [x] Derive **tasks per run** heuristics per node type (config file).
