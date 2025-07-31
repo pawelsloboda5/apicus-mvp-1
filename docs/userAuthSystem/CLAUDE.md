@@ -22,11 +22,29 @@ Based on existing `Scenario` interface, the user collection needs to store:
 - User preferences/settings
 - Analytics/usage metrics
 
-## Next Steps
-1. Create comprehensive implementation plan
-2. Design MongoDB user collection schema
-3. Plan authentication flow and UI changes
-4. Identify server-sync strategy for high-frequency operations
+## ✅ Planning Complete
 
-## Questions for Review
-Will add specific technical questions after creating the detailed plan.
+All requirements confirmed in PLAN.md:
+- 5-second debounce for canvas sync
+- No guest mode (redirect to homepage)
+- All users free tier
+- JSON exports
+- Platform switching syncs to server
+- Global email defaults for new scenarios
+
+## Implementation Strategy - Minimal Changes Per Step
+
+Following user rules for minimal code changes, implementation will proceed:
+
+**Step 1**: Create NextAuth.js configuration file
+- Single file: `app/api/auth/[...nextauth]/route.ts`
+- Basic Google OAuth setup
+- No UI changes yet
+
+**Step 1 Complete**: ✅ Created NextAuth config file (`app/api/auth/[...nextauth]/route.ts`)
+- Basic Google OAuth setup with JWT sessions
+- Custom callbacks for user ID handling
+- Sign-in redirects to homepage
+
+**Current Status**: NextAuth config created, ready for testing
+**Next Action**: Add environment variables and test authentication flow

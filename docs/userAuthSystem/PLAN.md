@@ -46,7 +46,7 @@ interface ApicusUser {
     totalScenarios: number;
     totalEmails: number;
     lastActive: Date;
-    planType: 'free' | 'pro'; // Future expansion
+    planType: 'free'; // All users are free for now
   };
 }
 ```
@@ -124,7 +124,7 @@ const debouncedCanvasSync = useDebouncedCallback(
       viewport: canvasData.viewport 
     });
   },
-  2000 // 2 second delay
+  5000 // 5 second delay
 );
 
 // Immediate sync for critical changes
@@ -132,7 +132,8 @@ const immediateSyncTriggers = [
   'scenario_rename',
   'roi_settings_change', 
   'email_generation',
-  'scenario_delete'
+  'scenario_delete',
+  'platform_switch'
 ];
 ```
 
@@ -214,20 +215,26 @@ MONGODB_DB_NAME=your_database_name
 - **Versioning**: Track scenario update timestamps
 
 ### 9.3 Authentication Failures
-- **Solution**: Graceful degradation to guest mode
+- **Solution**: Redirect to homepage with login prompt (no guest mode)
 - **Session**: Proper session refresh and error handling
-- **Offline**: Continue working with local storage when offline
+- **Offline**: Graceful error messages directing users to sign in
 
-## Questions for Review
+## Implementation Decisions ✅
 
-1. **Server Sync Frequency**: Is 2-second debounce appropriate for canvas changes, or should it be longer/shorter?
+Based on review feedback, the following decisions have been made:
 
-2. **Guest Mode**: Should unauthenticated users be able to use a limited "guest mode" with session-only storage?
+1. **Server Sync Frequency**: ✅ **5-second debounce** for canvas changes 
 
-3. **Scenario Limits**: Should we implement scenario limits for free vs. pro users?
+2. **Guest Mode**: ✅ **No guest mode** - unauthenticated users redirected to homepage with login prompt
 
-4. **Data Export**: What format should we use for scenario export/backup? (JSON, CSV, etc.)
+3. **User Tiers**: ✅ **All users are free** - no scenario limits, single tier for now
 
-5. **Email Integration**: Should user email preferences be synced across all scenarios or per-scenario?
+4. **Data Export**: ✅ **JSON format** for scenario export/backup
 
-6. **Platform Switching**: How should we handle users switching between platforms (Zapier/Make/n8n) in terms of data organization?
+5. **Platform Switching**: ✅ **Server sync enabled** - platform changes trigger immediate sync since ROI data is server-stored
+
+6. **Email Integration**: ✅ **Global defaults** - email preferences (yourName, yourCompany, yourEmail, calendlyLink) stored in `user.preferences.emailDefaults` and applied to all new scenarios
+
+## ✅ Plan Complete - Ready for Implementation
+
+All requirements confirmed. Implementation will proceed in minimal incremental steps with review after each change.
