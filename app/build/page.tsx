@@ -37,7 +37,7 @@ import { useTheme } from "next-themes";
 
 // Import custom components
 import { StatsBar } from "@/components/flow/StatsBar";
-import { NodePropertiesPanel } from "@/components/flow/NodePropertiesPanel";
+import { NodePropertiesPanel } from "@/components/flow/panels/NodePropertiesPanel";
 import { ROISettingsPanel } from "@/components/roi/ROISettingsPanel";
 import { FlowCanvas } from "@/components/flow/FlowCanvas";
 import { CustomEdge } from "@/components/flow/CustomEdge";
