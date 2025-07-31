@@ -172,6 +172,14 @@
 - **Result**: ROI Settings Panel now receives actual workflow nodes and displays correct calculations
 - **Expected Impact**: ROI Summary should now show proper monthly values, platform costs, and app costs based on actual workflow nodes
 
+#### 2025-01-07 - Enhanced ROI Settings Panel UI ✅
+- **Enhanced** Monthly Value and Net ROI displays to always show integers (no decimals) using `Math.round()`
+- **Fixed** progress bar colors in Core Metrics section for better visibility using `bg-muted [&>div]:bg-primary`
+- **Improved** Platform Cost Comparison bars with custom colored progress indicators using inline styles
+- **Updated** workflow steps calculation to be dynamic based on actual nodes instead of hardcoded 5 steps
+- **Result**: "Based on X runs/month with ~Y steps per workflow" now accurately reflects the current workflow (8 steps)
+- **UI**: Cleaner integer display for financial values, more visible progress bars, accurate step counts
+
 ## Technical Notes
 
 ### Data Flow Dependencies

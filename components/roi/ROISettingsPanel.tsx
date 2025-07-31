@@ -178,13 +178,20 @@ const PlatformComparison = ({
           
           <Progress 
             value={(platform.totalCost / maxCost) * 100} 
-            className="h-1.5"
+            className="h-1.5 bg-muted"
             style={{ 
               // @ts-expect-error CSS custom properties are not recognized by TypeScript but are valid CSS
-              '--progress-background': platform.color
-             
+              '--tw-bg-opacity': '1'
             }}
-          />
+          >
+            <div 
+              className="h-full transition-all"
+              style={{ 
+                width: `${(platform.totalCost / maxCost) * 100}%`,
+                backgroundColor: platform.color
+              }}
+            />
+          </Progress>
         </div>
       ))}
     </div>
@@ -230,7 +237,14 @@ export function ROISettingsPanel({
   nodes = [],
 }: ROISettingsPanelProps) {
   
-  const [stepsPerRun] = useState(5); // Average steps per workflow
+  // Calculate steps per run based on actual workflow nodes
+  const stepsPerRun = useMemo(() => {
+    const workflowNodes = nodes.filter(n => 
+      n.type && !['group', 'email', 'emailPreview'].includes(n.type) && 
+      !['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value'].includes(n.type)
+    );
+    return Math.max(1, workflowNodes.length); // At least 1 step
+  }, [nodes]);
 
   // Use centralized ROI calculations that sync with StatsBar and NodePropertiesPanel
   const roiCalculations = useROICalculations({
@@ -279,7 +293,7 @@ export function ROISettingsPanel({
             <div className="relative z-10">
               <p className="text-sm font-medium text-green-700 dark:text-green-300">Monthly Value</p>
               <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-1">
-                ${totalValue.toLocaleString()}
+                ${Math.round(totalValue).toLocaleString()}
               </p>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                 {workflowNodes.length} automation steps
@@ -292,7 +306,7 @@ export function ROISettingsPanel({
             <div className="relative z-10">
               <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Net ROI</p>
               <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-1">
-                ${netROIValue.toLocaleString()}
+                ${Math.round(netROIValue).toLocaleString()}
               </p>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                 {roiRatioValue.toFixed(1)}x return ratio
@@ -448,7 +462,7 @@ export function ROISettingsPanel({
               <Label className="text-sm">Task Value Multiplier</Label>
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <Progress value={taskMultiplier * 33.33} className="h-2" />
+                  <Progress value={taskMultiplier * 33.33} className="h-2 bg-muted [&>div]:bg-primary" />
                 </div>
                 <span className="text-sm font-medium w-10 text-right">{taskMultiplier}×</span>
               </div>
