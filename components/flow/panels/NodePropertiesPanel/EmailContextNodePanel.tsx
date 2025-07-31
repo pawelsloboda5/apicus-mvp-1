@@ -287,7 +287,7 @@ export function EmailContextNodePanel({ node, nodes, edges, setNodes }: EmailCon
                         )
                       );
                     }}
-                    className="ml-1 hover:text-destructive"
+                    className="ml-1 hover:text-destructive bg-red-600 hover:bg-red-700 text-white"
                   >
                     ×
                   </button>

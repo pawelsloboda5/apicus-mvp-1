@@ -122,10 +122,10 @@ export function NodePropertiesPanel({
         </SheetHeader>
         
         {selectedNode && (
-          <Tabs defaultValue="configuration" className="flex-1 flex flex-col">
+          <Tabs defaultValue="configuration" className="flex-1 flex flex-col overflow-hidden">
             {/* Show tabs only for action nodes with app data and pricing */}
             {!isEmailContextNode && nodeData?.appName && nodeData?.pricingData && (
-              <TabsList className="grid w-full grid-cols-2 mx-6 mb-0 max-w-[calc(100%-3rem)]">
+              <TabsList className="grid w-full grid-cols-2 mx-6 mb-0 max-w-[calc(100%-3rem)] flex-shrink-0">
                 <TabsTrigger value="configuration">Configuration</TabsTrigger>
                 <TabsTrigger value="pricing">
                   <DollarSign className="h-3 w-3 mr-1" />
@@ -135,7 +135,7 @@ export function NodePropertiesPanel({
             )}
             
             {/* Configuration Tab */}
-            <TabsContent value="configuration" className="flex-1 overflow-y-auto mt-0">
+            <TabsContent value="configuration" className="flex-1 overflow-y-auto mt-0 min-h-0">
               <div className="p-6 space-y-6">
               {/* Node Overview */}
               <div>
@@ -338,7 +338,7 @@ export function NodePropertiesPanel({
 
             {/* Pricing Tab */}
             {!isEmailContextNode && nodeData?.appName && nodeData?.pricingData && (
-              <TabsContent value="pricing" className="flex-1 overflow-y-auto mt-0">
+              <TabsContent value="pricing" className="flex-1 overflow-y-auto mt-0 min-h-0">
                 <div className="p-6 space-y-6">
                   {/* App Header with Logo */}
                   <div className="space-y-3">
@@ -403,7 +403,7 @@ export function NodePropertiesPanel({
             variant="destructive"
             size="sm"
             onClick={handleDeleteNode}
-            className="w-full flex items-center gap-2"
+            className="w-full flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
           >
             <Trash2 className="h-4 w-4" />
             Delete Node

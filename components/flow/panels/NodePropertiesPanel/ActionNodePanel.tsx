@@ -80,7 +80,7 @@ export function ActionNodePanel({ node, setNodes }: ActionNodePanelProps) {
               <SelectTrigger className="mt-1.5">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
                 {Object.entries(COMMON_ACTIONS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
