@@ -25,6 +25,7 @@ import { ActionNodePanel } from "./ActionNodePanel";
 import { DecisionNodePanel } from "./DecisionNodePanel";
 import { EmailContextNodePanel } from "./EmailContextNodePanel";
 import { DefaultNodePanel } from "./DefaultNodePanel";
+import Image from "next/image";
 
 export function NodePropertiesPanel({
   selectedNode,
@@ -273,7 +274,7 @@ export function NodePropertiesPanel({
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       {nodeData?.logoUrl && (
-                        <img 
+                        <Image 
                           src={nodeData.logoUrl} 
                           alt={`${nodeData?.appName} logo`}
                           width={40}

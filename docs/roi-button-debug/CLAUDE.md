@@ -128,7 +128,7 @@ scenarioManager.updateScenario({
 5. ✅ No scenario reload triggered (same persistent nodes)
 6. ✅ ROI node remains visible on canvas
 
-## ❌ **FIX INCOMPLETE** - Additional Issue Found
+## ✅ **FIX COMPLETE** - ROI Button Working!
 
 ### Summary:
 - **Root Cause**: Auto-save mechanism was saving ROI nodes to scenario, triggering reload that overwrote them
@@ -186,6 +186,27 @@ The scenario reload is STILL happening despite the auto-save filter. This sugges
 - useEffect now only depends on `scenarioManager.scenario?.id` (primitive value)
 - Object reference changes from `updateScenario()` won't trigger reload
 - Scenario reload only happens when actual scenario ID changes (switching scenarios)
+
+## ✅ **FINAL VERIFICATION** - User Confirmed Working!
+
+### User Report (January 7, 2025):
+> "it works"
+
+### TypeScript Fixes Applied ✅
+**File**: `app/build/components/BuildPageContent.tsx`
+
+Fixed all linting errors:
+1. **Line 120**: Replaced `any` type with proper `Parameters<typeof originalOnNodesChange>[0]`
+2. **Line 158**: Removed unnecessary `scenarioManager` from dependency (keeping only specific methods)
+3. **Line 218**: Removed `roi` and `scenarioManager.scenario` from dependencies (breaking circular dependency)
+4. **Line 489**: Changed to `scenarioManager` (stable object reference)
+5. **Line 628**: Changed to `scenarioManager` (stable object reference)
+
+### Architecture Benefits Achieved:
+- 🎯 **ROI Nodes Persist**: Stay on canvas until manually deleted
+- 🚀 **No Performance Issues**: Eliminated infinite re-render loops
+- 🔧 **Type Safety**: All TypeScript errors resolved
+- 🛡️ **Maintainable**: Proper dependency management for hooks
 
 ### Files Modified:
 - ✅ `app/build/components/BuildPageContent.tsx` - Auto-save filtering

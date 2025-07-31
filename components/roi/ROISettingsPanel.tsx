@@ -19,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { pricing } from "@/app/api/data/pricing";
 import type { Scenario } from "@/lib/db";
-import { PlatformType, AppPricingData } from "@/lib/types";
+import { PlatformType } from "@/lib/types";
 // ROI utilities are now handled by the useROICalculations hook
 import { useROICalculations } from "@/lib/hooks/useROICalculations";
 import { Node } from "@xyflow/react";

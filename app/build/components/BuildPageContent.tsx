@@ -117,7 +117,7 @@ export function BuildPageContent() {
   const [nodes, setNodes, originalOnNodesChange] = useNodesState<Node>([]);
   
   // Debug wrapper for onNodesChange
-  const onNodesChange = useCallback((changes: any) => {
+  const onNodesChange = useCallback((changes: Parameters<typeof originalOnNodesChange>[0]) => {
     console.log('🔄 onNodesChange called with changes:', changes);
     originalOnNodesChange(changes);
     console.log('🔄 onNodesChange processed');
@@ -155,7 +155,7 @@ export function BuildPageContent() {
     if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
       scenarioManager.updateScenario(settings);
     }
-  }, [scenarioManager.scenario?.id, scenarioManager.updateScenario]); // Use scenario ID instead of full object
+  }, [scenarioManager]);
 
   // Initialize ROI hook
   const roi = useROI({
@@ -215,7 +215,7 @@ export function BuildPageContent() {
       loadScenarioToCanvas(scenarioManager.scenario);
       roi.loadFromScenario(scenarioManager.scenario);
     }
-  }, [scenarioManager.scenario?.id, loadScenarioToCanvas, roi.loadFromScenario]); // Only depend on scenario ID, not the full object
+  }, [scenarioManager.scenario?.id, loadScenarioToCanvas, roi, scenarioManager.scenario]);
 
   // Initialize email generation hook
   const emailGeneration = useEmailGeneration({
@@ -486,7 +486,7 @@ export function BuildPageContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate, scenarioManager.loadScenario, scenarioManager.createScenario, router]);
+  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate, scenarioManager, router]);
 
   // Initialize scenario on mount with stable dependencies
   useEffect(() => {
@@ -625,7 +625,7 @@ export function BuildPageContent() {
       console.error('Failed to update scenario name:', error);
       toast.error('Failed to update scenario name');
     }
-  }, [scenarioManager.scenario?.id, editingName, scenarioManager.loadScenario]);
+  }, [editingName, scenarioManager]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditingTitle(false);
