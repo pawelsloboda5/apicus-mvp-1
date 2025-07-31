@@ -55,9 +55,10 @@ interface ApicusUser {
 
 ### 2.1 NextAuth.js Configuration
 - **File**: `app/api/auth/[...nextauth]/route.ts`
-- **Provider**: Google OAuth 2.0
-- **Session Strategy**: JWT with database user lookup
-- **Callbacks**: Custom user creation/update logic
+- **Version**: NextAuth v5 (latest beta)
+- **Provider**: Google OAuth 2.0 (auto-configured via environment variables)
+- **Session Strategy**: JWT sessions
+- **Export**: `export const { GET, POST } = handlers` (App Router compatible)
 
 ### 2.2 Auth Provider Component
 - **File**: `components/auth/AuthProvider.tsx`

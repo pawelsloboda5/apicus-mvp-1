@@ -41,10 +41,31 @@ Following user rules for minimal code changes, implementation will proceed:
 - Basic Google OAuth setup
 - No UI changes yet
 
-**Step 1 Complete**: ✅ Created NextAuth config file (`app/api/auth/[...nextauth]/route.ts`)
-- Basic Google OAuth setup with JWT sessions
-- Custom callbacks for user ID handling
-- Sign-in redirects to homepage
+**Step 1 Issues Found**: ❌ NextAuth config had compatibility problems
 
-**Current Status**: NextAuth config created, ready for testing
-**Next Action**: Add environment variables and test authentication flow
+**Problem**: 500 server errors with `Function.prototype.apply` error
+- Issue 1: NextAuth v5 beta vs documentation mismatch  
+- Issue 2: App Router vs Pages Router syntax differences
+- Issue 3: Missing `secret` property in config
+
+**Step 1 Fix Applied**: ✅ Updated NextAuth config (Second Attempt)
+- Added `secret: process.env.NEXTAUTH_SECRET` (required)
+- Fixed App Router exports: `export { handler as GET, handler as POST }`
+- Next.js 15 App Router requires named HTTP method exports, not default exports
+
+**Debugging Results**: ✅ Test endpoint works, all environment variables loaded correctly
+
+**Step 1 Fix Applied**: ✅ Updated to NextAuth v5 (Latest Beta)
+- Upgraded from v5.0.0-beta.28 to latest NextAuth beta with `npm i next-auth@beta`
+- Updated route.ts to use new v5 syntax: `const { handlers, auth } = NextAuth({...})`
+- Simplified Google provider import: `import Google from "next-auth/providers/google"`
+- Environment variables now auto-inferred (AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, AUTH_SECRET)
+- Using destructured export: `export const { GET, POST } = handlers`
+
+**Environment Variable Changes**: NextAuth v5 auto-infers:
+- `AUTH_GOOGLE_ID` (or GOOGLE_CLIENT_ID still works)
+- `AUTH_GOOGLE_SECRET` (or GOOGLE_CLIENT_SECRET still works) 
+- `AUTH_SECRET` (or NEXTAUTH_SECRET still works)
+
+**Current Status**: NextAuth v5 configured with new syntax, ready for testing
+**Next Action**: Test authentication endpoints
