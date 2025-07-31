@@ -36,36 +36,22 @@ All requirements confirmed in PLAN.md:
 
 Following user rules for minimal code changes, implementation will proceed:
 
-**Step 1**: Create NextAuth.js configuration file
-- Single file: `app/api/auth/[...nextauth]/route.ts`
-- Basic Google OAuth setup
-- No UI changes yet
+**Step 1**: ✅ **COMPLETE** - NextAuth.js authentication working
+- NextAuth v5 configuration with Google OAuth
+- Authentication endpoints functioning correctly
+- Environment variables properly configured
 
-**Step 1 Issues Found**: ❌ NextAuth config had compatibility problems
+**Step 2**: ✅ **COMPLETE** - AuthProvider component and session management
+- Created `components/auth/AuthProvider.tsx` with SessionProvider wrapper
+- Updated `app/providers.tsx` to include AuthProvider as outermost wrapper  
+- Session context now available throughout the app
 
-**Problem**: 500 server errors with `Function.prototype.apply` error
-- Issue 1: NextAuth v5 beta vs documentation mismatch  
-- Issue 2: App Router vs Pages Router syntax differences
-- Issue 3: Missing `secret` property in config
+**Step 3**: ✅ **COMPLETE** - Authentication UI on homepage
+- Added Header component with auth buttons to `app/page.tsx`
+- Shows "Sign in with Google" when logged out
+- Shows user name + "Sign out" + "Go to Builder" when logged in
+- Uses `useSession`, `signIn`, `signOut` from next-auth/react
+- Header positioned absolutely at top of page
 
-**Step 1 Fix Applied**: ✅ Updated NextAuth config (Second Attempt)
-- Added `secret: process.env.NEXTAUTH_SECRET` (required)
-- Fixed App Router exports: `export { handler as GET, handler as POST }`
-- Next.js 15 App Router requires named HTTP method exports, not default exports
-
-**Debugging Results**: ✅ Test endpoint works, all environment variables loaded correctly
-
-**Step 1 Fix Applied**: ✅ Updated to NextAuth v5 (Latest Beta)
-- Upgraded from v5.0.0-beta.28 to latest NextAuth beta with `npm i next-auth@beta`
-- Updated route.ts to use new v5 syntax: `const { handlers, auth } = NextAuth({...})`
-- Simplified Google provider import: `import Google from "next-auth/providers/google"`
-- Environment variables now auto-inferred (AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, AUTH_SECRET)
-- Using destructured export: `export const { GET, POST } = handlers`
-
-**Environment Variable Changes**: NextAuth v5 auto-infers:
-- `AUTH_GOOGLE_ID` (or GOOGLE_CLIENT_ID still works)
-- `AUTH_GOOGLE_SECRET` (or GOOGLE_CLIENT_SECRET still works) 
-- `AUTH_SECRET` (or NEXTAUTH_SECRET still works)
-
-**Current Status**: NextAuth v5 configured with new syntax, ready for testing
-**Next Action**: Test authentication endpoints
+**Current Status**: Authentication UI implemented, ready for testing
+**Next Action**: Test complete login/logout flow, then add build page access control
