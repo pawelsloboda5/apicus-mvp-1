@@ -190,6 +190,16 @@ export interface NodePropertiesPanelProps {
   hourlyRate: number;
   taskMultiplier: number;
   edges?: Edge[];
+  // Risk & Compliance parameters
+  complianceEnabled?: boolean;
+  riskLevel?: number;
+  riskFrequency?: number;
+  errorCost?: number;
+  // Revenue Uplift parameters
+  revenueEnabled?: boolean;
+  monthlyVolume?: number;
+  conversionRate?: number;
+  valuePerConversion?: number;
 }
 
 export interface GroupPropertiesPanelProps {

@@ -250,7 +250,8 @@ export function useROI({
     updateSettings(updates);
   }, [updateSettings]);
 
-  return {
+  // Memoize the return object to prevent infinite re-renders
+  return useMemo(() => ({
     // Current state
     settings: roiState,
     metrics,
@@ -282,5 +283,5 @@ export function useROI({
     get isCompliance() { return roiState.complianceEnabled; },
     get isRevenue() { return roiState.revenueEnabled; },
     get hasAdvancedFeatures() { return roiState.complianceEnabled || roiState.revenueEnabled; },
-  };
+  }), [roiState, metrics, updateSetting, updateSettings, loadFromScenario, resetToDefaults, applyBenchmark]);
 } 

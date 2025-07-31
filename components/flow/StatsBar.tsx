@@ -55,6 +55,18 @@ interface StatsBarProps {
   nodes?: Node[];
   currentScenario?: Scenario | null;
   
+  // Risk & Compliance parameters
+  complianceEnabled?: boolean;
+  riskLevel?: number;
+  riskFrequency?: number;
+  errorCost?: number;
+  
+  // Revenue Uplift parameters
+  revenueEnabled?: boolean;
+  monthlyVolume?: number;
+  conversionRate?: number;
+  valuePerConversion?: number;
+  
   // New props for integrated controls
   onPlatformChange: (platform: PlatformType) => void;
   onOpenROISettings: () => void;
@@ -127,6 +139,16 @@ export function StatsBar({
   onUpdateRuns,
   onUpdateMinutes,
   nodes,
+  // Risk & Compliance parameters with defaults
+  complianceEnabled = false,
+  riskLevel = 3,
+  riskFrequency = 5,
+  errorCost = 100,
+  // Revenue Uplift parameters with defaults
+  revenueEnabled = false,
+  monthlyVolume = 1000,
+  conversionRate = 2,
+  valuePerConversion = 100,
   onPlatformChange,
   onOpenROISettings,
   onGenerateEmail,
@@ -160,6 +182,16 @@ export function StatsBar({
     taskMultiplier,
     platform,
     nodes: nodes || [],
+    // Risk & Compliance parameters
+    complianceEnabled,
+    riskLevel,
+    riskFrequency,
+    errorCost,
+    // Revenue Uplift parameters
+    revenueEnabled,
+    monthlyVolume,
+    conversionRate,
+    valuePerConversion,
   });
 
   // ROI calculations are now properly reactive to settings changes
@@ -206,7 +238,7 @@ export function StatsBar({
 
         try {
           const nodeROI = roiCalculations.calculateNodeROI(node);
-          totalValue += nodeROI.stepValue;
+          totalValue += nodeROI.totalValue; // Use totalValue which includes risk and revenue
           totalPlatformCost += nodeROI.monthlyCostNode;
           totalAppCost += nodeROI.appCostForNode;
         } catch (error) {
@@ -923,7 +955,7 @@ export function StatsBar({
     ];
 
     return (
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 ">
         <Separator orientation="vertical" className="h-8" />
         
         {metrics.map((metric, index) => {
@@ -952,7 +984,7 @@ export function StatsBar({
 
   return (
     <TooltipProvider>
-      <div className="flex items-center justify-between gap-3 px-4 py-3 bg-white border-b min-h-[64px]">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-gray-950 border-b min-h-[64px]">
         {/* Left side - App name */}
         <div className="flex items-center flex-shrink-0">
           <h1 className="text-lg font-display font-bold tracking-tight text-foreground">
@@ -961,7 +993,7 @@ export function StatsBar({
         </div>
 
                   {/* Center - Stats */}
-          <div className="flex items-center gap-3 md:gap-6 flex-1 justify-center bg-white">
+          <div className="flex items-center gap-3 md:gap-6 flex-1 justify-center">
             {/* ROI Metrics Display - First */}
             <ROIMetricsDisplay />
             

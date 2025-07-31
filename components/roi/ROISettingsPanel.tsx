@@ -254,6 +254,16 @@ export function ROISettingsPanel({
     taskMultiplier,
     platform,
     nodes,
+    // Risk & Compliance parameters
+    complianceEnabled,
+    riskLevel,
+    riskFrequency,
+    errorCost,
+    // Revenue Uplift parameters
+    revenueEnabled,
+    monthlyVolume,
+    conversionRate,
+    valuePerConversion,
   });
 
   const renderROISummary = () => {
@@ -263,22 +273,23 @@ export function ROISettingsPanel({
       !['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value'].includes(n.type)
     );
 
-    // Sum up individual node contributions
+    // Sum up individual node contributions (including distributed risk/revenue)
     let totalMonthlyValue = 0;
     let totalPlatformCost = 0;
     let totalAppCost = 0;
+    let totalRiskValue = 0;
+    let totalRevenueValue = 0;
 
     workflowNodes.forEach(node => {
       const nodeROI = roiCalculations.calculateNodeROI(node);
       totalMonthlyValue += nodeROI.stepValue;
       totalPlatformCost += nodeROI.monthlyCostNode;
       totalAppCost += nodeROI.appCostForNode;
+      totalRiskValue += nodeROI.riskValue;
+      totalRevenueValue += nodeROI.revenueValue;
     });
 
-    // Add additional value factors (risk, revenue)
-    const riskValue = calculateRiskValue(complianceEnabled, runsPerMonth, riskFrequency, errorCost, riskLevel);
-    const revenueValue = calculateRevenueValue(revenueEnabled, monthlyVolume, conversionRate, valuePerConversion);
-    const totalValue = totalMonthlyValue + riskValue + revenueValue;
+    const totalValue = totalMonthlyValue + totalRiskValue + totalRevenueValue;
     
     const totalCost = totalPlatformCost + totalAppCost;
     const netROIValue = totalValue - totalCost;
@@ -331,14 +342,14 @@ export function ROISettingsPanel({
           {complianceEnabled && (
             <div className="flex justify-between items-center py-2 border-b">
               <span className="text-sm text-muted-foreground">Risk reduction</span>
-              <span className="font-medium text-green-600 dark:text-green-400">+${riskValue.toFixed(0)}</span>
+              <span className="font-medium text-green-600 dark:text-green-400">+${totalRiskValue.toFixed(0)}</span>
             </div>
           )}
           
           {revenueEnabled && (
             <div className="flex justify-between items-center py-2 border-b">
               <span className="text-sm text-muted-foreground">Revenue uplift</span>
-              <span className="font-medium text-green-600 dark:text-green-400">+${revenueValue.toFixed(0)}</span>
+              <span className="font-medium text-green-600 dark:text-green-400">+${totalRevenueValue.toFixed(0)}</span>
             </div>
           )}
           

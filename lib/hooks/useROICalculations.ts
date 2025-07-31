@@ -6,7 +6,7 @@
 import { useMemo, useCallback } from "react";
 import { Node } from "@xyflow/react";
 import { NodeData, NodeType, PlatformType } from "@/lib/types";
-import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio } from "@/lib/roi-utils";
+import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio, calculateRiskValue, calculateRevenueValue } from "@/lib/roi-utils";
 import { NODE_TIME_FACTORS } from "@/lib/utils/constants";
 import { pricing } from "@/app/api/data/pricing";
 
@@ -17,6 +17,16 @@ export interface ROICalculationProps {
   taskMultiplier: number;
   platform: PlatformType;
   nodes: Node[];
+  // Risk & Compliance parameters
+  complianceEnabled?: boolean;
+  riskLevel?: number;
+  riskFrequency?: number;
+  errorCost?: number;
+  // Revenue Uplift parameters
+  revenueEnabled?: boolean;
+  monthlyVolume?: number;
+  conversionRate?: number;
+  valuePerConversion?: number;
 }
 
 export interface NodeROIData {
@@ -27,6 +37,10 @@ export interface NodeROIData {
   totalNodeCost: number;
   roiRatioNode: number;
   nodesUsingThisApp: number;
+  // Additional value calculations
+  riskValue: number;
+  revenueValue: number;
+  totalValue: number; // stepValue + riskValue + revenueValue
 }
 
 export function useROICalculations({
@@ -36,7 +50,19 @@ export function useROICalculations({
   taskMultiplier,
   platform,
   nodes,
+  // Risk & Compliance parameters with defaults
+  complianceEnabled = false,
+  riskLevel = 3,
+  riskFrequency = 5,
+  errorCost = 100,
+  // Revenue Uplift parameters with defaults
+  revenueEnabled = false,
+  monthlyVolume = 1000,
+  conversionRate = 2,
+  valuePerConversion = 100,
 }: ROICalculationProps) {
+  
+
   
   // Memoize the calculateNodeROI function to ensure proper reactivity
   const calculateNodeROI = useCallback((selectedNode: Node): NodeROIData => {
@@ -135,7 +161,28 @@ export function useROICalculations({
     }
     
     const totalNodeCost = monthlyCostNode + appCostForNode;
-    const roiRatioNode = calculateROIRatio(stepValue, monthlyCostNode, appCostForNode);
+    
+    // Calculate workflow-level risk and revenue values (distributed across all nodes)
+    const workflowNodes = nodes.filter(n => 
+      n.type && !['group', 'email', 'emailPreview'].includes(n.type) && 
+      !['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value'].includes(n.type)
+    );
+    const nodeCount = Math.max(1, workflowNodes.length);
+    
+    // Risk value distributed per node
+    const totalRiskValue = calculateRiskValue(complianceEnabled, runsPerMonth, riskFrequency, errorCost, riskLevel);
+    const riskValue = totalRiskValue / nodeCount;
+    
+    // Revenue value distributed per node  
+    const totalRevenueValue = calculateRevenueValue(revenueEnabled, monthlyVolume, conversionRate, valuePerConversion);
+    const revenueValue = totalRevenueValue / nodeCount;
+    
+
+    
+    // Total value for this node
+    const totalValue = stepValue + riskValue + revenueValue;
+    
+    const roiRatioNode = calculateROIRatio(totalValue, monthlyCostNode, appCostForNode);
 
     return {
       adjustedMinutes,
@@ -145,8 +192,11 @@ export function useROICalculations({
       totalNodeCost,
       roiRatioNode,
       nodesUsingThisApp,
+      riskValue,
+      revenueValue,
+      totalValue,
     };
-  }, [runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, platform, nodes]);
+  }, [runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, platform, nodes, complianceEnabled, riskLevel, riskFrequency, errorCost, revenueEnabled, monthlyVolume, conversionRate, valuePerConversion]);
 
   // Memoize the return object to prevent unnecessary re-renders
   return useMemo(() => ({

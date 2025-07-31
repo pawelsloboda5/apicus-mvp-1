@@ -38,6 +38,16 @@ export function NodePropertiesPanel({
   hourlyRate,
   taskMultiplier,
   edges,
+  // Risk & Compliance parameters with defaults
+  complianceEnabled = false,
+  riskLevel = 3,
+  riskFrequency = 5,
+  errorCost = 100,
+  // Revenue Uplift parameters with defaults
+  revenueEnabled = false,
+  monthlyVolume = 1000,
+  conversionRate = 2,
+  valuePerConversion = 100,
 }: NodePropertiesPanelProps) {
   const nodeData = selectedNode?.data as NodeData | undefined;
 
@@ -49,6 +59,16 @@ export function NodePropertiesPanel({
     taskMultiplier,
     platform,
     nodes,
+    // Risk & Compliance parameters
+    complianceEnabled,
+    riskLevel,
+    riskFrequency,
+    errorCost,
+    // Revenue Uplift parameters
+    revenueEnabled,
+    monthlyVolume,
+    conversionRate,
+    valuePerConversion,
   });
 
   // ROI calculations are now properly reactive to settings changes

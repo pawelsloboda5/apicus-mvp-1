@@ -22,7 +22,7 @@ import { useScenarioManager } from "../hooks/useScenarioManager";
 import { useEmailGeneration } from "../hooks/useEmailGeneration";
 
 // Import types
-import { NodeType, Scenario, NodeData } from "@/lib/types";
+import { NodeType, Scenario, NodeData, PlatformType } from "@/lib/types";
 
 // Import constants
 import { TASK_TYPE_MULTIPLIERS, BENCHMARKS, CANVAS_CONFIG } from "@/lib/utils/constants";
@@ -53,15 +53,12 @@ const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mo
   ssr: false,
 });
 
-// Node and edge types - moved inside component to access callback
-const createNodeTypes = (handleRegenerateSection: (nodeId: string, section: string) => Promise<void>) => ({
+// Base node types (without callback dependencies)
+const baseNodeTypes = {
   trigger: PixelNode,
   action: PixelNode,
   decision: PixelNode,
   group: NodeGroup,
-  emailPreview: (props: { id: string; data: Record<string, unknown> }) => (
-    <EmailPreviewNode {...props} data={{...props.data, onRegenerateSection: (section: string) => handleRegenerateSection(props.id, section)}} />
-  ),
   persona: PixelNode,
   industry: PixelNode,
   painpoint: PixelNode,
@@ -71,7 +68,7 @@ const createNodeTypes = (handleRegenerateSection: (nodeId: string, section: stri
   objection: PixelNode,
   value: PixelNode,
   roiReport: ROIReportNode,
-});
+};
 
 const edgeTypes = {
   custom: CustomEdge,
@@ -133,14 +130,17 @@ export function BuildPageContent() {
     initialScenarioId: scenarioIdParam || undefined,
   });
 
+  // Memoize the ROI settings change handler to prevent infinite loops
+  const handleROISettingsChange = useCallback((settings: any) => {
+    if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
+      scenarioManager.updateScenario(settings);
+    }
+  }, [scenarioManager.scenario?.id, scenarioManager.updateScenario]); // Use scenario ID instead of full object
+
   // Initialize ROI hook
   const roi = useROI({
     initialScenario: scenarioManager.scenario,
-    onSettingsChange: (settings) => {
-      if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
-        scenarioManager.updateScenario(settings);
-      }
-    },
+    onSettingsChange: handleROISettingsChange,
     nodes,
   });
 
@@ -195,7 +195,7 @@ export function BuildPageContent() {
       loadScenarioToCanvas(scenarioManager.scenario);
       roi.loadFromScenario(scenarioManager.scenario);
     }
-  }, [scenarioManager.scenario?.id, scenarioManager.scenario, loadScenarioToCanvas, roi]);
+  }, [scenarioManager.scenario?.id, loadScenarioToCanvas, roi.loadFromScenario]); // Remove the full scenario object and roi object
 
   // Initialize email generation hook
   const emailGeneration = useEmailGeneration({
@@ -324,7 +324,7 @@ export function BuildPageContent() {
     );
   }, [handleRegenerateSection]);
 
-  // Create refs to store the latest callback implementations
+  // Create nodeTypes with stable EmailPreviewNode that uses a ref for the callback
   const regenerationCallbackRef = useRef(handleRegenerateSectionSimple);
   
   // Update the ref when callback changes
@@ -332,116 +332,114 @@ export function BuildPageContent() {
     regenerationCallbackRef.current = handleRegenerateSectionSimple;
   }, [handleRegenerateSectionSimple]);
   
-  // Create nodeTypes with a stable function that uses the ref
-  const nodeTypes = useMemo(() => createNodeTypes((nodeId: string, section: string) => 
-    regenerationCallbackRef.current(nodeId, section)
-  ), []); // Empty deps array - nodeTypes never changes
+  // Create nodeTypes using useMemo with stable references
+  const nodeTypes = useMemo(() => ({
+    ...baseNodeTypes,
+    emailPreview: (props: { id: string; data: Record<string, unknown> }) => (
+      <EmailPreviewNode 
+        {...props} 
+        data={{
+          ...props.data, 
+          onRegenerateSection: (section: string) => regenerationCallbackRef.current(props.id, section)
+        }} 
+      />
+    ),
+  }), []); // Empty deps array since we use refs for dynamic behavior
 
   // Get selected node
   const selectedNode = selectedId ? nodes.find(n => n.id === selectedId) : null;
   const selectedGroup = selectedGroupId ? nodes.find(n => n.id === selectedGroupId) : null;
   const selectedEmailNode = selectedEmailNodeId ? nodes.find(n => n.id === selectedEmailNodeId) : null;
 
-  // Initialize scenario on mount
-  useEffect(() => {
-    let mounted = true;
+  // Initialize scenario on mount - memoize the initialization function to prevent infinite loops
+  const initializeScenario = useCallback(async () => {
+    setIsLoading(true);
     
-    const initializeScenario = async () => {
-      if (!mounted) return;
-      
-      setIsLoading(true);
-      
-      try {
-        if (scenarioIdParam) {
-          await scenarioManager.loadScenario(scenarioIdParam);
-        } else {
-          // Create new scenario
-          let name = templateIdParam ? "Loading Template..." : 
-                      queryParam ? `Search: ${queryParam}` : 
-                      "Untitled Scenario";
-          
-          let templateData: Parameters<typeof scenarioManager.createScenario>[1] = undefined;
-          
-          // Use default template if requested
-          if (useDefaultTemplate) {
-            templateData = {
-              nodesSnapshot: DEFAULT_TEMPLATE.nodes,
-              edgesSnapshot: DEFAULT_TEMPLATE.edges,
-              platform: DEFAULT_TEMPLATE.platform,
-              runsPerMonth: DEFAULT_TEMPLATE.runsPerMonth,
-              minutesPerRun: DEFAULT_TEMPLATE.minutesPerRun,
-              hourlyRate: DEFAULT_TEMPLATE.hourlyRate,
-              taskMultiplier: DEFAULT_TEMPLATE.taskMultiplier,
-              taskType: DEFAULT_TEMPLATE.taskType,
-            };
-            name = queryParam ? `${queryParam} - ${DEFAULT_TEMPLATE.name}` : DEFAULT_TEMPLATE.name;
-          }
-          // Load template data if template ID is provided
-          else if (templateIdParam) {
-            try {
-              const response = await fetch(`/api/templates/${templateIdParam}`);
-              if (response.ok) {
-                const template = await response.json();
-                console.log('Template loaded:', template); // Debug log
-                
-                // Transform nodes to have 'id' instead of 'reactFlowId'
-                const transformedNodes = transformTemplateNodes(template.nodes, templateIdParam);
-                
-                // Transform edges to have proper 'id', 'source', and 'target'
-                const transformedEdges = transformTemplateEdges(template.edges, templateIdParam);
-                
-                templateData = {
-                  nodesSnapshot: transformedNodes,
-                  edgesSnapshot: transformedEdges,
-                  platform: template.platform || template.source || "zapier",
-                  viewport: template.viewport,
-                  // Copy other template metadata
-                  taskType: template.taskType,
-                  runsPerMonth: template.runsPerMonth,
-                  minutesPerRun: template.minutesPerRun,
-                  hourlyRate: template.hourlyRate,
-                  taskMultiplier: template.taskMultiplier,
-                };
-                name = template.title || template.templateName || template.name || "Template Scenario";
-                console.log('Template data prepared:', templateData); // Debug log
-              } else {
-                console.error('Failed to load template:', response.statusText);
-                toast.error('Failed to load template');
-              }
-            } catch (error) {
-              console.error('Error loading template:', error);
-              toast.error('Error loading template');
+    try {
+      if (scenarioIdParam) {
+        await scenarioManager.loadScenario(scenarioIdParam);
+      } else {
+        // Create new scenario
+        let name = templateIdParam ? "Loading Template..." : 
+                    queryParam ? `Search: ${queryParam}` : 
+                    "Untitled Scenario";
+        
+        let templateData: Parameters<typeof scenarioManager.createScenario>[1] = undefined;
+        
+        // Use default template if requested
+        if (useDefaultTemplate) {
+          templateData = {
+            nodesSnapshot: DEFAULT_TEMPLATE.nodes,
+            edgesSnapshot: DEFAULT_TEMPLATE.edges,
+            platform: DEFAULT_TEMPLATE.platform,
+            runsPerMonth: DEFAULT_TEMPLATE.runsPerMonth,
+            minutesPerRun: DEFAULT_TEMPLATE.minutesPerRun,
+            hourlyRate: DEFAULT_TEMPLATE.hourlyRate,
+            taskMultiplier: DEFAULT_TEMPLATE.taskMultiplier,
+            taskType: DEFAULT_TEMPLATE.taskType,
+          };
+          name = queryParam ? `${queryParam} - ${DEFAULT_TEMPLATE.name}` : DEFAULT_TEMPLATE.name;
+        }
+        // Load template data if template ID is provided
+        else if (templateIdParam) {
+          try {
+            const response = await fetch(`/api/templates/${templateIdParam}`);
+            if (response.ok) {
+              const template = await response.json();
+              console.log('Template loaded:', template); // Debug log
+              
+              // Transform nodes to have 'id' instead of 'reactFlowId'
+              const transformedNodes = transformTemplateNodes(template.nodes, templateIdParam);
+              
+              // Transform edges to have proper 'id', 'source', and 'target'
+              const transformedEdges = transformTemplateEdges(template.edges, templateIdParam);
+              
+              templateData = {
+                nodesSnapshot: transformedNodes,
+                edgesSnapshot: transformedEdges,
+                platform: template.platform || template.source || "zapier",
+                viewport: template.viewport,
+                // Copy other template metadata
+                taskType: template.taskType,
+                runsPerMonth: template.runsPerMonth,
+                minutesPerRun: template.minutesPerRun,
+                hourlyRate: template.hourlyRate,
+                taskMultiplier: template.taskMultiplier,
+              };
+              name = template.title || template.templateName || template.name || "Template Scenario";
+              console.log('Template data prepared:', templateData); // Debug log
+            } else {
+              console.error('Failed to load template:', response.statusText);
+              toast.error('Failed to load template');
             }
-          }
-          
-          const newScenario = await scenarioManager.createScenario(name, templateData);
-          
-          // Update URL
-          if (mounted) {
-            const urlQuery = new URLSearchParams(window.location.search);
-            urlQuery.set("sid", newScenario.id!.toString());
-            if (templateIdParam && !templateData) urlQuery.set("tid", templateIdParam); // Keep tid if template failed to load
-            if (queryParam) urlQuery.set("q", queryParam);
-            router.replace(`/build?${urlQuery.toString()}`, { scroll: false });
+          } catch (error) {
+            console.error('Error loading template:', error);
+            toast.error('Error loading template');
           }
         }
         
-      } catch (error) {
-        console.error('Failed to initialize scenario:', error);
-        toast.error('Failed to initialize scenario');
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        const newScenario = await scenarioManager.createScenario(name, templateData);
+        
+        // Update URL
+        const urlQuery = new URLSearchParams(window.location.search);
+        urlQuery.set("sid", newScenario.id!.toString());
+        if (templateIdParam && !templateData) urlQuery.set("tid", templateIdParam); // Keep tid if template failed to load
+        if (queryParam) urlQuery.set("q", queryParam);
+        router.replace(`/build?${urlQuery.toString()}`, { scroll: false });
       }
-    };
+      
+    } catch (error) {
+      console.error('Failed to initialize scenario:', error);
+      toast.error('Failed to initialize scenario');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate, scenarioManager.loadScenario, scenarioManager.createScenario, router]);
 
+  // Initialize scenario on mount with stable dependencies
+  useEffect(() => {
     initializeScenario();
-    
-    return () => {
-      mounted = false;
-    };
-  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate, scenarioManager, router]); // Only run once on mount
+  }, [initializeScenario]);
 
   // Save scenario when nodes/edges change
   useEffect(() => {
@@ -487,42 +485,65 @@ export function BuildPageContent() {
 
   return (
     <ReactFlowProvider>
-      <div className="h-screen w-full flex flex-col" data-page="build">
-        {/* Header */}
-        <div className="border-b bg-white px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold">
+      <div className="flex-1 flex flex-col" data-page="build">
+        {/* Scenario Title Bar */}
+        <div className="bg-white border-b px-4 py-2 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold">
               {scenarioManager.scenario?.name || "Untitled Scenario"}
             </h1>
-            
             {scenarioManager.isSaving && (
-              <span className="text-sm text-gray-500">Saving...</span>
+              <span className="text-sm text-muted-foreground">Saving...</span>
             )}
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveTab('canvas')}
-              className={`px-3 py-1 rounded ${
-                activeTab === 'canvas' 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Canvas
-            </button>
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-3 py-1 rounded ${
-                activeTab === 'analytics' 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Analytics
-            </button>
-          </div>
         </div>
+
+        {/* StatsBar */}
+        <StatsBar
+          platform={roi.settings.platform as PlatformType}
+          runsPerMonth={roi.settings.runsPerMonth}
+          minutesPerRun={roi.settings.minutesPerRun}
+          hourlyRate={roi.settings.hourlyRate}
+          taskMultiplier={roi.settings.taskMultiplier}
+          nodes={nodes}
+          complianceEnabled={roi.settings.complianceEnabled}
+          riskLevel={roi.settings.riskLevel}
+          riskFrequency={roi.settings.riskFrequency}
+          errorCost={roi.settings.errorCost}
+          revenueEnabled={roi.settings.revenueEnabled}
+          monthlyVolume={roi.settings.monthlyVolume}
+          conversionRate={roi.settings.conversionRate}
+          valuePerConversion={roi.settings.valuePerConversion}
+          onUpdateRuns={roi.setRunsPerMonth}
+          onUpdateMinutes={roi.setMinutesPerRun}
+          onPlatformChange={roi.setPlatform}
+          onOpenROISettings={() => setIsROISettingsOpen(true)}
+          onAddNode={() => {
+            const center = rfInstance?.getViewport() 
+              ? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+              : { x: 300, y: 300 };
+            
+            const newNode: Node = {
+              id: `node-${Date.now()}`,
+              type: selectedNodeType,
+              position: center,
+              data: { label: `New ${selectedNodeType}` },
+            };
+            
+            onNodesChange([{ type: 'add', item: newNode }]);
+          }}
+          onGenerateEmail={() => {
+            const contextData = emailGeneration.extractContextFromNodes(nodes);
+            emailGeneration.generateFullEmail(contextData, {
+              lengthOption: 'standard',
+              toneOption: 'professional_warm',
+            });
+          }}
+          isGeneratingEmail={emailGeneration.isGenerating}
+          selectedIds={[]}
+          selectedGroupId={null}
+          isMultiSelectionActive={false}
+        />
 
         {/* Content */}
         {activeTab === 'canvas' ? (
@@ -583,50 +604,6 @@ export function BuildPageContent() {
                 selectedNodeType={selectedNodeType}
                 onNodeTypeChange={setSelectedNodeType}
               />
-
-              {/* Stats Bar */}
-              <StatsBar
-                platform={roi.settings.platform}
-                runsPerMonth={roi.settings.runsPerMonth}
-                minutesPerRun={roi.settings.minutesPerRun}
-                hourlyRate={roi.settings.hourlyRate}
-                taskMultiplier={roi.settings.taskMultiplier}
-                onUpdateRuns={roi.setRunsPerMonth}
-                onUpdateMinutes={roi.setMinutesPerRun}
-                nodes={nodes}
-                onPlatformChange={roi.setPlatform}
-                onOpenROISettings={() => {
-                  console.log('Opening ROI Settings Panel');
-                  setIsROISettingsOpen(true);
-                }}
-                onAddNode={() => {
-                  // Add a new node at the center of the viewport
-                  const center = rfInstance?.getViewport() 
-                    ? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
-                    : { x: 300, y: 300 };
-                  
-                  const newNode: Node = {
-                    id: `node-${Date.now()}`,
-                    type: selectedNodeType,
-                    position: center,
-                    data: { label: `New ${selectedNodeType}` },
-                  };
-                  
-                  onNodesChange([{ type: 'add', item: newNode }]);
-                }}
-                onGenerateEmail={() => {
-                  // Collect context from email context nodes
-                  const contextData = emailGeneration.extractContextFromNodes(nodes);
-                  emailGeneration.generateFullEmail(contextData, {
-                    lengthOption: 'standard',
-                    toneOption: 'professional_warm',
-                  });
-                }}
-                isGeneratingEmail={emailGeneration.isGenerating}
-                selectedIds={[]}
-                selectedGroupId={null}
-                isMultiSelectionActive={false}
-              />
             </div>
 
             {/* Property Panels */}
@@ -642,6 +619,16 @@ export function BuildPageContent() {
                 hourlyRate={roi.settings.hourlyRate}
                 taskMultiplier={roi.settings.taskMultiplier}
                 edges={edges}
+                // Risk & Compliance parameters
+                complianceEnabled={roi.settings.complianceEnabled}
+                riskLevel={roi.settings.riskLevel}
+                riskFrequency={roi.settings.riskFrequency}
+                errorCost={roi.settings.errorCost}
+                // Revenue Uplift parameters
+                revenueEnabled={roi.settings.revenueEnabled}
+                monthlyVolume={roi.settings.monthlyVolume}
+                conversionRate={roi.settings.conversionRate}
+                valuePerConversion={roi.settings.valuePerConversion}
               />
             )}
 
