@@ -59,6 +59,16 @@ export function TemplatePreviewModal({
   } = templateData || {};
 
   const handleSignIn = () => {
+    // Store template generation intent before sign-in
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const templateIntent = {
+        templateData,
+        searchQuery,
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem('pendingTemplateGeneration', JSON.stringify(templateIntent));
+    }
+    
     signIn("google");
   };
 

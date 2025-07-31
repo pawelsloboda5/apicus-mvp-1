@@ -490,6 +490,7 @@ function BuildPageContent() {
         platform?: string;
         source?: string;
         appPricingMap?: Record<string, AppPricingData>;
+        templateId?: string;
       } | null = null;
 
       if (activeScenarioIdToLoad) {
@@ -554,12 +555,40 @@ function BuildPageContent() {
         }
       }
 
-      // Fetch primary template if tid is present AND scenario lacks nodes/edges (i.e., needs initialization)
-      else if (templateIdParam && scenarioToLoad && activeScenarioIdToLoad && (!scenarioToLoad.nodesSnapshot || scenarioToLoad.nodesSnapshot.length === 0)) {
+      // Fetch primary template if tid is present OR if query param exists (for template search) AND scenario lacks nodes/edges (i.e., needs initialization)
+      else if ((templateIdParam || queryParam) && scenarioToLoad && activeScenarioIdToLoad && (!scenarioToLoad.nodesSnapshot || scenarioToLoad.nodesSnapshot.length === 0)) {
         try {
-          const res = await fetch(`/api/templates/${templateIdParam}`);
-          if (!res.ok) throw new Error("Primary template fetch failed");
+          let res;
+          let foundTemplateId: string | undefined;
+          
+          if (templateIdParam) {
+            // Fetch specific template by ID
+            res = await fetch(`/api/templates/${templateIdParam}`);
+            foundTemplateId = templateIdParam;
+          } else if (queryParam) {
+            // Search for templates and get the first one
+            res = await fetch(`/api/templates/search?q=${encodeURIComponent(queryParam)}&platform=${scenarioToLoad.platform || 'zapier'}`);
+            if (res.ok) {
+              const searchData = await res.json();
+              if (searchData.templates && searchData.templates.length > 0) {
+                // Get the first (best) template from search results
+                const firstTemplate = searchData.templates[0];
+                foundTemplateId = firstTemplate.templateId;
+                // Fetch the full template data
+                res = await fetch(`/api/templates/${firstTemplate.templateId}`);
+              } else {
+                throw new Error("No templates found for query");
+              }
+            }
+          }
+          
+          if (!res || !res.ok) throw new Error("Primary template fetch failed");
           primaryTemplateData = await res.json();
+          
+          // Store the template ID in the primary template data for later use
+          if (foundTemplateId && primaryTemplateData) {
+            primaryTemplateData.templateId = foundTemplateId;
+          }
 
           if (primaryTemplateData && primaryTemplateData.nodes && primaryTemplateData.edges && activeScenarioIdToLoad) {
             // Extract appPricingMap from the template response
@@ -625,7 +654,7 @@ function BuildPageContent() {
                 id: e.reactFlowId, source: e.data?.source, target: e.data?.target, label: e.label, data: e.data, type: 'custom',
               })),
               platform: (primaryTemplateData.platform || primaryTemplateData.source || scenarioToLoad.platform) as LibPlatformType,
-              originalTemplateId: templateIdParam,
+              originalTemplateId: templateIdParam || (queryParam ? primaryTemplateData.templateId : undefined),
               searchQuery: queryParam || scenarioToLoad.searchQuery,
               templatePricingData: appPricingMap, // Store the pricing map in the scenario
               updatedAt: Date.now(),

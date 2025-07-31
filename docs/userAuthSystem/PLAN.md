@@ -195,9 +195,23 @@ MONGODB_DB_NAME=your_database_name
 1. ✅ Update homepage with auth buttons and modals - **COMPLETE**
 2. ✅ Add authentication gates to build page - **COMPLETE**
 3. ✅ Add template generation modal for unauthenticated users - **COMPLETE**
-4. 🔄 Test complete authentication flow - **NEXT**
-5. Implement user menu and profile components
-6. Test complete user journey
+4. ✅ Test complete authentication flow - **COMPLETE**
+5. ✅ Fix post-authentication template redirect - **COMPLETE**
+6. Implement user menu and profile components
+7. Test complete user journey
+
+## 🚨 Critical UX Issue Identified
+
+**Problem**: When unauthenticated users generate a template → sign in via modal → they land on homepage instead of canvas with their template
+
+**Solution**: Implement post-authentication redirect to `/build` with template parameters preserved
+
+**Implementation Plan**:
+- Store template generation intent in sessionStorage before sign-in
+- Modify NextAuth callback URL or use custom redirect logic
+- Check for pending template generation after successful authentication
+- Redirect to `/build?tid=...&q=...` with preserved parameters
+- Ensure seamless UX from "generate template" → "sign in" → "build template"
 
 ### Phase 4: Data Migration
 1. Build local data detection and migration

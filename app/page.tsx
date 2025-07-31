@@ -123,7 +123,7 @@ export default function Home() {
   const [searchQueryForModal, setSearchQueryForModal] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   
   const benefits = [
     {
@@ -155,6 +155,51 @@ export default function Home() {
     }, 4000);
     return () => clearInterval(interval);
   }, [benefits.length]);
+
+  // Check for pending template generation after authentication
+  useEffect(() => {
+    if (status === "loading") return; // Wait for auth status to be resolved
+    
+    if (session && typeof window !== 'undefined' && window.sessionStorage) {
+      const pendingIntent = sessionStorage.getItem('pendingTemplateGeneration');
+      
+      if (pendingIntent) {
+        try {
+          const templateIntent = JSON.parse(pendingIntent);
+          const { templateData, searchQuery } = templateIntent;
+          
+          // Clear the stored intent
+          sessionStorage.removeItem('pendingTemplateGeneration');
+          
+          // Build redirect URL with template parameters
+          const redirectUrl = new URLSearchParams();
+          
+          if (searchQuery) {
+            redirectUrl.set('q', searchQuery);
+          }
+          
+          if (templateData?.platform) {
+            redirectUrl.set('platform', templateData.platform);
+          }
+          
+          // If we have specific template data that might include a template ID
+          // we could set tid here, but for now we'll let the build page search for templates
+          
+          const finalUrl = redirectUrl.toString() ? `/build?${redirectUrl.toString()}` : '/build';
+          
+          // Small delay to ensure the modal is closed and UI is stable
+          setTimeout(() => {
+            router.push(finalUrl);
+          }, 100);
+          
+        } catch (error) {
+          console.error('Error processing pending template generation:', error);
+          // Clear corrupted data
+          sessionStorage.removeItem('pendingTemplateGeneration');
+        }
+      }
+    }
+  }, [session, status, router]);
 
   // Close dropdown when clicking outside
   const dropdownRef = useRef<HTMLDivElement>(null);
