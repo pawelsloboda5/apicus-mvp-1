@@ -15,10 +15,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { pricing } from "@/app/api/data/pricing";
+
 import { NodePropertiesPanelProps, NodeData, NodeType } from "@/lib/types";
-import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio } from "@/lib/roi-utils";
-import { NODE_TIME_FACTORS, calculateNodeWidth, generateContentHash } from "@/lib/utils/constants";
+import { calculateNodeWidth, generateContentHash } from "@/lib/utils/constants";
+import { useROICalculations } from "@/lib/hooks/useROICalculations";
 
 // Import specific node panels
 import { TriggerNodePanel } from "./TriggerNodePanel";
@@ -40,6 +40,16 @@ export function NodePropertiesPanel({
   edges,
 }: NodePropertiesPanelProps) {
   const nodeData = selectedNode?.data as NodeData | undefined;
+
+  // Initialize ROI calculations
+  const roiCalculations = useROICalculations({
+    runsPerMonth,
+    minutesPerRun,
+    hourlyRate,
+    taskMultiplier,
+    platform,
+    nodes,
+  });
   
   const isEmailContextNode = nodeData?.isEmailContext || [
     "persona", "industry", "painpoint", "metric", 
@@ -102,6 +112,7 @@ export function NodePropertiesPanel({
             node={selectedNode}
             setNodes={setNodes}
             recalculateNodeWidth={recalculateNodeWidth}
+            roiCalculations={roiCalculations}
           />
         );
       
@@ -111,6 +122,7 @@ export function NodePropertiesPanel({
             node={selectedNode}
             setNodes={setNodes}
             recalculateNodeWidth={recalculateNodeWidth}
+            roiCalculations={roiCalculations}
           />
         );
       
@@ -120,6 +132,7 @@ export function NodePropertiesPanel({
             node={selectedNode}
             setNodes={setNodes}
             recalculateNodeWidth={recalculateNodeWidth}
+            roiCalculations={roiCalculations}
           />
         );
       
@@ -226,206 +239,8 @@ export function NodePropertiesPanel({
                 </div>
               )}
 
-              {/* ROI Contribution */}
-              {!isEmailContextNode && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold">ROI Contribution</h3>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p>This calculation estimates how much time and money this specific step saves within the overall workflow.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Estimated financial impact of this automation step.
-                  </p>
-                  
-                  {(() => {
-                    const adjustedMinutes = calculateNodeTimeSavings(
-                      selectedNode.type as NodeType, 
-                      minutesPerRun,
-                      nodes,
-                      NODE_TIME_FACTORS,
-                      nodeData?.typeOf
-                    );
-                    
-                    const hourValue = hourlyRate * taskMultiplier;
-                    const stepValue = (adjustedMinutes / 60) * hourValue * runsPerMonth;
-                    
-                    const data = pricing[platform];
-                    const tierName: Record<string, string> = {
-                      zapier: "Professional",
-                      make: "Core",
-                      n8n: "Starter"
-                    };
-                    const currentTierName = tierName[platform] || Object.values(tierName)[0];
-                    const tier = data.tiers.find((t: { name: string; monthlyUSD: number; quota: number }) => t.name === currentTierName) || data.tiers[0];
-                    const costPerUnit = tier.quota ? (tier.monthlyUSD / tier.quota) : 0;
-                    
-                    let unitsPerRunNode = 1; 
-                    if (platform === 'zapier') {
-                      unitsPerRunNode = 1;
-                    } else if (platform === 'make') {
-                      unitsPerRunNode = selectedNode.type === 'action' ? 1.2 : (selectedNode.type === 'trigger' || selectedNode.type === 'decision' ? 1 : 0.5);
-                    } else if (platform === 'n8n') {
-                      unitsPerRunNode = 1 / Math.max(1, nodes.filter(n => n.type !== 'group').length);
-                    }
-                    const monthlyCostNode = unitsPerRunNode * runsPerMonth * costPerUnit;
-                    
-                    // Calculate app cost for this node
-                    let appCostForNode = 0;
-                    let nodesUsingThisApp = 1;
-                    
-                    if (nodeData?.pricingData && nodeData?.appId) {
-                      const selectedTier = nodeData.selectedTier || 'default';
-                      
-                      if (selectedTier === 'free' || (selectedTier === 'default' && nodeData.pricingData.hasFreeTier)) {
-                        appCostForNode = 0;
-                      } else if (selectedTier === 'starter' && nodeData.pricingData.lowestMonthlyPrice !== null && nodeData.pricingData.lowestMonthlyPrice !== undefined) {
-                        appCostForNode = nodeData.pricingData.lowestMonthlyPrice;
-                      } else if (selectedTier === 'usage' && nodeData.pricingData.hasUsageBasedPricing) {
-                        appCostForNode = runsPerMonth * 0.01 * (selectedNode.type === 'action' ? 1.5 : 1);
-                      } else if (selectedTier === 'custom') {
-                        appCostForNode = nodeData.pricingData.lowestMonthlyPrice || 100;
-                      } else {
-                        appCostForNode = nodeData.pricingData.hasFreeTier ? 0 : (nodeData.pricingData.lowestMonthlyPrice || 0);
-                      }
-                      
-                      nodesUsingThisApp = nodes.filter(n => {
-                        const data = n.data as Record<string, unknown>;
-                        return data?.appId === nodeData.appId;
-                      }).length;
-                      
-                      if (nodesUsingThisApp > 1) {
-                        appCostForNode = appCostForNode / nodesUsingThisApp;
-                      }
-                    }
-                    
-                    const totalNodeCost = monthlyCostNode + appCostForNode;
-                    const roiRatioNode = calculateROIRatio(stepValue, monthlyCostNode, appCostForNode);
-
-                    return (
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        <div className="text-muted-foreground flex items-center gap-1">
-                          Time Saved / run:
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Estimated based on node type and operation complexity.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className="font-medium tabular-nums">{adjustedMinutes.toFixed(1)} min</div>
-                        
-                        <div className="text-muted-foreground">Monthly runs:</div>
-                        <div className="font-medium tabular-nums">{runsPerMonth.toLocaleString()}</div>
-                        
-                        <div className="text-muted-foreground">Monthly time saved:</div>
-                        <div className="font-medium tabular-nums">
-                          {((adjustedMinutes * runsPerMonth) / 60).toFixed(1)} hrs
-                        </div>
-                        
-                        <div className="text-muted-foreground flex items-center gap-1">
-                          Monthly value:
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-[250px]">
-                              <p>Time Value Calculation:</p>
-                              <p>({adjustedMinutes.toFixed(1)} min / 60) &times; ${hourlyRate.toFixed(2)}/hr &times; {taskMultiplier.toFixed(1)}x multiplier &times; {runsPerMonth.toLocaleString()} runs</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className="font-medium text-green-600 dark:text-green-400 tabular-nums">
-                          ${stepValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                        </div>
-                        
-                        <div className="text-muted-foreground flex items-center gap-1">
-                          Contribution:
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Percentage of total workflow time value provided by this step.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className="font-medium tabular-nums">
-                          {Math.round((stepValue / Math.max(1, (hourlyRate * taskMultiplier * (minutesPerRun / 60) * runsPerMonth))) * 100)}% of total
-                        </div>
-                        
-                        <div className="text-muted-foreground flex items-center gap-1">
-                          {platform} cost:
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Estimated platform cost attributed to this node for the month.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className="font-medium text-red-600 dark:text-red-400 tabular-nums">
-                          ${monthlyCostNode.toFixed(2)}
-                        </div>
-                        
-                        {appCostForNode > 0 && (
-                          <>
-                            <div className="text-muted-foreground flex items-center gap-1">
-                              App cost:
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Estimated {nodeData?.appName || 'app'} cost based on selected tier.</p>
-                                  {nodesUsingThisApp > 1 && (
-                                    <p className="mt-1">Cost divided by {nodesUsingThisApp} nodes using this app.</p>
-                                  )}
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                            <div className="font-medium text-red-600 dark:text-red-400 tabular-nums">
-                              ${appCostForNode.toFixed(2)}
-                            </div>
-                          </>
-                        )}
-                        
-                        <div className="text-muted-foreground flex items-center gap-1">
-                          Total costs:
-                        </div>
-                        <div className="font-medium text-red-600 dark:text-red-400 tabular-nums">
-                          ${totalNodeCost.toFixed(2)}
-                        </div>
-                        
-                        <div className="text-muted-foreground flex items-center gap-1">
-                          Node ROI Ratio:
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Value generated by this node vs. its total cost (Value / Cost).</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className="font-medium tabular-nums">
-                          {formatROIRatio(roiRatioNode)}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-              </div>
+              {/* ROI Contribution handled by individual panels */}
+            </div>
             </TabsContent>
 
             {/* Pricing Tab */}

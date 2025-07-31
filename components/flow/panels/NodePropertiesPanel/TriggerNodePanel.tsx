@@ -8,14 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { NodeData } from '@/lib/types';
+import { useROICalculations } from '@/lib/hooks/useROICalculations';
+import { ROISection } from '../shared/ROISection';
 
 interface TriggerNodePanelProps {
   node: Node;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   recalculateNodeWidth?: (updatedNodeData: Partial<NodeData>) => Partial<NodeData>;
+  roiCalculations?: ReturnType<typeof useROICalculations>;
 }
 
-export function TriggerNodePanel({ node, setNodes, recalculateNodeWidth }: TriggerNodePanelProps) {
+export function TriggerNodePanel({ node, setNodes, recalculateNodeWidth, roiCalculations }: TriggerNodePanelProps) {
   const onUpdateNode = (updates: Partial<NodeData>) => {
     setNodes((prevNodes) =>
       prevNodes.map((n) =>
@@ -160,6 +163,16 @@ export function TriggerNodePanel({ node, setNodes, recalculateNodeWidth }: Trigg
           Triggers start your automation workflow when specific events occur.
         </p>
       </div>
+
+      {/* ROI Contribution */}
+      {roiCalculations && (
+        <ROISection 
+          node={node} 
+          roiCalculations={roiCalculations}
+          showDetailedBreakdown={false} // Simplified for triggers
+          showAppCosts={false} // Triggers typically don't have app costs
+        />
+      )}
     </div>
   );
 } 

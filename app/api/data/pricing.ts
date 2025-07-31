@@ -59,8 +59,8 @@ export const pricing: Record<"zapier" | "make" | "n8n", PlatformPricing> = {
       },
       // Professional Tiers
       {
-        name: "Professional 750 tasks",
-        monthlyUSD: 29.99,
+        name: "Professional 750 tasks", 
+        monthlyUSD: 19.99,
         quota: 750,
         unit: "task",
         notes: [

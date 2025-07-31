@@ -7,14 +7,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Node } from "@xyflow/react";
 import { NodeData } from "@/lib/types";
+import { useROICalculations } from "@/lib/hooks/useROICalculations";
+import { ROISection } from "../shared/ROISection";
 
 interface DecisionNodePanelProps {
   node: Node;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   recalculateNodeWidth?: (updatedNodeData: Partial<NodeData>) => Partial<NodeData>;
+  roiCalculations?: ReturnType<typeof useROICalculations>;
 }
 
-export function DecisionNodePanel({ node, setNodes, recalculateNodeWidth }: DecisionNodePanelProps) {
+export function DecisionNodePanel({ node, setNodes, recalculateNodeWidth, roiCalculations }: DecisionNodePanelProps) {
   // Safely cast node data with fallbacks for required properties
   const nodeData = node.data as unknown as NodeData;
 
@@ -145,6 +148,18 @@ export function DecisionNodePanel({ node, setNodes, recalculateNodeWidth }: Deci
             <span className="font-medium text-red-600 dark:text-red-400">False path:</span> Condition is not met
           </p>
         </div>
+
+        {/* ROI Contribution */}
+        {roiCalculations && (
+          <div className="mt-6">
+            <ROISection 
+              node={node} 
+              roiCalculations={roiCalculations}
+              showDetailedBreakdown={false} // Simplified for decision nodes
+              showAppCosts={false} // Decision nodes typically don't have app costs
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

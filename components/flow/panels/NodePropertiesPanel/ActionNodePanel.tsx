@@ -9,11 +9,14 @@ import { HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { NodeData } from '@/lib/types';
+import { useROICalculations } from '@/lib/hooks/useROICalculations';
+import { ROISection } from '../shared/ROISection';
 
 interface ActionNodePanelProps {
   node: Node;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   recalculateNodeWidth?: (updatedNodeData: Partial<NodeData>) => Partial<NodeData>;
+  roiCalculations?: ReturnType<typeof useROICalculations>;
 }
 
 const COMMON_ACTIONS = {
@@ -28,7 +31,7 @@ const COMMON_ACTIONS = {
   custom: 'Custom Action',
 };
 
-export function ActionNodePanel({ node, setNodes, recalculateNodeWidth }: ActionNodePanelProps) {
+export function ActionNodePanel({ node, setNodes, recalculateNodeWidth, roiCalculations }: ActionNodePanelProps) {
   const onUpdateNode = (updates: Partial<NodeData>) => {
     setNodes((prevNodes) =>
       prevNodes.map((n) =>
@@ -229,6 +232,16 @@ export function ActionNodePanel({ node, setNodes, recalculateNodeWidth }: Action
           Actions perform operations like creating records, sending messages, or transforming data.
         </p>
       </div>
+
+      {/* ROI Contribution */}
+      {roiCalculations && (
+        <ROISection 
+          node={node} 
+          roiCalculations={roiCalculations}
+          showDetailedBreakdown={true} // Full detailed breakdown for actions
+          showAppCosts={true} // Actions often have app costs
+        />
+      )}
     </div>
   );
 } 

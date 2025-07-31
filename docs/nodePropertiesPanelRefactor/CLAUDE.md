@@ -83,9 +83,45 @@
 
 ### Phase 2: Feature Migration (COMPLETE)
 
-**Priority 3**: Email Context Templates
-- Move hardcoded templates to shared constants
-- Ensure consistency between implementations
+### Phase 6: ROI Architecture Fix (In Progress) ✅
+#### 2025-01-07 - Created ROI Foundation Infrastructure ✅
+- **Created** `lib/hooks/useROICalculations.ts` - Standardized ROI calculation hook
+- **Created** `components/flow/panels/shared/ROISection.tsx` - Reusable ROI display component
+- **Updated** `components/flow/panels/NodePropertiesPanel/TriggerNodePanel.tsx` to accept and display ROI
+- **Updated** `components/flow/panels/NodePropertiesPanel/index.tsx` to use ROI hook and pass to panels
+- **Result**: TriggerNodePanel now shows accurate platform costs, time savings, and ROI ratios
+
+#### Architecture Benefits Achieved
+- **Centralized ROI Logic**: All calculations in single hook with consistent interface
+- **Customizable Display**: Each panel can control what ROI metrics to show
+- **Type Safety**: Full TypeScript interfaces for ROI data and props
+- **Performance**: Hook-based approach enables memoization and optimization
+
+#### 2025-01-07 - Fixed Duplicate ROI Sections ✅
+- **Removed** centralized ROI calculation section from `index.tsx` (180+ lines)
+- **Cleaned up** unused imports (`calculateNodeTimeSavings`, `calculateROIRatio`, `pricing`)
+- **Fixed** duplicate "ROI Contribution" sections showing in TriggerNodePanel
+- **Result**: Single, clean ROI display per panel with no duplication
+
+#### 2025-01-07 - Added ActionNodePanel ROI Integration ✅
+- **Updated** `ActionNodePanel.tsx` to accept and display ROI calculations
+- **Added** ROI section with full detailed breakdown and app cost display
+- **Updated** `index.tsx` to pass roiCalculations to ActionNodePanel
+- **Result**: ActionNodePanel now shows platform costs, app costs, and detailed ROI breakdowns
+
+#### 2025-01-07 - Fixed Platform Cost Calculation Bug ✅
+- **Root Cause**: Tier name lookup was searching for "Professional" but actual tiers are named "Professional 750 tasks"
+- **Fixed** tier lookup in `useROICalculations.ts` to use `includes()` instead of exact match
+- **Result**: Platform costs now calculate correctly ($29.99/750 = $0.04/task for Zapier Professional)
+- **Expected Impact**: ActionNodePanel should now show proper zapier costs instead of $0.00
+
+#### 2025-01-07 - Fixed Per-Node Cost Calculation & Updated Pricing ✅
+- **Root Cause**: ROI calculations were showing total workflow costs instead of individual node costs
+- **Fixed** individual node cost calculation to show cost per single node, not distributed across all nodes
+- **Updated** Zapier Professional 750 pricing from $29.99 to current $19.99/month (based on web research)
+- **Added** DecisionNodePanel ROI integration with simplified breakdown
+- **Result**: Each node now shows its individual platform cost (~$6.68/month for Zapier Professional)
+- **Expected Impact**: ActionNodePanel should show ~$6.68 zapier cost instead of $211.93
 
 ## Technical Notes
 
