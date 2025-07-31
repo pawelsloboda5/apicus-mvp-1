@@ -18,11 +18,12 @@ interface EmailContextNodePanelProps {
   nodes: Node[];
   edges?: Edge[];
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  recalculateNodeWidth?: (updatedNodeData: Partial<NodeData>) => Partial<NodeData>;
 }
 
 
 
-export function EmailContextNodePanel({ node, nodes, edges, setNodes }: EmailContextNodePanelProps) {
+export function EmailContextNodePanel({ node, nodes, edges, setNodes, recalculateNodeWidth }: EmailContextNodePanelProps) {
   // Safely cast node data with fallbacks for required properties
   const nodeData = node.data as unknown as NodeData;
   const nodeType = node.type || "";

@@ -143,6 +143,9 @@ export interface NodeData {
   
   // Visual data
   logoUrl?: string;
+  calculatedWidth?: number;
+  calculatedHeight?: number;
+  lastContentHash?: string;
   
   // Pricing data for the app
   pricingData?: {

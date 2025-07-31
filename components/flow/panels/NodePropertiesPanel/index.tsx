@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { pricing } from "@/app/api/data/pricing";
 import { NodePropertiesPanelProps, NodeData, NodeType } from "@/lib/types";
 import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio } from "@/lib/roi-utils";
-import { NODE_TIME_FACTORS } from "@/lib/utils/constants";
+import { NODE_TIME_FACTORS, calculateNodeWidth, generateContentHash } from "@/lib/utils/constants";
 
 // Import specific node panels
 import { TriggerNodePanel } from "./TriggerNodePanel";
@@ -46,6 +46,33 @@ export function NodePropertiesPanel({
     "urgency", "socialproof", "objection", "value"
   ].includes(selectedNode?.type || "");
 
+  // Helper function to recalculate node width when properties change
+  const recalculateNodeWidth = (updatedNodeData: Partial<NodeData>) => {
+    const primaryText = updatedNodeData.appName || updatedNodeData.label || selectedNode?.type || '';
+    const secondaryText = updatedNodeData.action || updatedNodeData.contextValue || '';
+    const contentString = `${primaryText}${secondaryText}${updatedNodeData.typeOf || ''}`;
+    const contentHash = generateContentHash(contentString);
+    
+    // Only recalculate if content has changed
+    if (contentHash !== nodeData?.lastContentHash) {
+      const newWidth = calculateNodeWidth(
+        primaryText,
+        secondaryText,
+        !!updatedNodeData.typeOf,
+        true, // All nodes have icons
+        isEmailContextNode
+      );
+      
+      return {
+        ...updatedNodeData,
+        calculatedWidth: newWidth,
+        lastContentHash: contentHash
+      };
+    }
+    
+    return updatedNodeData;
+  };
+
   const handleDeleteNode = () => {
     if (!selectedNode) return;
     setNodes((prevNodes) => prevNodes.filter(node => node.id !== selectedNode.id));
@@ -63,6 +90,7 @@ export function NodePropertiesPanel({
           nodes={nodes}
           edges={edges}
           setNodes={setNodes}
+          recalculateNodeWidth={recalculateNodeWidth}
         />
       );
     }
@@ -73,6 +101,7 @@ export function NodePropertiesPanel({
           <TriggerNodePanel
             node={selectedNode}
             setNodes={setNodes}
+            recalculateNodeWidth={recalculateNodeWidth}
           />
         );
       
@@ -81,6 +110,7 @@ export function NodePropertiesPanel({
           <ActionNodePanel
             node={selectedNode}
             setNodes={setNodes}
+            recalculateNodeWidth={recalculateNodeWidth}
           />
         );
       
@@ -89,6 +119,7 @@ export function NodePropertiesPanel({
           <DecisionNodePanel
             node={selectedNode}
             setNodes={setNodes}
+            recalculateNodeWidth={recalculateNodeWidth}
           />
         );
       
@@ -97,6 +128,7 @@ export function NodePropertiesPanel({
           <DefaultNodePanel
             node={selectedNode}
             setNodes={setNodes}
+            recalculateNodeWidth={recalculateNodeWidth}
           />
         );
     }
@@ -243,7 +275,38 @@ export function NodePropertiesPanel({
                       unitsPerRunNode = 1 / Math.max(1, nodes.filter(n => n.type !== 'group').length);
                     }
                     const monthlyCostNode = unitsPerRunNode * runsPerMonth * costPerUnit;
-                    const roiRatioNode = calculateROIRatio(stepValue, monthlyCostNode);
+                    
+                    // Calculate app cost for this node
+                    let appCostForNode = 0;
+                    let nodesUsingThisApp = 1;
+                    
+                    if (nodeData?.pricingData && nodeData?.appId) {
+                      const selectedTier = nodeData.selectedTier || 'default';
+                      
+                      if (selectedTier === 'free' || (selectedTier === 'default' && nodeData.pricingData.hasFreeTier)) {
+                        appCostForNode = 0;
+                      } else if (selectedTier === 'starter' && nodeData.pricingData.lowestMonthlyPrice !== null && nodeData.pricingData.lowestMonthlyPrice !== undefined) {
+                        appCostForNode = nodeData.pricingData.lowestMonthlyPrice;
+                      } else if (selectedTier === 'usage' && nodeData.pricingData.hasUsageBasedPricing) {
+                        appCostForNode = runsPerMonth * 0.01 * (selectedNode.type === 'action' ? 1.5 : 1);
+                      } else if (selectedTier === 'custom') {
+                        appCostForNode = nodeData.pricingData.lowestMonthlyPrice || 100;
+                      } else {
+                        appCostForNode = nodeData.pricingData.hasFreeTier ? 0 : (nodeData.pricingData.lowestMonthlyPrice || 0);
+                      }
+                      
+                      nodesUsingThisApp = nodes.filter(n => {
+                        const data = n.data as Record<string, unknown>;
+                        return data?.appId === nodeData.appId;
+                      }).length;
+                      
+                      if (nodesUsingThisApp > 1) {
+                        appCostForNode = appCostForNode / nodesUsingThisApp;
+                      }
+                    }
+                    
+                    const totalNodeCost = monthlyCostNode + appCostForNode;
+                    const roiRatioNode = calculateROIRatio(stepValue, monthlyCostNode, appCostForNode);
 
                     return (
                       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -314,6 +377,35 @@ export function NodePropertiesPanel({
                           ${monthlyCostNode.toFixed(2)}
                         </div>
                         
+                        {appCostForNode > 0 && (
+                          <>
+                            <div className="text-muted-foreground flex items-center gap-1">
+                              App cost:
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Estimated {nodeData?.appName || 'app'} cost based on selected tier.</p>
+                                  {nodesUsingThisApp > 1 && (
+                                    <p className="mt-1">Cost divided by {nodesUsingThisApp} nodes using this app.</p>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <div className="font-medium text-red-600 dark:text-red-400 tabular-nums">
+                              ${appCostForNode.toFixed(2)}
+                            </div>
+                          </>
+                        )}
+                        
+                        <div className="text-muted-foreground flex items-center gap-1">
+                          Total costs:
+                        </div>
+                        <div className="font-medium text-red-600 dark:text-red-400 tabular-nums">
+                          ${totalNodeCost.toFixed(2)}
+                        </div>
+                        
                         <div className="text-muted-foreground flex items-center gap-1">
                           Node ROI Ratio:
                           <Tooltip>
@@ -321,7 +413,7 @@ export function NodePropertiesPanel({
                               <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Value generated by this node vs. its cost (Value / Cost).</p>
+                              <p>Value generated by this node vs. its total cost (Value / Cost).</p>
                             </TooltipContent>
                           </Tooltip>
                         </div>

@@ -10,9 +10,10 @@ import { NodeData } from "@/lib/types";
 interface DefaultNodePanelProps {
   node: Node;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  recalculateNodeWidth?: (updatedNodeData: Partial<NodeData>) => Partial<NodeData>;
 }
 
-export function DefaultNodePanel({ node, setNodes }: DefaultNodePanelProps) {
+export function DefaultNodePanel({ node, setNodes, recalculateNodeWidth }: DefaultNodePanelProps) {
   // Safely cast node data with fallbacks for required properties
   const nodeData = node.data as unknown as NodeData;
   // Access generic node data for properties not in NodeData interface

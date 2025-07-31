@@ -11,9 +11,10 @@ import { NodeData } from "@/lib/types";
 interface DecisionNodePanelProps {
   node: Node;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  recalculateNodeWidth?: (updatedNodeData: Partial<NodeData>) => Partial<NodeData>;
 }
 
-export function DecisionNodePanel({ node, setNodes }: DecisionNodePanelProps) {
+export function DecisionNodePanel({ node, setNodes, recalculateNodeWidth }: DecisionNodePanelProps) {
   // Safely cast node data with fallbacks for required properties
   const nodeData = node.data as unknown as NodeData;
 

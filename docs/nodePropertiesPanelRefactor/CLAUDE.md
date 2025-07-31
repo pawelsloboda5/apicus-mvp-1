@@ -62,14 +62,26 @@
 - **Result**: Both main pages now use modular version consistently
 - **UI Impact**: All improvements now visible across entire application
 
-**Priority 1**: Complete Pricing Tab Implementation
-- ✅ Basic structure added
-- **Next**: Add tier selector and usage analytics
-- **Next**: Port remaining pricing logic from monolithic
+#### 2025-01-07 - Added Node Width Recalculation ✅
+- **Added** `recalculateNodeWidth` function using lib utilities
+- **Imported** `calculateNodeWidth` and `generateContentHash` from constants
+- **Passed** recalculation function to all individual panels
+- **Result**: Nodes will automatically resize when properties change
 
-**Priority 2**: Enhanced ROI Calculations  
-- Enhance ROI display in modular version
-- Port detailed metrics from monolithic lines 671-873
+#### 2025-01-07 - Enhanced ROI Calculations ✅ 
+- **Added** detailed app cost calculations with tier selection logic
+- **Added** cost sharing logic for multiple nodes using same app
+- **Added** total cost display including platform + app costs
+- **Enhanced** tooltips with detailed calculation explanations
+- **Result**: ROI section now matches monolithic version functionality
+
+#### 2025-01-07 - Fixed TypeScript Errors ✅
+- **Added** missing properties to NodeData interface: calculatedWidth, calculatedHeight, lastContentHash
+- **Updated** all panel interfaces to accept recalculateNodeWidth parameter
+- **Updated** all panel function signatures to destructure recalculateNodeWidth
+- **Result**: All TypeScript errors resolved, node width recalculation fully functional
+
+### Phase 2: Feature Migration (COMPLETE)
 
 **Priority 3**: Email Context Templates
 - Move hardcoded templates to shared constants

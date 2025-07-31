@@ -12,9 +12,10 @@ import { NodeData } from '@/lib/types';
 interface TriggerNodePanelProps {
   node: Node;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  recalculateNodeWidth?: (updatedNodeData: Partial<NodeData>) => Partial<NodeData>;
 }
 
-export function TriggerNodePanel({ node, setNodes }: TriggerNodePanelProps) {
+export function TriggerNodePanel({ node, setNodes, recalculateNodeWidth }: TriggerNodePanelProps) {
   const onUpdateNode = (updates: Partial<NodeData>) => {
     setNodes((prevNodes) =>
       prevNodes.map((n) =>

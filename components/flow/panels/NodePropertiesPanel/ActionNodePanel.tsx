@@ -13,6 +13,7 @@ import { NodeData } from '@/lib/types';
 interface ActionNodePanelProps {
   node: Node;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  recalculateNodeWidth?: (updatedNodeData: Partial<NodeData>) => Partial<NodeData>;
 }
 
 const COMMON_ACTIONS = {
@@ -27,7 +28,7 @@ const COMMON_ACTIONS = {
   custom: 'Custom Action',
 };
 
-export function ActionNodePanel({ node, setNodes }: ActionNodePanelProps) {
+export function ActionNodePanel({ node, setNodes, recalculateNodeWidth }: ActionNodePanelProps) {
   const onUpdateNode = (updates: Partial<NodeData>) => {
     setNodes((prevNodes) =>
       prevNodes.map((n) =>
