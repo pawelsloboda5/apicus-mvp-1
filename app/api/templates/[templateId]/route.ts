@@ -18,6 +18,7 @@ export async function GET(
     // Check if embedding should be included (for server-side vector operations only)
     const url = new URL(req.url);
     const includeEmbedding = url.searchParams.get('includeEmbedding') === 'true';
+    const platform = url.searchParams.get('platform')?.trim();
     
     const projection = includeEmbedding 
       ? {} // Include all fields
@@ -47,9 +48,28 @@ export async function GET(
           pricingEnrichedAt: 1
         }
     
-    const doc = await db
-      .collection("apicus-templates")
-      .findOne({ templateId }, { projection });
+    // Determine collection based on platform parameter or try both
+    let doc;
+    if (platform === "n8n") {
+      doc = await db
+        .collection("apicus-templates-n8n")
+        .findOne({ templateId }, { projection });
+    } else if (platform === "zapier") {
+      doc = await db
+        .collection("apicus-templates")
+        .findOne({ templateId }, { projection });
+    } else {
+      // If no platform specified, try both collections
+      doc = await db
+        .collection("apicus-templates")
+        .findOne({ templateId }, { projection });
+      
+      if (!doc) {
+        doc = await db
+          .collection("apicus-templates-n8n")
+          .findOne({ templateId }, { projection });
+      }
+    }
       
     if (!doc) {
       return NextResponse.json({ error: "Template not found", templateId }, { status: 404 });

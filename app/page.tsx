@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Rocket, Zap, ChevronLeft, ChevronRight, Upload, ArrowRight, Clock, FileText } from "lucide-react";
+import { BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Rocket, Zap, ChevronLeft, ChevronRight, Upload, ArrowRight, Clock, FileText, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -44,11 +44,15 @@ function Badge({
   );
 }
 
+type PlatformType = "zapier" | "n8n";
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [searching, setSearching] = useState(false);
   const [currentBenefit, setCurrentBenefit] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("zapier");
+  const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   
@@ -83,33 +87,67 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [benefits.length]);
 
+  // Close dropdown when clicking outside
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (platformDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setPlatformDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [platformDropdownOpen]);
+
+  // Platform theme configuration
+  const platformThemes = {
+    zapier: {
+      primary: "#F15533",
+      primaryHover: "#D4452A",
+      primaryLight: "#F15533/20",
+      border: "#E2C3B9",
+      text: "#F15533"
+    },
+    n8n: {
+      primary: "#FF6B35", 
+      primaryHover: "#E55A2B",
+      primaryLight: "#FF6B35/20",
+      border: "#FFB4A1",
+      text: "#FF6B35"
+    }
+  };
+
+  const currentTheme = platformThemes[selectedPlatform];
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     const q = inputRef.current?.value.trim();
     if (!q) {
-      router.push('/build');
+      router.push(`/build?platform=${selectedPlatform}`);
       return;
     }
     
     setSearching(true);
     try {
-      const res = await fetch(`/api/templates/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/templates/search?q=${encodeURIComponent(q)}&platform=${selectedPlatform}`);
       if (!res.ok) {
         // If search fails, create a new scenario with default template
-        router.push(`/build?q=${encodeURIComponent(q)}&default=true`);
+        router.push(`/build?q=${encodeURIComponent(q)}&default=true&platform=${selectedPlatform}`);
         return;
       }
       const data = await res.json();
       
       if (data.templates && data.templates.length > 0) {
         const primaryTemplate = data.templates[0];
-        router.push(`/build?tid=${primaryTemplate.templateId}&q=${encodeURIComponent(q)}`);
+        router.push(`/build?tid=${primaryTemplate.templateId}&q=${encodeURIComponent(q)}&platform=${selectedPlatform}`);
       } else {
         // No templates found, create with default template
-        router.push(`/build?q=${encodeURIComponent(q)}&default=true`);
+        router.push(`/build?q=${encodeURIComponent(q)}&default=true&platform=${selectedPlatform}`);
       }
     } catch {
-      router.push('/build');
+      router.push(`/build?platform=${selectedPlatform}`);
     } finally {
       setSearching(false);
     }
@@ -199,14 +237,88 @@ export default function Home() {
                   Need a new automation workflow?
                 </h3>
                 <p className="text-sm text-[#3C3C3C] mb-4">
-                  Choose from <span className="font-bold text-[#F15533]">2,000+ proven templates</span> based on your description
+                  Choose from <span className="font-bold" style={{ color: currentTheme.text }}>2,000+ proven templates</span> based on your description
                 </p>
                 <form onSubmit={handleGenerate} className="flex flex-col items-center gap-4">
+                  {/* Platform Selector */}
+                  <div ref={dropdownRef} className="relative w-full max-w-xs">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setPlatformDropdownOpen(!platformDropdownOpen);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium border-2 rounded-lg transition-all duration-200"
+                      style={{ 
+                        borderColor: currentTheme.border,
+                        backgroundColor: 'white',
+                        color: currentTheme.text
+                      }}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-[#97756B]">Platform:</span>
+                        <span className="font-bold capitalize">{selectedPlatform}</span>
+                      </span>
+                      <ChevronDown className={cn("h-4 w-4 transition-transform", platformDropdownOpen && "rotate-180")} />
+                    </button>
+                    
+                    {platformDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 rounded-lg shadow-lg z-50"
+                           style={{ borderColor: currentTheme.border }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log("Zapier clicked");
+                            setSelectedPlatform("zapier");
+                            setPlatformDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "w-full px-4 py-3 text-left text-sm font-medium transition-colors rounded-t-lg",
+                            selectedPlatform === "zapier" ? "bg-[#F15533]/10 text-[#F15533]" : "hover:bg-gray-50"
+                          )}
+                        >
+                          <span className="font-bold">Zapier</span>
+                          <span className="text-xs text-gray-500 block">Most popular platform</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log("n8n clicked");
+                            setSelectedPlatform("n8n");
+                            setPlatformDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "w-full px-4 py-3 text-left text-sm font-medium transition-colors rounded-b-lg",
+                            selectedPlatform === "n8n" ? "bg-[#FF6B35]/10 text-[#FF6B35]" : "hover:bg-gray-50"
+                          )}
+                        >
+                          <span className="font-bold">n8n</span>
+                          <span className="text-xs text-gray-500 block">Open-source workflows</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="relative w-full">
                     <textarea
                       ref={inputRef}
                       placeholder="Describe what you want to automate (e.g., 'Process invoices from Gmail and update QuickBooks')"
-                      className="w-full h-24 border-2 border-[#E2C3B9] bg-white px-6 py-4 pr-16 text-lg font-medium text-[#1A1A1A] placeholder:text-[#97756B] focus:border-[#F15533] focus:outline-none focus:ring-4 focus:ring-[#F15533]/20 resize-none transition-all duration-200 rounded-lg"
+                      className="w-full h-24 border-2 bg-white px-6 py-4 pr-16 text-lg font-medium text-[#1A1A1A] placeholder:text-[#97756B] focus:outline-none focus:ring-4 resize-none transition-all duration-200 rounded-lg"
+                      style={{ 
+                        borderColor: currentTheme.border,
+                        '--tw-ring-color': currentTheme.primaryLight
+                      } as React.CSSProperties & { '--tw-ring-color': string }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = currentTheme.primary;
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = currentTheme.border;
+                      }}
                       disabled={searching}
                       rows={3}
                       onKeyDown={handleKeyDown}
@@ -215,7 +327,17 @@ export default function Home() {
                       type="submit"
                       disabled={searching}
                       size="icon"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 bg-[#F15533] hover:bg-[#D4452A]"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 transition-colors"
+                      style={{ 
+                        backgroundColor: currentTheme.primary,
+                        borderColor: currentTheme.primary
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = currentTheme.primaryHover;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = currentTheme.primary;
+                      }}
                     >
                       {searching ? (
                         <Loader2 className="h-6 w-6 animate-spin" />

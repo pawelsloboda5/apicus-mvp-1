@@ -25,17 +25,18 @@ function setCachedEmbedding(query: string, embedding: number[]): void {
   console.log("Cached embedding for query:", query);
 }
 
-// GET /api/templates/search?q=...
+// GET /api/templates/search?q=...&platform=...
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q")?.trim();
+    const platform = searchParams.get("platform")?.trim() || "zapier";
     
     if (!q) {
       return NextResponse.json({ error: "Missing q" }, { status: 400 });
     }
 
-    console.log("Starting search for query:", q);
+    console.log("Starting search for query:", q, "platform:", platform);
 
     // Build embedding for query ------------------------------------------------
     const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
@@ -107,7 +108,12 @@ export async function GET(req: Request) {
     }
 
     console.log("Performing vector search...");
-    const collection = db.collection("apicus-templates");
+    
+    // Determine collection based on platform
+    const collectionName = platform === "n8n" ? "apicus-templates-n8n" : "apicus-templates";
+    const collection = db.collection(collectionName);
+    
+    console.log("Using collection:", collectionName);
 
     // Try Cosmos DB first, then fall back to Atlas
     try {
@@ -205,7 +211,6 @@ export async function GET(req: Request) {
               queryVector: embedding,
               numCandidates: 100,
               limit: 6,
-              nprobes: 16, // Added based on benchmark recommendation for optimal speed/recall balance
             },
           },
           { 
