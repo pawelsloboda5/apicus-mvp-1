@@ -3,6 +3,7 @@
  * Provides standardized ROI calculations for node panels
  */
 
+import { useMemo, useCallback } from "react";
 import { Node } from "@xyflow/react";
 import { NodeData, NodeType, PlatformType } from "@/lib/types";
 import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio } from "@/lib/roi-utils";
@@ -37,7 +38,8 @@ export function useROICalculations({
   nodes,
 }: ROICalculationProps) {
   
-  const calculateNodeROI = (selectedNode: Node): NodeROIData => {
+  // Memoize the calculateNodeROI function to ensure proper reactivity
+  const calculateNodeROI = useCallback((selectedNode: Node): NodeROIData => {
     const nodeData = selectedNode?.data as unknown as NodeData;
     
     // Calculate time savings
@@ -144,9 +146,10 @@ export function useROICalculations({
       roiRatioNode,
       nodesUsingThisApp,
     };
-  };
+  }, [runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, platform, nodes]);
 
-  return {
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(() => ({
     calculateNodeROI,
     // Expose individual calculation props for flexibility
     runsPerMonth,
@@ -155,5 +158,5 @@ export function useROICalculations({
     taskMultiplier,
     platform,
     formatROIRatio,
-  };
+  }), [calculateNodeROI, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, platform]);
 }

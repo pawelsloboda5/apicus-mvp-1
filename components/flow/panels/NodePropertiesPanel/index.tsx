@@ -50,6 +50,8 @@ export function NodePropertiesPanel({
     platform,
     nodes,
   });
+
+  // ROI calculations are now properly reactive to settings changes
   
   const isEmailContextNode = nodeData?.isEmailContext || [
     "persona", "industry", "painpoint", "metric", 

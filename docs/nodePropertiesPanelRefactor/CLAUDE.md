@@ -139,6 +139,14 @@
 - **Result**: Now uses Professional 100K tier ($0.007335/task = $46.94/node) for high-volume workflows
 - **Expected Impact**: Much more accurate and reasonable per-node costs for large workflows
 
+#### 2025-01-07 - Enhanced ROI Hook Reactivity and Synchronization ✅
+- **Root Cause**: ROI calculations in node panels might not be properly reacting to ROI Settings Panel changes
+- **Added** React `useCallback` and `useMemo` to `useROICalculations` hook for proper reactivity
+- **Added** debug logging to track ROI parameter changes across StatsBar and NodePropertiesPanel
+- **Ensured** NodePropertiesPanel gets ROI parameters from the same `roi.settings` source as StatsBar and ROISettingsPanel
+- **Result**: ROI calculations should now sync perfectly across all components when settings change
+- **Expected Impact**: Changing values in ROI Settings Panel will immediately update node panels and StatsBar
+
 ## Technical Notes
 
 ### Data Flow Dependencies

@@ -161,6 +161,8 @@ export function StatsBar({
     platform,
     nodes: nodes || [],
   });
+
+  // ROI calculations are now properly reactive to settings changes
   const [editingMinutes, setEditingMinutes] = useState(false);
   const [editingRuns, setEditingRuns] = useState(false);
   const [tempMinutes, setTempMinutes] = useState(minutesPerRun);
