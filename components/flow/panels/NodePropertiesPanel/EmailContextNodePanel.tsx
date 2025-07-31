@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Node, Edge } from "@xyflow/react";
 import { NodeData } from "@/lib/types";
 import { markSectionsWithChanges, EmailSectionConnections } from "@/lib/flow-utils";
+import { EMAIL_CONTEXT_TEMPLATES, EmailContextTemplate } from "@/lib/utils/constants";
 
 interface EmailContextNodePanelProps {
   node: Node;
@@ -19,127 +20,7 @@ interface EmailContextNodePanelProps {
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
 }
 
-// Template configurations for email context nodes
-interface EmailContextTemplate {
-  label: string;
-  multiSelect?: boolean;
-  options: {
-    value: string;
-    label: string;
-    description: string;
-  }[];
-}
 
-const EMAIL_CONTEXT_TEMPLATES: Record<string, EmailContextTemplate> = {
-  persona: {
-    label: "Common Personas",
-    options: [
-      { value: "Marketing Manager", label: "Marketing Manager", description: "Mid-level marketing professional" },
-      { value: "Sales Director", label: "Sales Director", description: "Senior sales leadership" },
-      { value: "Operations Manager", label: "Operations Manager", description: "Process optimization focused" },
-      { value: "Small Business Owner", label: "Small Business Owner", description: "Resource-conscious decision maker" },
-      { value: "IT Administrator", label: "IT Administrator", description: "Technical implementation focused" },
-      { value: "CEO/Founder", label: "CEO/Founder", description: "Strategic, ROI-focused" },
-      { value: "Product Manager", label: "Product Manager", description: "Feature and efficiency focused" },
-      { value: "Finance Director", label: "Finance Director", description: "Cost and compliance focused" },
-    ]
-  },
-  industry: {
-    label: "Industry Verticals",
-    options: [
-      { value: "SaaS", label: "SaaS", description: "Software as a Service" },
-      { value: "E-commerce", label: "E-commerce", description: "Online retail and marketplaces" },
-      { value: "Healthcare", label: "Healthcare", description: "Medical and health services" },
-      { value: "Financial Services", label: "Financial Services", description: "Banking, insurance, fintech" },
-      { value: "Manufacturing", label: "Manufacturing", description: "Production and supply chain" },
-      { value: "Real Estate", label: "Real Estate", description: "Property and realty services" },
-      { value: "Education", label: "Education", description: "Schools and learning platforms" },
-      { value: "Consulting", label: "Consulting", description: "Professional services" },
-    ]
-  },
-  painpoint: {
-    label: "Common Pain Points",
-    multiSelect: true,
-    options: [
-      { value: "Manual data entry", label: "Manual data entry", description: "Repetitive typing and copying" },
-      { value: "Slow response times", label: "Slow response times", description: "Delayed customer service" },
-      { value: "Data silos", label: "Data silos", description: "Disconnected systems" },
-      { value: "Human errors", label: "Human errors", description: "Mistakes in manual processes" },
-      { value: "Scaling challenges", label: "Scaling challenges", description: "Can't grow efficiently" },
-      { value: "Compliance risks", label: "Compliance risks", description: "Regulatory concerns" },
-      { value: "High operational costs", label: "High operational costs", description: "Expensive manual work" },
-      { value: "Poor visibility", label: "Poor visibility", description: "Lack of real-time insights" },
-    ]
-  },
-  metric: {
-    label: "Success Metrics",
-    multiSelect: true,
-    options: [
-      { value: "Time saved per week", label: "Time saved per week", description: "Hours freed up" },
-      { value: "Cost reduction %", label: "Cost reduction %", description: "Operational savings" },
-      { value: "Error rate reduction", label: "Error rate reduction", description: "Fewer mistakes" },
-      { value: "Customer response time", label: "Customer response time", description: "Faster service" },
-      { value: "Revenue per employee", label: "Revenue per employee", description: "Productivity gains" },
-      { value: "Process cycle time", label: "Process cycle time", description: "Faster completion" },
-      { value: "Customer satisfaction", label: "Customer satisfaction", description: "Happier clients" },
-      { value: "ROI percentage", label: "ROI percentage", description: "Return on investment" },
-    ]
-  },
-  urgency: {
-    label: "Urgency Factors",
-    options: [
-      { value: "End of quarter", label: "End of quarter", description: "Q4 deadlines approaching" },
-      { value: "Budget season", label: "Budget season", description: "Annual planning time" },
-      { value: "Competitor advantage", label: "Competitor advantage", description: "Others are automating" },
-      { value: "Regulatory deadline", label: "Regulatory deadline", description: "Compliance requirements" },
-      { value: "Scaling rapidly", label: "Scaling rapidly", description: "Growing too fast" },
-      { value: "Staff turnover", label: "Staff turnover", description: "Losing institutional knowledge" },
-      { value: "Peak season coming", label: "Peak season coming", description: "Busy period ahead" },
-      { value: "Cost pressures", label: "Cost pressures", description: "Need to reduce expenses" },
-    ]
-  },
-  socialproof: {
-    label: "Social Proof Elements",
-    options: [
-      { value: "500+ companies automated", label: "500+ companies automated", description: "Large customer base" },
-      { value: "98% customer satisfaction", label: "98% customer satisfaction", description: "High approval rating" },
-      { value: "$2M+ saved for clients", label: "$2M+ saved for clients", description: "Proven financial impact" },
-      { value: "Industry leader trusted", label: "Industry leader trusted", description: "Big name endorsement" },
-      { value: "5-star rated solution", label: "5-star rated solution", description: "Top reviews" },
-      { value: "Case study available", label: "Case study available", description: "Documented success" },
-      { value: "Award-winning platform", label: "Award-winning platform", description: "Industry recognition" },
-      { value: "10,000+ workflows built", label: "10,000+ workflows built", description: "Extensive experience" },
-    ]
-  },
-  objection: {
-    label: "Common Objections",
-    multiSelect: true,
-    options: [
-      { value: "No technical skills needed", label: "No technical skills needed", description: "Easy to use" },
-      { value: "Free trial available", label: "Free trial available", description: "Try before buying" },
-      { value: "IT approved solution", label: "IT approved solution", description: "Security cleared" },
-      { value: "No coding required", label: "No coding required", description: "Visual builder" },
-      { value: "Quick implementation", label: "Quick implementation", description: "Fast setup" },
-      { value: "Full support included", label: "Full support included", description: "Help available" },
-      { value: "Pay as you grow", label: "Pay as you grow", description: "Flexible pricing" },
-      { value: "Data stays secure", label: "Data stays secure", description: "Privacy protected" },
-    ]
-  },
-  value: {
-    label: "Value Propositions",
-    multiSelect: true,
-    options: [
-      { value: "10x faster processing", label: "10x faster processing", description: "Speed improvement" },
-      { value: "50% cost reduction", label: "50% cost reduction", description: "Major savings" },
-      { value: "Zero manual errors", label: "Zero manual errors", description: "Perfect accuracy" },
-      { value: "24/7 automation", label: "24/7 automation", description: "Always running" },
-      { value: "Instant ROI", label: "Instant ROI", description: "Immediate payback" },
-      { value: "Seamless integration", label: "Seamless integration", description: "Works with your tools" },
-      { value: "Scale infinitely", label: "Scale infinitely", description: "No growth limits" },
-      { value: "Real-time insights", label: "Real-time insights", description: "Live dashboards" },
-    ]
-  }
-};
 
 export function EmailContextNodePanel({ node, nodes, edges, setNodes }: EmailContextNodePanelProps) {
   // Safely cast node data with fallbacks for required properties

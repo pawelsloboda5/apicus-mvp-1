@@ -10,9 +10,10 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { HelpCircle, Trash2 } from "lucide-react";
+import { HelpCircle, Trash2, DollarSign } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { pricing } from "@/app/api/data/pricing";
 import { NodePropertiesPanelProps, NodeData, NodeType } from "@/lib/types";
@@ -121,8 +122,21 @@ export function NodePropertiesPanel({
         </SheetHeader>
         
         {selectedNode && (
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-6 space-y-6">
+          <Tabs defaultValue="configuration" className="flex-1 flex flex-col">
+            {/* Show tabs only for action nodes with app data and pricing */}
+            {!isEmailContextNode && nodeData?.appName && nodeData?.pricingData && (
+              <TabsList className="grid w-full grid-cols-2 mx-6 mb-0 max-w-[calc(100%-3rem)]">
+                <TabsTrigger value="configuration">Configuration</TabsTrigger>
+                <TabsTrigger value="pricing">
+                  <DollarSign className="h-3 w-3 mr-1" />
+                  Pricing
+                </TabsTrigger>
+              </TabsList>
+            )}
+            
+            {/* Configuration Tab */}
+            <TabsContent value="configuration" className="flex-1 overflow-y-auto mt-0">
+              <div className="p-6 space-y-6">
               {/* Node Overview */}
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -319,8 +333,68 @@ export function NodePropertiesPanel({
                   })()}
                 </div>
               )}
-            </div>
-          </div>
+              </div>
+            </TabsContent>
+
+            {/* Pricing Tab */}
+            {!isEmailContextNode && nodeData?.appName && nodeData?.pricingData && (
+              <TabsContent value="pricing" className="flex-1 overflow-y-auto mt-0">
+                <div className="p-6 space-y-6">
+                  {/* App Header with Logo */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      {nodeData?.logoUrl && (
+                        <img 
+                          src={nodeData.logoUrl} 
+                          alt={`${nodeData?.appName} logo`}
+                          width={40}
+                          height={40}
+                          className="w-10 h-10 rounded-lg object-contain bg-muted p-1"
+                        />
+                      )}
+                      <div>
+                        <h3 className="text-base font-semibold">{nodeData?.appName}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {nodeData?.action || "Configure pricing tier"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pricing Information Summary */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium">Pricing Information</h4>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-4 rounded-lg">
+                      {nodeData?.pricingData?.hasFreeTier && (
+                        <>
+                          <div className="text-muted-foreground">Free Tier:</div>
+                          <div className="font-medium">Available</div>
+                        </>
+                      )}
+                      
+                      {nodeData?.pricingData?.lowestMonthlyPrice !== null && nodeData?.pricingData?.lowestMonthlyPrice !== undefined && (
+                        <>
+                          <div className="text-muted-foreground">Starting Price:</div>
+                          <div className="font-medium">
+                            {nodeData?.pricingData?.currency || '$'}
+                            {nodeData?.pricingData?.lowestMonthlyPrice}/mo
+                          </div>
+                        </>
+                      )}
+                      
+                      {nodeData?.pricingData?.hasUsageBasedPricing && (
+                        <>
+                          <div className="text-muted-foreground">Pricing Model:</div>
+                          <div className="font-medium">Usage-based</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+          </Tabs>
         )}
 
         {/* Footer with Delete Button */}
