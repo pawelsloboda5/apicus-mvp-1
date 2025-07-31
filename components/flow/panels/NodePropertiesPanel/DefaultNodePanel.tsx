@@ -6,14 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Node } from "@xyflow/react";
 import { NodeData } from "@/lib/types";
+import { useROICalculations } from "@/lib/hooks/useROICalculations";
+import { ROISection } from "../shared/ROISection";
 
 interface DefaultNodePanelProps {
   node: Node;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   recalculateNodeWidth?: (updatedNodeData: Partial<NodeData>) => Partial<NodeData>;
+  roiCalculations?: ReturnType<typeof useROICalculations>;
 }
 
-export function DefaultNodePanel({ node, setNodes, recalculateNodeWidth }: DefaultNodePanelProps) {
+export function DefaultNodePanel({ node, setNodes, recalculateNodeWidth, roiCalculations }: DefaultNodePanelProps) {
   // Safely cast node data with fallbacks for required properties
   const nodeData = node.data as unknown as NodeData;
   // Access generic node data for properties not in NodeData interface
@@ -106,6 +109,18 @@ export function DefaultNodePanel({ node, setNodes, recalculateNodeWidth }: Defau
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ROI Contribution */}
+        {roiCalculations && (
+          <div className="mt-6">
+            <ROISection 
+              node={node} 
+              roiCalculations={roiCalculations}
+              showDetailedBreakdown={false} // Simplified for default nodes
+              showAppCosts={false} // Default nodes typically don't have app costs
+            />
           </div>
         )}
       </CardContent>

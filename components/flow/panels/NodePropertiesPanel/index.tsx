@@ -144,6 +144,7 @@ export function NodePropertiesPanel({
             node={selectedNode}
             setNodes={setNodes}
             recalculateNodeWidth={recalculateNodeWidth}
+            roiCalculations={roiCalculations}
           />
         );
     }
