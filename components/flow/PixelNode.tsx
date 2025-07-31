@@ -239,6 +239,7 @@ export function PixelNode({ data, type, selected, id }: NodeProps) {
     nodeData.typeOf,
     nodeData.lastContentHash,
     nodeData.pricingData, // Add as dependency
+    nodeData.calculatedHeight, // Add missing dependency
     type,
     isEmailContext,
     id

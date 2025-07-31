@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   Sheet,
   SheetContent,
@@ -880,10 +881,13 @@ export function NodePropertiesPanel({
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       {nodeData?.logoUrl && (
-                        <img 
+                        <Image 
                           src={nodeData.logoUrl} 
                           alt={`${nodeData?.appName} logo`}
+                          width={40}
+                          height={40}
                           className="w-10 h-10 rounded-lg object-contain bg-muted p-1"
+                          unoptimized
                         />
                       )}
                       <div>
