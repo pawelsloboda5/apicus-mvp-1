@@ -277,7 +277,7 @@ export function Toolbox({
       style={{
         display: isCollapsed ? 'none' : 'grid',
         gridTemplateRows: activeTab === 'canvas' 
-          ? '30% 12% 40% 18%' // Email Context (30%), Basic Nodes (12%), Scenarios (40%), Emails (18%)
+          ? '20% 10% 30% 20%' // Email Context (20%), Basic Nodes (10%), Scenarios (30%), Emails (20%)
           : '1fr', // Analytics takes full space
       }}
       >
@@ -658,17 +658,14 @@ function ToolboxContent({
           {activeTab === 'canvas' ? (
             // Canvas mode with 4 sections
             <>
-              {/* Section 1: Email Context (30%) */}
-              <div className="overflow-hidden flex flex-col p-4 border-b">
+              {/* Section 1: Email Context (20%) */}
+              <div className="overflow-hidden flex flex-col p-3 border-b">
                 <div className="flex items-center justify-between mb-3 shrink-0">
                   <h2 className="text-sm font-display font-semibold tracking-tight">Email Context</h2>
                 </div>
-                <p className="text-xs text-muted-foreground mb-3 shrink-0">
-                  Drag these nodes to influence email generation
-                </p>
                 <div className="flex-1 overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-2">
-                    {EMAIL_CONTEXT_ITEMS.slice(0, 4).map((item) => (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {EMAIL_CONTEXT_ITEMS.map((item) => (
                       <EmailContextToolboxItem
                         key={item.type}
                         {...item}
@@ -677,30 +674,15 @@ function ToolboxContent({
                       />
                     ))}
                   </div>
-                  <details className="mt-3 group">
-                    <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground px-1 py-2">
-                      Show more context nodes ({EMAIL_CONTEXT_ITEMS.length - 4} more)
-                    </summary>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {EMAIL_CONTEXT_ITEMS.slice(4).map((item) => (
-                        <EmailContextToolboxItem
-                          key={item.type}
-                          {...item}
-                          isSelected={selectedNodeType === item.type}
-                          onSelect={onNodeTypeSelect}
-                        />
-                      ))}
-                    </div>
-                  </details>
                 </div>
               </div>
 
-              {/* Section 2: Basic Nodes (12%) */}
-              <div className="p-4 border-b flex flex-col">
+              {/* Section 2: Basic Nodes (10%) */}
+              <div className="p-3 border-b flex flex-col">
                 <h2 className="mb-2 text-sm font-display font-semibold tracking-tight text-muted-foreground shrink-0">
                   Basic Nodes
                 </h2>
-                <ul className="flex gap-2 flex-1 items-center">
+                <div className="flex gap-2 flex-1 items-center justify-center">
                   {ITEMS.map((item) => (
                     <ToolboxItem 
                       key={item.type} 
@@ -711,11 +693,11 @@ function ToolboxContent({
                       compact={true}
                     />
                   ))}
-                </ul>
+                </div>
               </div>
 
-              {/* Section 3: My Scenarios (40%) */}
-              <div className="overflow-hidden flex flex-col p-4 border-b">
+              {/* Section 3: My Scenarios (30%) */}
+              <div className="overflow-hidden flex flex-col p-3 border-b">
                 {/* Action Bar */}
                 <div className="flex items-center justify-between mb-3 shrink-0">
                   <h2 className="text-sm font-display font-semibold tracking-tight">
@@ -723,7 +705,7 @@ function ToolboxContent({
                     {filteredScenarios && ` (${filteredScenarios.length})`}
                   </h2>
                 </div>
-                <div className="flex gap-2 mb-3 shrink-0">
+                <div className="flex gap-2 mb-2 shrink-0">
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -1033,9 +1015,9 @@ function ToolboxContent({
                 </div>
               </div>
 
-              {/* Section 4: Generated Emails (18%) */}
-              <div className="overflow-hidden flex flex-col p-4">
-                <h2 className="mb-3 text-sm font-display font-semibold tracking-tight shrink-0 text-muted-foreground">
+              {/* Section 4: Generated Emails (20%) */}
+              <div className="overflow-hidden flex flex-col p-3">
+                <h2 className="mb-2 text-sm font-display font-semibold tracking-tight shrink-0 text-muted-foreground">
                   Generated Emails
                 </h2>
                 <div className="flex-1 overflow-hidden">

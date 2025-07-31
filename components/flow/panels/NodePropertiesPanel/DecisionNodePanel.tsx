@@ -17,7 +17,7 @@ interface DecisionNodePanelProps {
   roiCalculations?: ReturnType<typeof useROICalculations>;
 }
 
-export function DecisionNodePanel({ node, setNodes, recalculateNodeWidth, roiCalculations }: DecisionNodePanelProps) {
+export function DecisionNodePanel({ node, setNodes, roiCalculations }: DecisionNodePanelProps) {
   // Safely cast node data with fallbacks for required properties
   const nodeData = node.data as unknown as NodeData;
 

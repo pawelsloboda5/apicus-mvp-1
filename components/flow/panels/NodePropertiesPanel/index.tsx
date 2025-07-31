@@ -10,13 +10,12 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { HelpCircle, Trash2, DollarSign } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Trash2, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-import { NodePropertiesPanelProps, NodeData, NodeType } from "@/lib/types";
+import { NodePropertiesPanelProps, NodeData } from "@/lib/types";
 import { calculateNodeWidth, generateContentHash } from "@/lib/utils/constants";
 import { useROICalculations } from "@/lib/hooks/useROICalculations";
 

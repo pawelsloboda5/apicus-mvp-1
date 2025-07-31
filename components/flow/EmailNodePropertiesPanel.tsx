@@ -17,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmailPreviewNodeData } from './EmailPreviewNode';
 import { Node } from '@xyflow/react';
-import { Loader2, Wand2, ChevronDown, Check, Info } from 'lucide-react';
+import { Loader2, Wand2, ChevronDown, Check, Info, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,8 +39,12 @@ interface EmailNodePropertiesPanelProps {
   onUpdateNodeData: (nodeId: string, data: Partial<EmailPreviewNodeData>) => void;
   onGenerateSection: (
     nodeId: string,
-    section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency'
+    section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
+    promptType: string,
+    currentText: string,
+    selectedContextNodes?: string[]
   ) => Promise<void>;
+  onDeleteNode: (nodeId: string) => void;
   isGeneratingAIContent: boolean;
   emailContextNodes?: EmailContextNode[];
 }
@@ -99,6 +103,7 @@ export function EmailNodePropertiesPanel({
   onClose,
   onUpdateNodeData,
   onGenerateSection,
+  onDeleteNode,
   isGeneratingAIContent,
   emailContextNodes,
 }: EmailNodePropertiesPanelProps) {
@@ -231,7 +236,10 @@ export function EmailNodePropertiesPanel({
                       if (selectedNode) {
                         onGenerateSection(
                           selectedNode.id,
-                          promptKey
+                          promptKey,
+                          opt.value, // promptType
+                          formData[fieldKey] || '', // currentText
+                          Array.from(selectedContextNodes) // selectedContextNodes
                         );
                       }
                     }}
@@ -285,7 +293,7 @@ export function EmailNodePropertiesPanel({
     >
       <SheetContent 
         side="right" 
-        className="w-[480px] sm:w-[540px] flex flex-col p-0 h-screen max-h-screen overflow-hidden bg-white dark:bg-gray-950"
+        className="w-[480px] sm:w-[540px] flex flex-col p-0 h-screen max-h-screen overflow-hidden bg-white"
       >
         <SheetHeader className="p-6 pb-4 border-b flex-shrink-0">
           <SheetTitle className="text-xl">Edit Email Content</SheetTitle>
@@ -568,7 +576,22 @@ export function EmailNodePropertiesPanel({
           </ScrollArea>
         </div>
         
-        <SheetFooter className="p-6 pt-4 border-t flex-shrink-0">
+        <SheetFooter className="p-6 pt-4 border-t flex-shrink-0 flex gap-2 justify-between">
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (selectedNode) {
+                onDeleteNode(selectedNode.id);
+                onClose();
+              }
+            }}
+            className="flex items-center gap-2"
+            disabled={!selectedNode}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Email
+          </Button>
           <SheetClose asChild>
             <Button variant="outline">Close</Button>
           </SheetClose>

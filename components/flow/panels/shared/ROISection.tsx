@@ -7,7 +7,7 @@ import React from "react";
 import { Node } from "@xyflow/react";
 import { HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useROICalculations, NodeROIData } from "@/lib/hooks/useROICalculations";
+import { useROICalculations } from "@/lib/hooks/useROICalculations";
 
 interface ROISectionProps {
   node: Node;
@@ -131,7 +131,7 @@ export function ROISection({
                   <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Estimated {(node.data as any)?.appName || 'app'} cost based on selected tier.</p>
+                  <p>Estimated {(node.data as Record<string, unknown>)?.appName as string || 'app'} cost based on selected tier.</p>
                   {nodesUsingThisApp > 1 && (
                     <p className="mt-1">Cost divided by {nodesUsingThisApp} nodes using this app.</p>
                   )}

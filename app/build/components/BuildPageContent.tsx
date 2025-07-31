@@ -34,7 +34,13 @@ import { formatROIRatio } from "@/lib/roi-utils";
 // Import default template
 import { DEFAULT_TEMPLATE } from "@/lib/templates/default-template";
 
+// Import database and utilities
+import { db, createScenario } from "@/lib/db";
+import { nanoid } from "nanoid";
+
 // Import components
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { StatsBar } from "@/components/flow/StatsBar";
 import { FlowCanvas } from "@/components/flow/FlowCanvas";
 import { CustomEdge } from "@/components/flow/CustomEdge";
@@ -44,9 +50,12 @@ import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { PixelNode } from "@/components/flow/PixelNode";
 import { NodePropertiesPanel } from "@/components/flow/panels/NodePropertiesPanel";
 import { GroupPropertiesPanel } from "@/components/flow/GroupPropertiesPanel";
-import { EmailNodePropertiesPanel } from "@/components/flow/panels/EmailNodePropertiesPanel";
+import { EmailNodePropertiesPanel } from "@/components/flow/EmailNodePropertiesPanel";
 import { ROISettingsPanel } from "@/components/roi/ROISettingsPanel";
 import { ROIReportNode } from "@/components/flow/ROIReportNode";
+
+// Import icons
+import { Copy, Edit2 as Edit2Icon, Trash2, Check, X } from "lucide-react";
 
 // Dynamic imports for performance
 const Toolbox = dynamic(() => import("@/components/flow/Toolbox").then(mod => mod.Toolbox), {
@@ -105,7 +114,14 @@ export function BuildPageContent() {
   }, [setTheme]);
 
   // Canvas state
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [nodes, setNodes, originalOnNodesChange] = useNodesState<Node>([]);
+  
+  // Debug wrapper for onNodesChange
+  const onNodesChange = useCallback((changes: any) => {
+    console.log('🔄 onNodesChange called with changes:', changes);
+    originalOnNodesChange(changes);
+    console.log('🔄 onNodesChange processed');
+  }, [originalOnNodesChange]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -116,6 +132,10 @@ export function BuildPageContent() {
   const [activeTab, setActiveTab] = useState<'canvas' | 'analytics'>('canvas');
   const [isLoading, setIsLoading] = useState(true);
   const [isROISettingsOpen, setIsROISettingsOpen] = useState(false);
+  
+  // Scenario editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingName, setEditingName] = useState("");
 
   // ReactFlow refs
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -131,7 +151,7 @@ export function BuildPageContent() {
   });
 
   // Memoize the ROI settings change handler to prevent infinite loops
-  const handleROISettingsChange = useCallback((settings: any) => {
+  const handleROISettingsChange = useCallback((settings: Partial<Scenario>) => {
     if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
       scenarioManager.updateScenario(settings);
     }
@@ -190,24 +210,36 @@ export function BuildPageContent() {
   // Load scenario when it changes
   useEffect(() => {
     if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
-      console.log('Loading scenario:', scenarioManager.scenario);
-      console.log('Nodes in scenario:', scenarioManager.scenario.nodesSnapshot);
+      console.log('🔄 USEEFFECT TRIGGER: Loading scenario (ID:', scenarioManager.scenario?.id, ')');
+      console.log('🔄 USEEFFECT TRIGGER: Nodes in scenario:', scenarioManager.scenario.nodesSnapshot?.length || 0);
       loadScenarioToCanvas(scenarioManager.scenario);
       roi.loadFromScenario(scenarioManager.scenario);
     }
-  }, [scenarioManager.scenario?.id, loadScenarioToCanvas, roi.loadFromScenario]); // Remove the full scenario object and roi object
+  }, [scenarioManager.scenario?.id, loadScenarioToCanvas, roi.loadFromScenario]); // Only depend on scenario ID, not the full object
 
   // Initialize email generation hook
   const emailGeneration = useEmailGeneration({
     onEmailGenerated: (email) => {
-      // Create or update email preview node
+      // Find the highest Y position (lowest Y value) among all nodes
+      const highestY = nodes.length > 0 
+        ? Math.min(...nodes.map(node => node.position.y))
+        : 200;
+      
+      // Position email node 1,000px above the highest node
+      const emailPosition = {
+        x: CANVAS_CONFIG.nodeSpacing * 2,
+        y: highestY - 1000
+      };
+      
+      // Update the loading email node with generated content
       const emailNode: Node = {
         id: `email-${Date.now()}`,
         type: 'emailPreview',
-        position: { x: CANVAS_CONFIG.nodeSpacing * 2, y: 200 },
+        position: emailPosition,
         data: {
           ...email,
           nodeTitle: 'Generated Email',
+          isLoading: false, // Turn off loading state
           stats: {
             roiX: roi.metrics.roiRatio,
             payback: roi.metrics.paybackPeriod,
@@ -216,7 +248,27 @@ export function BuildPageContent() {
         },
       };
       
-      onNodesChange([{ type: 'add', item: emailNode }]);
+      // Replace loading node or add new one
+      setNodes(prevNodes => {
+        const loadingNodeIndex = prevNodes.findIndex(n => n.data?.isLoading && n.type === 'emailPreview');
+        if (loadingNodeIndex >= 0) {
+          // Replace loading node
+          const newNodes = [...prevNodes];
+          newNodes[loadingNodeIndex] = { ...emailNode, id: prevNodes[loadingNodeIndex].id };
+          return newNodes;
+        } else {
+          // Add new node
+          return [...prevNodes, emailNode];
+        }
+      });
+      
+      // Zoom IN and focus on the email node with closer view
+      setTimeout(() => {
+        if (rfInstance) {
+          rfInstance.setCenter(emailPosition.x + 400, emailPosition.y + 300, { zoom: 1.2, duration: 800 });
+        }
+      }, 100);
+      
       toast.success('Email generated successfully!');
     },
   });
@@ -447,8 +499,15 @@ export function BuildPageContent() {
       return;
     }
 
-    // Check if nodes/edges actually changed
-    const currentNodesStr = JSON.stringify(nodes);
+    // Filter out temporary nodes that shouldn't be saved to scenario
+    const persistentNodes = nodes.filter(node => {
+      // Exclude ROI report nodes from being saved to scenario
+      // These are temporary visualization nodes that should exist only in the session
+      return node.type !== 'roiReport';
+    });
+
+    // Check if persistent nodes/edges actually changed
+    const currentNodesStr = JSON.stringify(persistentNodes);
     const currentEdgesStr = JSON.stringify(edges);
     
     if (currentNodesStr === lastSavedNodesRef.current && 
@@ -463,13 +522,123 @@ export function BuildPageContent() {
     // Debounce the save
     const saveTimer = setTimeout(() => {
       scenarioManager.updateScenario({
-        nodesSnapshot: nodes,
+        nodesSnapshot: persistentNodes, // Save only persistent nodes
         edgesSnapshot: edges,
       });
     }, 500);
 
     return () => clearTimeout(saveTimer);
   }, [nodes, edges, scenarioManager.scenario?.id, scenarioManager, isLoading]); // Minimal deps
+
+  // Scenario management handlers
+  const handleDuplicateScenario = useCallback(async () => {
+    if (!scenarioManager.scenario) return;
+    
+    try {
+      const scenario = scenarioManager.scenario;
+      const duplicateName = `${scenario.name} (Copy)`;
+      const newId = await db.scenarios.add({
+        name: duplicateName,
+        slug: nanoid(8),
+        platform: scenario.platform,
+        nodesSnapshot: scenario.nodesSnapshot,
+        edgesSnapshot: scenario.edgesSnapshot,
+        viewport: scenario.viewport,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        // Copy all ROI data
+        runsPerMonth: scenario.runsPerMonth,
+        minutesPerRun: scenario.minutesPerRun,
+        hourlyRate: scenario.hourlyRate,
+        taskMultiplier: scenario.taskMultiplier,
+        taskType: scenario.taskType,
+        complianceEnabled: scenario.complianceEnabled,
+        riskLevel: scenario.riskLevel,
+        riskFrequency: scenario.riskFrequency,
+        errorCost: scenario.errorCost,
+        revenueEnabled: scenario.revenueEnabled,
+        monthlyVolume: scenario.monthlyVolume,
+        conversionRate: scenario.conversionRate,
+        valuePerConversion: scenario.valuePerConversion,
+        // Copy template data
+        originalTemplateId: scenario.originalTemplateId,
+        searchQuery: scenario.searchQuery,
+        templatePricingData: scenario.templatePricingData,
+      });
+      
+      if (newId && typeof newId === 'number') {
+        router.push(`/build?sid=${newId}`);
+        toast.success(`Scenario duplicated as "${duplicateName}"`);
+      }
+    } catch (error) {
+      console.error('Failed to duplicate scenario:', error);
+      toast.error('Failed to duplicate scenario');
+    }
+  }, [scenarioManager.scenario, router]);
+
+  const handleDeleteScenario = useCallback(async () => {
+    if (!scenarioManager.scenario?.id) return;
+    
+    try {
+      await db.scenarios.delete(scenarioManager.scenario.id);
+      
+      // Navigate to first available scenario or create new one
+      const firstScenario = await db.scenarios.orderBy('updatedAt').reverse().first();
+      if (firstScenario?.id) {
+        router.push(`/build?sid=${firstScenario.id}`);
+      } else {
+        // Create a new scenario if none exist
+        const newId = await createScenario("Untitled Scenario");
+        router.push(`/build?sid=${newId}`);
+      }
+      
+      toast.success('Scenario deleted');
+    } catch (error) {
+      console.error('Failed to delete scenario:', error);
+      toast.error('Failed to delete scenario');
+    }
+  }, [scenarioManager.scenario?.id, router]);
+
+  const handleStartEdit = useCallback(() => {
+    if (scenarioManager.scenario) {
+      setIsEditingTitle(true);
+      setEditingName(scenarioManager.scenario.name);
+    }
+  }, [scenarioManager.scenario]);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!scenarioManager.scenario?.id || !editingName.trim()) return;
+    
+    try {
+      await db.scenarios.update(scenarioManager.scenario.id, { 
+        name: editingName.trim(), 
+        updatedAt: Date.now() 
+      });
+      
+      // Update the scenario manager's current scenario
+      await scenarioManager.loadScenario(scenarioManager.scenario.id.toString());
+      
+      setIsEditingTitle(false);
+      setEditingName("");
+      toast.success('Scenario name updated');
+    } catch (error) {
+      console.error('Failed to update scenario name:', error);
+      toast.error('Failed to update scenario name');
+    }
+  }, [scenarioManager.scenario?.id, editingName, scenarioManager.loadScenario]);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditingTitle(false);
+    setEditingName("");
+  }, []);
+
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  }, [handleSaveEdit, handleCancelEdit]);
 
   // Show loading state
   if (isLoading) {
@@ -486,18 +655,6 @@ export function BuildPageContent() {
   return (
     <ReactFlowProvider>
       <div className="flex-1 flex flex-col" data-page="build">
-        {/* Scenario Title Bar */}
-        <div className="bg-white border-b px-4 py-2 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold">
-              {scenarioManager.scenario?.name || "Untitled Scenario"}
-            </h1>
-            {scenarioManager.isSaving && (
-              <span className="text-sm text-muted-foreground">Saving...</span>
-            )}
-          </div>
-        </div>
-
         {/* StatsBar */}
         <StatsBar
           platform={roi.settings.platform as PlatformType}
@@ -506,6 +663,7 @@ export function BuildPageContent() {
           hourlyRate={roi.settings.hourlyRate}
           taskMultiplier={roi.settings.taskMultiplier}
           nodes={nodes}
+          currentScenario={scenarioManager.scenario}
           complianceEnabled={roi.settings.complianceEnabled}
           riskLevel={roi.settings.riskLevel}
           riskFrequency={roi.settings.riskFrequency}
@@ -533,6 +691,51 @@ export function BuildPageContent() {
             onNodesChange([{ type: 'add', item: newNode }]);
           }}
           onGenerateEmail={() => {
+            // Find the highest Y position (lowest Y value) among all nodes for positioning
+            const highestY = nodes.length > 0 
+              ? Math.min(...nodes.map(node => node.position.y))
+              : 200;
+            
+            // Position email node 1,000px above the highest node
+            const emailPosition = {
+              x: CANVAS_CONFIG.nodeSpacing * 2,
+              y: highestY - 1000
+            };
+            
+            // Immediately create loading email node
+            const loadingEmailNode: Node = {
+              id: `email-loading-${Date.now()}`,
+              type: 'emailPreview',
+              position: emailPosition,
+              data: {
+                nodeTitle: 'Generating Email...',
+                isLoading: true,
+                subjectLine: '',
+                hookText: '',
+                ctaText: '',
+                offerText: '',
+                psText: '',
+                testimonialText: '',
+                urgencyText: '',
+                stats: {
+                  roiX: roi.metrics.roiRatio,
+                  payback: roi.metrics.paybackPeriod,
+                  runs: roi.settings.runsPerMonth,
+                },
+              },
+            };
+            
+            // Add loading node immediately
+            onNodesChange([{ type: 'add', item: loadingEmailNode }]);
+            
+            // Zoom IN and focus on the loading email node
+            setTimeout(() => {
+              if (rfInstance) {
+                rfInstance.setCenter(emailPosition.x + 400, emailPosition.y + 300, { zoom: 1.2, duration: 800 });
+              }
+            }, 50);
+            
+            // Start email generation
             const contextData = emailGeneration.extractContextFromNodes(nodes);
             emailGeneration.generateFullEmail(contextData, {
               lengthOption: 'standard',
@@ -543,6 +746,13 @@ export function BuildPageContent() {
           selectedIds={[]}
           selectedGroupId={null}
           isMultiSelectionActive={false}
+          onGenerateROIReport={(roiNode) => {
+            console.log('📊 BuildPageContent: Received ROI node:', roiNode);
+            console.log('📊 BuildPageContent: About to call onNodesChange with add action');
+            // Add the ROI report node to the canvas
+            onNodesChange([{ type: 'add', item: roiNode }]);
+            console.log('📊 BuildPageContent: Called onNodesChange');
+          }}
         />
 
         {/* Content */}
@@ -576,8 +786,95 @@ export function BuildPageContent() {
               onActiveTabChange={setActiveTab}
             />
 
-            {/* Main Canvas Area */}
-            <div className="flex-1 relative overflow-hidden">
+            {/* Main Canvas Area with Title */}
+            <div className="flex-1 flex flex-col">
+              {/* Compact Title Bar */}
+              <div className="bg-white border-b px-4 py-1.5 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
+                  {isEditingTitle ? (
+                    <Input
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={handleEditKeyDown}
+                      onBlur={handleSaveEdit}
+                      className="h-6 text-sm font-medium flex-1 min-w-0"
+                      autoFocus
+                    />
+                  ) : (
+                    <h2 className="text-sm font-medium text-muted-foreground truncate">
+                      {scenarioManager.scenario?.name || "Untitled Scenario"}
+                    </h2>
+                  )}
+                  {scenarioManager.isSaving && (
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">Saving...</span>
+                  )}
+                </div>
+                
+                {/* Scenario Actions */}
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={handleDuplicateScenario}
+                    className="h-6 px-2 text-xs hover:bg-muted"
+                    title="Duplicate scenario"
+                    disabled={!scenarioManager.scenario}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Duplicate
+                  </Button>
+                  {isEditingTitle ? (
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={handleSaveEdit}
+                        className="h-6 px-2 text-xs hover:bg-green-50 hover:text-green-600"
+                        title="Save changes"
+                      >
+                        <Check className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={handleCancelEdit}
+                        className="h-6 px-2 text-xs hover:bg-red-50 hover:text-red-600"
+                        title="Cancel editing"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={handleStartEdit}
+                      className="h-6 px-2 text-xs hover:bg-muted"
+                      title="Edit scenario name"
+                      disabled={!scenarioManager.scenario}
+                    >
+                      <Edit2Icon className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={handleDeleteScenario}
+                    className="h-6 px-2 text-xs hover:bg-destructive/10 hover:text-destructive"
+                    title="Delete scenario"
+                    disabled={!scenarioManager.scenario?.id}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+
+              {/* Canvas */}
+              <div className="flex-1 relative overflow-hidden">
               <FlowCanvas
                 nodes={nodes}
                 edges={edges}
@@ -604,6 +901,7 @@ export function BuildPageContent() {
                 selectedNodeType={selectedNodeType}
                 onNodeTypeChange={setSelectedNodeType}
               />
+              </div>
             </div>
 
             {/* Property Panels */}
@@ -656,6 +954,12 @@ export function BuildPageContent() {
                   ));
                 }}
                 onGenerateSection={handleRegenerateSection}
+                onDeleteNode={(nodeId) => {
+                  // Remove the email node from the canvas
+                  setNodes(nodes => nodes.filter(n => n.id !== nodeId));
+                  // Close the panel
+                  setSelectedEmailNodeId(null);
+                }}
                 isGeneratingAIContent={emailGeneration.isGeneratingSection}
                 emailContextNodes={nodes
                   .filter(n => ['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value'].includes(n.type || ''))

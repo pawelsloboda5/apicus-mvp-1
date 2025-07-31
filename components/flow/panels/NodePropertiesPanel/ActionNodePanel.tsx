@@ -31,7 +31,7 @@ const COMMON_ACTIONS = {
   custom: 'Custom Action',
 };
 
-export function ActionNodePanel({ node, setNodes, recalculateNodeWidth, roiCalculations }: ActionNodePanelProps) {
+export function ActionNodePanel({ node, setNodes, roiCalculations }: ActionNodePanelProps) {
   const onUpdateNode = (updates: Partial<NodeData>) => {
     setNodes((prevNodes) =>
       prevNodes.map((n) =>

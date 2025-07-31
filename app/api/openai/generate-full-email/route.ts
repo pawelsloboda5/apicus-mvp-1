@@ -329,7 +329,7 @@ CRITICAL FORMATTING RULES:
 
 export async function POST(req: Request) {
   if (!AZURE_OPENAI_API_KEY || !azureEndpoint) {
-    return NextResponse.json({ error: "Azure OpenAI env vars missing" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Azure OpenAI env vars missing" }, { status: 500 });
   }
 
   try {
@@ -462,20 +462,24 @@ export async function POST(req: Request) {
     }
     
     return NextResponse.json({
-      ...generatedSections,
-      metadata: {
-        lengthOption,
-        toneOption,
-        contextFieldsUsed: Object.keys(fullContext).length,
-        workflowStepsIncluded: payload.workflowSteps?.length || 0,
-        emailContextProvided: !!payload.emailContext && Object.values(payload.emailContext).some(arr => arr && arr.length > 0),
-        enabledSections
+      success: true,
+      emailContent: {
+        ...generatedSections,
+        metadata: {
+          lengthOption,
+          toneOption,
+          contextFieldsUsed: Object.keys(fullContext).length,
+          workflowStepsIncluded: payload.workflowSteps?.length || 0,
+          emailContextProvided: !!payload.emailContext && Object.values(payload.emailContext).some(arr => arr && arr.length > 0),
+          enabledSections
+        }
       }
     });
 
   } catch (error: unknown) {
     console.error("/api/openai/generate-full-email error", error);
     return NextResponse.json({ 
+      success: false,
       error: error instanceof Error ? error.message : "Unexpected error during full email generation" 
     }, { status: 500 });
   }

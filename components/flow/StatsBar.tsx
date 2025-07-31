@@ -29,17 +29,10 @@ import {
   Timer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PlatformType, Scenario, NodeData, AppPricingData } from "@/lib/types";
+import { PlatformType, Scenario } from "@/lib/types";
 import { Node } from "@xyflow/react";
-import { 
-  calculateTimeValue, 
-  calculatePlatformCost,
-  calculateAppCosts,
-  calculateROIRatio,
-  formatROIRatio,
-} from "@/lib/roi-utils";
+import { formatROIRatio } from "@/lib/roi-utils";
 import { useROICalculations } from "@/lib/hooks/useROICalculations";
-import { pricing } from "@/app/api/data/pricing";
 import { generateROIReportNode } from "@/lib/roi-report-generator";
 import { toast } from "sonner";
 
@@ -377,6 +370,11 @@ export function StatsBar({
                 className="h-10 px-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-md hover:shadow-lg transition-all duration-200 border border-primary/20"
                 size="sm"
                 onClick={() => {
+                  console.log('🎯 Generate ROI button clicked!');
+                  console.log('onGenerateROIReport available:', !!onGenerateROIReport);
+                  console.log('currentScenario:', currentScenario);
+                  console.log('nodes length:', nodes?.length || 0);
+                  
                   if (onGenerateROIReport) {
                     // Generate the ROI report node
                     const roiNode = generateROIReportNode({
@@ -398,8 +396,12 @@ export function StatsBar({
                       valuePerConversion: currentScenario?.valuePerConversion || 200,
                       nodes: nodes || []
                     });
+                    console.log('✅ Generated ROI Node:', roiNode);
                     onGenerateROIReport(roiNode);
+                    console.log('✅ Called onGenerateROIReport with node');
                     toast.success("ROI Report generated successfully!");
+                  } else {
+                    console.warn('❌ onGenerateROIReport is not available');
                   }
                 }}
               >
@@ -440,6 +442,11 @@ export function StatsBar({
               className="h-10 px-4 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-md hover:shadow-lg transition-all duration-200 border border-primary/20"
               size="sm"
               onClick={() => {
+                console.log('🎯 Generate ROI button clicked (desktop)!');
+                console.log('onGenerateROIReport available:', !!onGenerateROIReport);
+                console.log('currentScenario:', currentScenario);
+                console.log('nodes length:', nodes?.length || 0);
+                
                 if (onGenerateROIReport) {
                   // Generate the ROI report node
                   const roiNode = generateROIReportNode({
@@ -461,8 +468,12 @@ export function StatsBar({
                     valuePerConversion: currentScenario?.valuePerConversion || 200,
                     nodes: nodes || []
                   });
+                  console.log('✅ Generated ROI Node:', roiNode);
                   onGenerateROIReport(roiNode);
+                  console.log('✅ Called onGenerateROIReport with node');
                   toast.success("ROI Report generated successfully!");
+                } else {
+                  console.warn('❌ onGenerateROIReport is not available');
                 }
               }}
             >

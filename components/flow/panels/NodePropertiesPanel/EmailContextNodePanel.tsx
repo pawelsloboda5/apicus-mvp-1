@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Node, Edge } from "@xyflow/react";
 import { NodeData } from "@/lib/types";
 import { markSectionsWithChanges, EmailSectionConnections } from "@/lib/flow-utils";
-import { EMAIL_CONTEXT_TEMPLATES, EmailContextTemplate } from "@/lib/utils/constants";
+import { EMAIL_CONTEXT_TEMPLATES } from "@/lib/utils/constants";
 
 interface EmailContextNodePanelProps {
   node: Node;
@@ -23,7 +23,7 @@ interface EmailContextNodePanelProps {
 
 
 
-export function EmailContextNodePanel({ node, nodes, edges, setNodes, recalculateNodeWidth }: EmailContextNodePanelProps) {
+export function EmailContextNodePanel({ node, nodes, edges, setNodes }: EmailContextNodePanelProps) {
   // Safely cast node data with fallbacks for required properties
   const nodeData = node.data as unknown as NodeData;
   const nodeType = node.type || "";

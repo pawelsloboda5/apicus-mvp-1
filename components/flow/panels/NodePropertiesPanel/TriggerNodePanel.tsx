@@ -18,7 +18,7 @@ interface TriggerNodePanelProps {
   roiCalculations?: ReturnType<typeof useROICalculations>;
 }
 
-export function TriggerNodePanel({ node, setNodes, recalculateNodeWidth, roiCalculations }: TriggerNodePanelProps) {
+export function TriggerNodePanel({ node, setNodes, roiCalculations }: TriggerNodePanelProps) {
   const onUpdateNode = (updates: Partial<NodeData>) => {
     setNodes((prevNodes) =>
       prevNodes.map((n) =>

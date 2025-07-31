@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   Sheet,
   SheetContent,
@@ -14,25 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { HelpCircle, TrendingUp, DollarSign, Calculator, Zap, BarChart3 } from "lucide-react";
+import { HelpCircle, TrendingUp, DollarSign, Calculator, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { pricing } from "@/app/api/data/pricing";
 import type { Scenario } from "@/lib/db";
 import { PlatformType, AppPricingData } from "@/lib/types";
-import {
-  calculateTimeValue,
-  calculateRiskValue,
-  calculateRevenueValue,
-  calculatePlatformCost,
-  calculateTotalValue,
-  calculateNetROI,
-  calculateROIRatio,
-  formatROIRatio,
-  calculatePaybackPeriod,
-  formatPaybackPeriod,
-  calculateAppCosts,
-} from "@/lib/roi-utils";
+// ROI utilities are now handled by the useROICalculations hook
 import { useROICalculations } from "@/lib/hooks/useROICalculations";
 import { Node } from "@xyflow/react";
 import { Progress } from "@/components/ui/progress";
@@ -77,8 +65,7 @@ interface ROISettingsPanelProps {
   };
   updateScenarioROI: (partial: Partial<Scenario>) => void;
   onGenerateReport?: () => void;
-  appPricingMap?: Record<string, AppPricingData>;
-  selectedTiers?: Record<string, string>;
+
   nodes?: Node[]; // Add nodes for centralized ROI calculations
 }
 
@@ -232,8 +219,6 @@ export function ROISettingsPanel({
   benchmarks,
   updateScenarioROI,
   onGenerateReport,
-  appPricingMap,
-  selectedTiers,
   nodes = [],
 }: ROISettingsPanelProps) {
   

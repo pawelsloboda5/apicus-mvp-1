@@ -16,7 +16,7 @@ interface DefaultNodePanelProps {
   roiCalculations?: ReturnType<typeof useROICalculations>;
 }
 
-export function DefaultNodePanel({ node, setNodes, recalculateNodeWidth, roiCalculations }: DefaultNodePanelProps) {
+export function DefaultNodePanel({ node, setNodes, roiCalculations }: DefaultNodePanelProps) {
   // Safely cast node data with fallbacks for required properties
   const nodeData = node.data as unknown as NodeData;
   // Access generic node data for properties not in NodeData interface
