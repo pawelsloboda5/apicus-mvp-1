@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
+import { TemplatePreviewModal } from "@/components/auth/TemplatePreviewModal";
 
 // Dynamic import to prevent SSR issues with sessionStorage
 const ImportWorkflowDialog = dynamic(
@@ -109,8 +110,20 @@ export default function Home() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("zapier");
   const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [previewTemplateData, setPreviewTemplateData] = useState<{
+    title?: string;
+    platform?: string;
+    apps?: string[];
+    estimatedROI?: number;
+    timesSaved?: number;
+    description?: string;
+    nodesCount?: number;
+  } | null>(null);
+  const [searchQueryForModal, setSearchQueryForModal] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
+  const { data: session } = useSession();
   
   const benefits = [
     {
@@ -180,6 +193,83 @@ export default function Home() {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     const q = inputRef.current?.value.trim();
+    
+    // Check if user is authenticated
+    if (!session) {
+      // User is not authenticated, show template preview modal
+      if (!q) {
+        // No query provided, show generic modal
+        setPreviewTemplateData({
+          title: "Professional Automation Workflow",
+          platform: selectedPlatform,
+          apps: ["Gmail", "Slack", "Google Sheets", "Zapier", "Microsoft Teams"],
+          estimatedROI: 340,
+          timesSaved: 15,
+          description: "Streamline your workflow with this proven automation template",
+          nodesCount: 8
+        });
+        setSearchQueryForModal("");
+      } else {
+        // Query provided, search for template to show preview
+        setSearching(true);
+        try {
+          const res = await fetch(`/api/templates/search?q=${encodeURIComponent(q)}&platform=${selectedPlatform}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.templates && data.templates.length > 0) {
+              const template = data.templates[0];
+              // Extract apps from template nodes
+              const extractedApps = template.nodes?.map((node: any) => node.data?.appName)
+                .filter((app: any): app is string => typeof app === 'string' && app.length > 0) || [];
+              const apps = extractedApps.length > 0 ? extractedApps : ["Gmail", "Slack", "Google Sheets"];
+              
+              setPreviewTemplateData({
+                title: template.title || "Professional Automation Workflow",
+                platform: template.platform || selectedPlatform,
+                apps: [...new Set(apps as string[])].slice(0, 6),
+                estimatedROI: Math.floor(Math.random() * 200) + 250, // Dynamic ROI
+                timesSaved: Math.floor(Math.random() * 20) + 10, // Dynamic time saved
+                description: template.description || `Automate your ${q} workflow with this proven template`,
+                nodesCount: template.nodes?.length || 8
+              });
+            } else {
+              // No templates found, show generic modal
+              setPreviewTemplateData({
+                title: `Custom ${q} Automation`,
+                platform: selectedPlatform,
+                apps: ["Gmail", "Slack", "Google Sheets"],
+                estimatedROI: 280,
+                timesSaved: 12,
+                description: `We'll create a custom automation workflow for: ${q}`,
+                nodesCount: 6
+              });
+            }
+          } else {
+            throw new Error('Search failed');
+          }
+        } catch (error) {
+          console.error('Search failed:', error);
+          // Show generic modal on error
+          setPreviewTemplateData({
+            title: `Custom ${q} Automation`,
+            platform: selectedPlatform,
+            apps: ["Gmail", "Slack", "Google Sheets"],
+            estimatedROI: 280,
+            timesSaved: 12,
+            description: `We'll create a custom automation workflow for: ${q}`,
+            nodesCount: 6
+          });
+        } finally {
+          setSearching(false);
+        }
+        setSearchQueryForModal(q);
+      }
+      
+      setTemplateModalOpen(true);
+      return;
+    }
+    
+    // User is authenticated, proceed with normal flow
     if (!q) {
       router.push(`/build?platform=${selectedPlatform}`);
       return;
@@ -562,6 +652,13 @@ export default function Home() {
       <ImportWorkflowDialog 
         isOpen={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
+      />
+      
+      <TemplatePreviewModal
+        isOpen={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        templateData={previewTemplateData || undefined}
+        searchQuery={searchQueryForModal}
       />
     </main>
   );

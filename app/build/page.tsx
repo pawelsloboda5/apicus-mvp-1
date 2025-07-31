@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   ReactFlowProvider,
   useNodesState,
@@ -90,6 +91,7 @@ const edgeTypes = {
 
 // Move the main component logic into a separate component
 function BuildPageContent() {
+  const { data: session, status } = useSession();
   const router = useRouter();
   const params = useSearchParams(); // This is now inside Suspense
   const scenarioIdParam = params.get("sid");
@@ -97,6 +99,40 @@ function BuildPageContent() {
   const queryParam = params.get("q");
   const importParam = params.get("import");
   const { setTheme } = useTheme();
+  
+  // Authentication gate - redirect if not authenticated
+  useEffect(() => {
+    if (status === "loading") return; // Still loading
+    
+    if (!session) {
+      // User is not authenticated, redirect to homepage with current query params
+      const currentUrl = new URLSearchParams();
+      if (templateIdParam) currentUrl.set("tid", templateIdParam);
+      if (queryParam) currentUrl.set("q", queryParam);
+      if (importParam) currentUrl.set("import", importParam);
+      
+      const redirectUrl = currentUrl.toString() ? `/?${currentUrl.toString()}` : "/";
+      router.replace(redirectUrl);
+      return;
+    }
+  }, [session, status, router, templateIdParam, queryParam, importParam]);
+  
+  // Show loading while checking authentication
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-[#FEFAF0] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#F15533]" />
+          <p className="text-[#3C3C3C]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Don't render anything if not authenticated (will redirect)
+  if (!session) {
+    return null;
+  }
 
   // Force light mode when entering the canvas
   useEffect(() => {
