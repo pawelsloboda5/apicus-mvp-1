@@ -3,8 +3,8 @@ import React, { useRef, useEffect, useState } from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { 
-  PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, MailOpen, Zap, CheckSquare, Code, Link2, DollarSign, CreditCard,
-  Filter, Search, FileInput, FileOutput, Database, MessageSquare, Wrench, Settings, Cloud, Webhook, Globe, Terminal, Layers, Package, Hash, Bot, FileText, FileCode, Activity
+  PlayCircle, Sparkles, GitBranch, User, Building, AlertCircle, TrendingUp, Clock, Award, Shield, Gem, MailOpen, Zap, CheckSquare, Code, Link2, CreditCard,
+  Filter, Search, FileInput, FileOutput, Database, MessageSquare, Wrench, Settings, Webhook, Globe, Terminal, Layers, Package, Hash, Bot, FileText, FileCode, Activity
 } from "lucide-react";
 import { calculateNodeWidth, generateContentHash } from "@/lib/utils/constants";
 import Image from "next/image";

@@ -91,54 +91,13 @@ const edgeTypes = {
 
 // Move the main component logic into a separate component
 function BuildPageContent() {
+  // 🔑 ALL HOOKS MUST BE CALLED AT THE TOP LEVEL - BEFORE ANY EARLY RETURNS
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useSearchParams(); // This is now inside Suspense
-  const scenarioIdParam = params.get("sid");
-  const templateIdParam = params.get("tid");
-  const queryParam = params.get("q");
-  const importParam = params.get("import");
   const { setTheme } = useTheme();
   
-  // Authentication gate - redirect if not authenticated
-  useEffect(() => {
-    if (status === "loading") return; // Still loading
-    
-    if (!session) {
-      // User is not authenticated, redirect to homepage with current query params
-      const currentUrl = new URLSearchParams();
-      if (templateIdParam) currentUrl.set("tid", templateIdParam);
-      if (queryParam) currentUrl.set("q", queryParam);
-      if (importParam) currentUrl.set("import", importParam);
-      
-      const redirectUrl = currentUrl.toString() ? `/?${currentUrl.toString()}` : "/";
-      router.replace(redirectUrl);
-      return;
-    }
-  }, [session, status, router, templateIdParam, queryParam, importParam]);
-  
-  // Show loading while checking authentication
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen bg-[#FEFAF0] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#F15533]" />
-          <p className="text-[#3C3C3C]">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // Don't render anything if not authenticated (will redirect)
-  if (!session) {
-    return null;
-  }
-
-  // Force light mode when entering the canvas
-  useEffect(() => {
-    setTheme("light");
-  }, [setTheme]);
-
+  // State hooks - all declared at top level
   const [scenarioId, setScenarioId] = useState<number | null>(null);
   const [currentScenario, setCurrentScenario] = useState<Scenario | null>(null);
   const [alternativeTemplates, setAlternativeTemplates] = useState<Scenario[]>([]);
@@ -146,7 +105,7 @@ function BuildPageContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<Record<string, unknown>>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<Record<string, unknown>>>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
+  
   // ReactFlow instance & wrapper ref
   const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -183,9 +142,112 @@ function BuildPageContent() {
   const [monthlyVolume, setMonthlyVolume] = useState(100);
   const [conversionRate, setConversionRate] = useState(5);
   const [valuePerConversion, setValuePerConversion] = useState(200);
-  
   const [isLoadingAlternatives, setIsLoadingAlternatives] = useState(false);
-  // const [emailModalOpen, setEmailModalOpen] = useState(false); // Commented out
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isMultiSelectionActive, setIsMultiSelectionActive] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [isManipulatingNodesProgrammatically, setIsManipulatingNodesProgrammatically] = useState(false);
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
+  const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('action');
+  const [activeTab, setActiveTab] = useState<'canvas' | 'analytics'>('canvas');
+  const [previousScenario, setPreviousScenario] = useState<Scenario | null>(null);
+  const [previousNodeCount, setPreviousNodeCount] = useState<number>(0);
+  const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: string } | null>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingScenarioName, setEditingScenarioName] = useState("");
+  const [roiOpen, setRoiOpen] = useState(false);
+  
+  // Refs
+  const prevScenarioIdRef = useRef<number | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const emailCallbacksRef = useRef<{
+    updateEmailNodeData: (nodeId: string, data: Partial<EmailPreviewNodeData>) => void;
+    generateEmailSectionAI: (nodeId: string, section: 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency', promptType: string, currentText: string, selectedContextNodes?: string[]) => Promise<void>;
+    handleGenerateEmailOnCanvas: () => Promise<void>;
+  }>({
+    updateEmailNodeData: () => {},
+    generateEmailSectionAI: async () => {},
+    handleGenerateEmailOnCanvas: async () => {}
+  });
+  
+  // Get URL params
+  const scenarioIdParam = params.get("sid");
+  const templateIdParam = params.get("tid");
+  const queryParam = params.get("q");
+  const importParam = params.get("import");
+  
+  // Effects - Authentication and theme setup  
+  useEffect(() => {
+    if (status === "loading") return; // Still loading
+    
+    if (!session) {
+      // User is not authenticated, redirect to homepage with current query params
+      const currentUrl = new URLSearchParams();
+      if (templateIdParam) currentUrl.set("tid", templateIdParam);
+      if (queryParam) currentUrl.set("q", queryParam);
+      if (importParam) currentUrl.set("import", importParam);
+      
+      const redirectUrl = currentUrl.toString() ? `/?${currentUrl.toString()}` : "/";
+      router.replace(redirectUrl);
+      return;
+    }
+  }, [session, status, router, templateIdParam, queryParam, importParam]);
+
+  // Force light mode when entering the canvas
+  useEffect(() => {
+    setTheme("light");
+  }, [setTheme]);
+  
+  // Ensure client-side only operations
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  useEffect(() => {
+    if (currentScenario) {
+      setEditingScenarioName(currentScenario.name);
+    }
+  }, [currentScenario]);
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  // Add event listener for email node properties button clicks
+  useEffect(() => {
+    // Email node properties handling removed - using inline editing now
+  }, []);
+  
+  // Add keyboard shortcuts for tab switching
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check for Cmd/Ctrl + number combinations
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
+        switch (event.key) {
+          case '1':
+            event.preventDefault();
+            setActiveTab('canvas');
+            break;
+          case '2':
+            event.preventDefault();
+            setActiveTab('analytics');
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+  
+  // Authentication handling moved to end - NO EARLY RETURNS before all hooks
 
   // Task type multiplier mappings
   const taskTypeMultipliers = {
@@ -231,83 +293,7 @@ function BuildPageContent() {
     }
   };
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
-  
-  // Ensure client-side only operations
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
-  // After existing imports, add:
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isMultiSelectionActive, setIsMultiSelectionActive] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  // Removed selectedEmailNodeId - no longer needed with inline editing
-  const [isManipulatingNodesProgrammatically, setIsManipulatingNodesProgrammatically] = useState(false);
-  // Removed isGeneratingAIContent - no longer needed with inline editing
-  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
-
-  // Add state for selected node type
-  const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('action');
-
-  // Add state for active tab
-  const [activeTab, setActiveTab] = useState<'canvas' | 'analytics'>('canvas');
-  
-  // Add state for tracking previous scenario for metric comparison
-  const [previousScenario, setPreviousScenario] = useState<Scenario | null>(null);
-  const [previousNodeCount, setPreviousNodeCount] = useState<number>(0);
-  
-  // Track previous scenario ID for preventing unnecessary reloads
-  const prevScenarioIdRef = useRef<number | null>(null);
-
-  // State for drag and drop
-  const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: string } | null>(null);
-  // State for screen size detection for responsive header
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editingScenarioName, setEditingScenarioName] = useState("");
-  const titleInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (currentScenario) {
-      setEditingScenarioName(currentScenario.name);
-    }
-  }, [currentScenario]);
-
-  useEffect(() => {
-    if (isEditingTitle && titleInputRef.current) {
-      titleInputRef.current.focus();
-      titleInputRef.current.select();
-    }
-  }, [isEditingTitle]);
-
-  // Add event listener for email node properties button clicks
-  useEffect(() => {
-    // Email node properties handling removed - using inline editing now
-  }, []);
-  
-  // Add keyboard shortcuts for tab switching
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Check for Cmd/Ctrl + number combinations
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
-        switch (event.key) {
-          case '1':
-            event.preventDefault();
-            setActiveTab('canvas');
-            break;
-          case '2':
-            event.preventDefault();
-            setActiveTab('analytics');
-            break;
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
 
   const saveScenarioName = async () => {
     if (currentScenario && currentScenario.id && editingScenarioName.trim() !== "") {
@@ -1244,7 +1230,7 @@ function BuildPageContent() {
   );
 
   /* ---------- ROI Sheet open state ---------- */
-  const [roiOpen, setRoiOpen] = useState(false);
+  // Note: roiOpen state already declared at top level
 
   // Function to save the current canvas state as a new scenario
   const saveCurrentWorkflowAsScenario = useCallback(async (name?: string): Promise<number> => {
@@ -2408,20 +2394,12 @@ function BuildPageContent() {
     [currentScenario, handleUpdateEmailNodeData, nodes]
   );
 
-  // Create refs to store the latest callback implementations
-  // This allows nodeTypes to remain stable while callbacks can change
-  const emailCallbacksRef = useRef({
-    handleGenerateEmailSectionAI,
-    handleUpdateEmailNodeData,
-    handleGenerateEmailOnCanvas
-  });
-
-  // Update the ref when callbacks change
+  // Update the ref when callbacks change (ref already declared at top level)
   useEffect(() => {
     emailCallbacksRef.current = {
-      handleGenerateEmailSectionAI,
-      handleUpdateEmailNodeData,
-      handleGenerateEmailOnCanvas
+      updateEmailNodeData: handleUpdateEmailNodeData,
+      generateEmailSectionAI: handleGenerateEmailSectionAI,
+      handleGenerateEmailOnCanvas: handleGenerateEmailOnCanvas
     };
   }, [handleGenerateEmailSectionAI, handleUpdateEmailNodeData, handleGenerateEmailOnCanvas]);
 
@@ -2448,7 +2426,7 @@ function BuildPageContent() {
             const fullPromptType = `${promptType}_${length}_${tone}`;
             
             // Call the generation function using the ref
-            await emailCallbacksRef.current.handleGenerateEmailSectionAI(
+            await emailCallbacksRef.current.generateEmailSectionAI(
               nodeId,
               section as 'hook' | 'cta' | 'offer' | 'subject' | 'ps' | 'testimonial' | 'urgency',
               fullPromptType,
@@ -2458,7 +2436,7 @@ function BuildPageContent() {
           },
           onGenerateFullEmail: async (tone: string, length: 'concise' | 'standard' | 'detailed') => {
             // Update node with tone/length settings using the ref
-            emailCallbacksRef.current.handleUpdateEmailNodeData(nodeId, { 
+            emailCallbacksRef.current.updateEmailNodeData(nodeId, { 
               toneOption: tone,
               lengthOption: length 
             });
@@ -2492,6 +2470,23 @@ function BuildPageContent() {
   }), [EmailPreviewNodeWrapper]); // Only depends on the stable wrapper
 
   // Removed handleRegenerateSection - now handled by inline editors
+
+  // 🔑 Authentication checks - AFTER all hooks are declared
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-[#FEFAF0] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#F15533]" />
+          <p className="text-[#3C3C3C]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Don't render anything if not authenticated (will redirect)
+  if (!session) {
+    return null;
+  }
 
   // Moved the loading return to before the main return, after all hooks
   if (isLoading && !currentScenario && !scenarioIdParam) {

@@ -16,7 +16,6 @@ import {
   BarChart3,
   Shield
 } from "lucide-react";
-import Image from "next/image";
 
 interface TemplatePreviewModalProps {
   isOpen: boolean;
@@ -189,7 +188,7 @@ export function TemplatePreviewModal({
           <div className="space-y-3">
             <h4 className="font-semibold text-[#1A1A1A] flex items-center gap-2">
               <Shield className="h-4 w-4" />
-              What You'll Get
+              What You&apos;ll Get
             </h4>
             <div className="space-y-2">
               {[

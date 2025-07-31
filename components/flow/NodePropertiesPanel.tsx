@@ -1,6 +1,5 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -19,8 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { pricing } from "@/app/api/data/pricing";
-import { NodePropertiesPanelProps, NodeData, NodeType, AppPricingData } from "@/lib/types";
-import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio, calculateAppCosts } from "@/lib/roi-utils";
+import { NodePropertiesPanelProps, NodeData, NodeType } from "@/lib/types";
+import { calculateNodeTimeSavings, calculateROIRatio, formatROIRatio } from "@/lib/roi-utils";
 import { NODE_TIME_FACTORS, calculateNodeWidth, generateContentHash } from "@/lib/utils/constants";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 

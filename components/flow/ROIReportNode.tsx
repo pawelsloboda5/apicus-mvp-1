@@ -41,17 +41,10 @@ import { calculatePlatformCost } from '@/lib/roi-utils';
 import { Node } from '@xyflow/react';
 import { NodeData, AppPricingData } from '@/lib/types';
 import Image from 'next/image';
-import { nanoid } from "nanoid";
 import { 
-  calculateTimeValue,
-  calculateRiskValue,
-  calculateRevenueValue,
-  calculateNetROI,
   calculateROIRatio,
-  calculatePaybackPeriod,
   formatROIRatio,
   calculateAppCosts,
-  calculateAppCostsForApps,
 } from '@/lib/roi-utils';
 
 export interface ROIReportNodeData {

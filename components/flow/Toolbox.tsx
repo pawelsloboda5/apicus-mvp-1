@@ -9,17 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -793,7 +782,7 @@ function ToolboxContent({
                         {!isSearching && !searchError && searchResults.length === 0 && templateSearchQuery && (
                           <div className="text-center text-muted-foreground py-8">
                             <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No templates found for "{templateSearchQuery}"</p>
+                            <p className="text-sm">No templates found for &quot;{templateSearchQuery}&quot;</p>
                             <p className="text-xs mt-1">Try different keywords or browse all templates</p>
                           </div>
                         )}
@@ -806,7 +795,7 @@ function ToolboxContent({
                               </h3>
                               <select
                                 value={selectedPlatformFilter}
-                                onChange={(e) => setSelectedPlatformFilter(e.target.value as any)}
+                                onChange={(e) => setSelectedPlatformFilter(e.target.value as 'all' | 'zapier' | 'make' | 'n8n')}
                                 className="text-xs border rounded px-2 py-1"
                                 disabled
                               >
@@ -880,7 +869,7 @@ function ToolboxContent({
                           <div className="text-center text-muted-foreground py-12">
                             <Search className="h-12 w-12 mx-auto mb-3 opacity-30" />
                             <p className="text-sm font-medium">Search for automation templates</p>
-                            <p className="text-xs mt-1">Try "email marketing", "lead generation", or "data sync"</p>
+                            <p className="text-xs mt-1">Try &quot;email marketing&quot;, &quot;lead generation&quot;, or &quot;data sync&quot;</p>
                           </div>
                         )}
                       </div>
@@ -1037,7 +1026,7 @@ function ToolboxContent({
                   ) : (
                     <div className="flex items-center justify-center h-full">
                       <p className="text-sm text-muted-foreground italic text-center">
-                        No saved scenarios yet.<br/>Click '+ New' to create one.
+                        No saved scenarios yet.<br/>Click &apos;+ New&apos; to create one.
                       </p>
                     </div>
                   )}

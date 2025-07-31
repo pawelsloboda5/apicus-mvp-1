@@ -2,12 +2,11 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Rocket, Zap, ChevronLeft, ChevronRight, Upload, ArrowRight, Clock, FileText, ChevronDown, User, LogOut } from "lucide-react";
+import { BarChart3, Sparkles, Loader2, Calculator, TrendingUp, Target, Rocket, ChevronLeft, ChevronRight, Upload, FileText, ChevronDown, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { TemplatePreviewModal } from "@/components/auth/TemplatePreviewModal";
 
@@ -17,34 +16,7 @@ const ImportWorkflowDialog = dynamic(
   { ssr: false }
 );
 
-// Simple Badge component
-function Badge({ 
-  variant = "default", 
-  className, 
-  children, 
-  ...props 
-}: { 
-  variant?: "default" | "secondary" | "outline";
-  className?: string;
-  children: React.ReactNode;
-} & React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn(
-        "inline-flex items-center border px-3 py-1 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full",
-        {
-          "border-transparent bg-primary text-primary-foreground hover:bg-primary/90": variant === "default",
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80": variant === "secondary",
-          "text-foreground border-border": variant === "outline",
-        },
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-}
+
 
 // Header component with auth buttons
 function Header() {
@@ -264,9 +236,12 @@ export default function Home() {
             if (data.templates && data.templates.length > 0) {
               const template = data.templates[0];
               // Extract apps from template nodes
-              const extractedApps = template.nodes?.map((node: any) => node.data?.appName)
-                .filter((app: any): app is string => typeof app === 'string' && app.length > 0) || [];
-              const apps = extractedApps.length > 0 ? extractedApps : ["Gmail", "Slack", "Google Sheets"];
+              interface TemplateNode {
+                data?: { appName?: string };
+              }
+              const extractedApps = template.nodes?.map((node: TemplateNode) => node.data?.appName)
+                .filter((app: unknown): app is string => typeof app === 'string' && app.length > 0) || [];
+              const apps: string[] = extractedApps.length > 0 ? extractedApps : ["Gmail", "Slack", "Google Sheets"];
               
               setPreviewTemplateData({
                 title: template.title || "Professional Automation Workflow",
@@ -518,7 +493,7 @@ export default function Home() {
                     ) : (
                       <>
                         <Sparkles className="mr-3 h-6 w-6" />
-                        We'll find the best template & calculate ROI instantly
+                        We&apos;ll find the best template & calculate ROI instantly
                       </>
                     )}
                   </Button>
@@ -543,7 +518,7 @@ export default function Home() {
               Close More Automation Deals
             </h2>
             <p className="text-xl text-[#3C3C3C] max-w-3xl mx-auto leading-relaxed">
-              Stop losing deals to competitors with better proposals. Apicus helps automation consultants build data-driven cases that clients can't refuse.
+              Stop losing deals to competitors with better proposals. Apicus helps automation consultants build data-driven cases that clients can&apos;t refuse.
             </p>
           </div>
           

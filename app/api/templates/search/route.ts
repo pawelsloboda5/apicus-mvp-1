@@ -7,23 +7,8 @@ import { TemplateSearchResponse, TemplateResponse } from "@/lib/types";
 export const runtime = "nodejs"; // Use Node.js runtime for MongoDB driver compatibility
 // This is necessary because the MongoDB driver relies on Node.js core modules
 
-// Simple embedding cache to avoid repeated Azure OpenAI calls
-const embeddingCache = new Map<string, { embedding: number[], timestamp: number }>();
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-
-function getCachedEmbedding(query: string): number[] | null {
-  const cached = embeddingCache.get(query);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log("Using cached embedding for query:", query);
-    return cached.embedding;
-  }
-  return null;
-}
-
-function setCachedEmbedding(query: string, embedding: number[]): void {
-  embeddingCache.set(query, { embedding, timestamp: Date.now() });
-  console.log("Cached embedding for query:", query);
-}
+// Note: Embedding cache functions removed as they were unused
+// If caching is needed in the future, they can be re-implemented
 
 // GET /api/templates/search?q=...&platform=...
 export async function GET(req: Request) {

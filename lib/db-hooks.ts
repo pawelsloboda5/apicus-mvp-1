@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, getRecentMetrics, type Scenario, type MetricSnapshot } from "./db";
+import { db, getRecentMetrics } from "./db";
 
 /**
  * Convenience hook to subscribe to a scenario record using dexie-react-hooks.

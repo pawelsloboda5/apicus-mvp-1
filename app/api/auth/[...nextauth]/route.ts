@@ -1,7 +1,7 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 
-const { handlers, auth } = NextAuth({
+const { handlers } = NextAuth({
   providers: [Google],
   session: {
     strategy: "jwt",
