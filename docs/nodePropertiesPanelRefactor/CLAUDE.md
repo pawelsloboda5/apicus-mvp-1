@@ -123,6 +123,14 @@
 - **Result**: Each node now shows its individual platform cost (~$6.68/month for Zapier Professional)
 - **Expected Impact**: ActionNodePanel should show ~$6.68 zapier cost instead of $211.93
 
+#### 2025-01-07 - Synced ROI Calculations Between StatsBar and Node Panels ✅
+- **Root Cause**: StatsBar used separate ROI calculation logic, causing inconsistency with node panels
+- **Fixed** StatsBar to use the same `useROICalculations` hook as individual node panels
+- **Updated** StatsBar to calculate **cumulative workflow ROI** by summing individual node contributions
+- **Added** proper filtering to exclude email context nodes and groups from ROI calculations
+- **Result**: StatsBar ROI now updates dynamically when nodes are added/removed and matches individual panel calculations
+- **Expected Impact**: Adding action nodes will now immediately update the StatsBar ROI metrics
+
 ## Technical Notes
 
 ### Data Flow Dependencies

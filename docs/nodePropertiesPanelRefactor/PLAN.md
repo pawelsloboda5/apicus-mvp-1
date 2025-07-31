@@ -31,28 +31,29 @@
 - [x] Compare with modular version capabilities
 - [x] Document missing features and differences
 
-### Phase 2: Feature Migration
-- [ ] **Pricing Tab Functionality**
-  - Monolithic has full pricing tab with app details (lines 876-1091)
-  - Modular version lacks this - needs implementation
+### Phase 2: Feature Migration ✅ COMPLETE
+- [x] **Pricing Tab Functionality** ✅
+  - Added tabs component to modular version 
+  - Implemented basic pricing tab structure with app details
   
-- [ ] **Email Context Templates**
-  - Monolithic has hardcoded templates (lines 38-147)
-  - Move to shared constants or external config
+- [x] **Email Context Templates** ✅
+  - Moved EMAIL_CONTEXT_TEMPLATES to lib/utils/constants.ts
+  - Updated EmailContextNodePanel to import from shared constants
   
-- [ ] **ROI Calculations**
-  - Monolithic has detailed ROI display (lines 671-873)
-  - Modular has basic ROI in index.tsx (lines 183-321)
-  - Need to enhance modular ROI section
+- [x] **ROI Calculations** ✅
+  - Created useROICalculations hook for standardized calculations
+  - Added ROISection component for consistent display
+  - Fixed individual node cost calculation (not workflow totals)
+  - Updated pricing data to current rates
 
-- [ ] **Node Width Recalculation**
-  - Monolithic has `recalculateNodeWidth` function (lines 188-212)
-  - Modular panels may need this functionality
+- [x] **Node Width Recalculation** ✅
+  - Added recalculateNodeWidth function to modular version
+  - Integrated with all panel types for dynamic width adjustment
 
-### Phase 3: Update Imports
-- [ ] Update `app/build/page.tsx` to use modular version
-- [ ] Search for any other files importing monolithic version
-- [ ] Ensure all components use consistent import path
+### Phase 3: Update Imports ✅ COMPLETE  
+- [x] Update `app/build/page.tsx` to use modular version ✅
+- [x] Search for any other files importing monolithic version ✅
+- [x] Ensure all components use consistent import path ✅
 
 ### Phase 4: Testing & Validation
 - [ ] Test all node types (trigger, action, decision, email context)

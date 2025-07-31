@@ -38,6 +38,7 @@ import {
   calculateROIRatio,
   formatROIRatio,
 } from "@/lib/roi-utils";
+import { useROICalculations } from "@/lib/hooks/useROICalculations";
 import { pricing } from "@/app/api/data/pricing";
 import { generateROIReportNode } from "@/lib/roi-report-generator";
 import { toast } from "sonner";
@@ -150,6 +151,16 @@ export function StatsBar({
   const [platformCost, setPlatformCost] = useState(0);
   const [netROI, setNetROI] = useState(0);
   const [roiRatio, setRoiRatio] = useState(0);
+
+  // Use the same ROI calculations as individual node panels
+  const roiCalculations = useROICalculations({
+    runsPerMonth,
+    minutesPerRun,
+    hourlyRate,
+    taskMultiplier,
+    platform,
+    nodes: nodes || [],
+  });
   const [editingMinutes, setEditingMinutes] = useState(false);
   const [editingRuns, setEditingRuns] = useState(false);
   const [tempMinutes, setTempMinutes] = useState(minutesPerRun);
@@ -168,57 +179,51 @@ export function StatsBar({
     setTempRuns(runsPerMonth);
   }, [minutesPerRun, runsPerMonth]);
 
-  // Calculate ROI values
+  // Calculate ROI values using the same logic as individual node panels
   useEffect(() => {
     const debounceTimeout = setTimeout(() => {
-      const newTimeValue = calculateTimeValue(runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier);
-      const nodeCount = nodes?.length || 0;
-      const newPlatformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodeCount);
-      
-      // Calculate app costs from nodes
-      let appCost = 0;
-      if (nodes && nodes.length > 0) {
-        // Extract app pricing data from nodes
-        const appPricingMap: Record<string, AppPricingData> = {};
-        const uniqueApps = new Set<string>();
-        
-        nodes.forEach(node => {
-          const nodeData = node.data as unknown as NodeData;
-          if (nodeData?.appId && nodeData?.pricingData) {
-            uniqueApps.add(nodeData.appId);
-            if (!appPricingMap[nodeData.appId]) {
-              appPricingMap[nodeData.appId] = {
-                appId: nodeData.appId,
-                appName: nodeData.appName || '',
-                appSlug: '',
-                hasFreeTier: nodeData.pricingData.hasFreeTier || false,
-                hasFreeTrial: false,
-                currency: nodeData.pricingData.currency || 'USD',
-                lowestMonthlyPrice: nodeData.pricingData.lowestMonthlyPrice || 0,
-                highestMonthlyPrice: 0,
-                tierCount: 0,
-                hasUsageBasedPricing: nodeData.pricingData.hasUsageBasedPricing || false,
-                hasAIFeatures: false,
-              };
-            }
-          }
-        });
-        
-        appCost = calculateAppCosts(appPricingMap);
+      if (!nodes || nodes.length === 0) {
+        // No nodes, no ROI
+        setTimeValue(0);
+        setPlatformCost(0);
+        setNetROI(0);
+        setRoiRatio(0);
+        return;
       }
+
+      // Calculate cumulative ROI by summing all individual node contributions
+      let totalValue = 0;
+      let totalPlatformCost = 0;
+      let totalAppCost = 0;
+
+      nodes.forEach(node => {
+        // Skip email context nodes and groups as they don't contribute to ROI
+        if (['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value', 'group'].includes(node.type || '')) {
+          return;
+        }
+
+        try {
+          const nodeROI = roiCalculations.calculateNodeROI(node);
+          totalValue += nodeROI.stepValue;
+          totalPlatformCost += nodeROI.monthlyCostNode;
+          totalAppCost += nodeROI.appCostForNode;
+        } catch (error) {
+          console.warn('Error calculating ROI for node:', node.id, error);
+        }
+      });
+
+      const totalCost = totalPlatformCost + totalAppCost;
+      const adjustedNetROI = totalValue - totalCost;
+      const adjustedRoiRatio = totalCost > 0 ? totalValue / totalCost : 0;
       
-      const totalCost = newPlatformCost + appCost;
-      const adjustedNetROI = newTimeValue - totalCost;
-      const adjustedRoiRatio = calculateROIRatio(newTimeValue, newPlatformCost, appCost);
-      
-      setTimeValue(newTimeValue);
-      setPlatformCost(totalCost); // Show total cost including apps
+      setTimeValue(totalValue);
+      setPlatformCost(totalCost);
       setNetROI(adjustedNetROI);
       setRoiRatio(adjustedRoiRatio);
     }, 200);
     
     return () => clearTimeout(debounceTimeout);
-  }, [platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, nodes]);
+  }, [platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, nodes, roiCalculations]);
 
   // Responsive configurations
   const isCompact = screenSize === 'xs' || screenSize === 'sm';
