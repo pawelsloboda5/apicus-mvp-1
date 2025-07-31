@@ -642,19 +642,12 @@ export function StatsBar({
 
     if (isUltraCompact) {
       return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex flex-col items-center min-w-0">
-              {IconComponent && <IconComponent className={cn("h-4 w-4 mb-1", color)} />}
-              <span className={cn("text-xs font-mono tabular-nums font-semibold", color)}>
-                {displayValue}
-              </span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{label}: {displayValue}</p>
-          </TooltipContent>
-        </Tooltip>
+        <div className="flex flex-col items-center min-w-0">
+          {IconComponent && <IconComponent className={cn("h-4 w-4 mb-1", color)} />}
+          <span className={cn("text-xs font-mono tabular-nums font-semibold", color)}>
+            {displayValue}
+          </span>
+        </div>
       );
     }
 
@@ -665,16 +658,9 @@ export function StatsBar({
         )}
         
         {showFullLabels && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="text-xs text-muted-foreground whitespace-nowrap mb-1 cursor-help font-medium">
-                {label}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{label}: {displayValue}</p>
-            </TooltipContent>
-          </Tooltip>
+          <div className="text-xs text-muted-foreground whitespace-nowrap mb-1 font-medium">
+            {label}
+          </div>
         )}
 
         <div className="flex items-center gap-1">
@@ -942,28 +928,14 @@ export function StatsBar({
               )}
               
               {showFullLabels && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="text-xs text-muted-foreground whitespace-nowrap mb-1 cursor-help font-medium">
-                      {metric.label.split(' ').slice(0, 2).join(' ')}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{metric.label}</p>
-                  </TooltipContent>
-                </Tooltip>
+                <div className="text-xs text-muted-foreground whitespace-nowrap mb-1 font-medium">
+                  {metric.label.split(' ').slice(0, 2).join(' ')}
+                </div>
               )}
               
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className={cn("font-mono text-base font-semibold tabular-nums", metric.color)}>
-                    {metric.value}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{metric.label}: {metric.value}</p>
-                </TooltipContent>
-              </Tooltip>
+              <span className={cn("font-mono text-base font-semibold tabular-nums", metric.color)}>
+                {metric.value}
+              </span>
             </div>
           );
         })}
