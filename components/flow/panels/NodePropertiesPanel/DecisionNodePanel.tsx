@@ -60,7 +60,7 @@ export function DecisionNodePanel({ node, setNodes, recalculateNodeWidth }: Deci
             <SelectTrigger className="mt-1.5">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
               <SelectItem value="comparison">Value Comparison</SelectItem>
               <SelectItem value="existence">Value Exists</SelectItem>
               <SelectItem value="text">Text Match</SelectItem>
@@ -105,7 +105,7 @@ export function DecisionNodePanel({ node, setNodes, recalculateNodeWidth }: Deci
               <SelectTrigger className="mt-1.5">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
                 <SelectItem value="equals">Equals (==)</SelectItem>
                 <SelectItem value="notEquals">Not Equals (!=)</SelectItem>
                 <SelectItem value="greaterThan">Greater Than (&gt;)</SelectItem>

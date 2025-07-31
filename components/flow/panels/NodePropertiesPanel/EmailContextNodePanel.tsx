@@ -157,7 +157,7 @@ export function EmailContextNodePanel({ node, nodes, edges, setNodes, recalculat
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select an option..." />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
               {template.options.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   <div className="flex flex-col">

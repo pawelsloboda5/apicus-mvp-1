@@ -101,7 +101,7 @@ export function ActionNodePanel({ node, setNodes, recalculateNodeWidth }: Action
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
                   <SelectItem value="email">Email</SelectItem>
                   <SelectItem value="sms">SMS</SelectItem>
                   <SelectItem value="slack">Slack Message</SelectItem>
@@ -162,7 +162,7 @@ export function ActionNodePanel({ node, setNodes, recalculateNodeWidth }: Action
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
                   <SelectItem value="GET">GET</SelectItem>
                   <SelectItem value="POST">POST</SelectItem>
                   <SelectItem value="PUT">PUT</SelectItem>
@@ -203,7 +203,7 @@ export function ActionNodePanel({ node, setNodes, recalculateNodeWidth }: Action
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
                   <SelectItem value="map">Map Fields</SelectItem>
                   <SelectItem value="filter">Filter Array</SelectItem>
                   <SelectItem value="aggregate">Aggregate Data</SelectItem>

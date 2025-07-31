@@ -56,7 +56,7 @@ export function TriggerNodePanel({ node, setNodes, recalculateNodeWidth }: Trigg
               <SelectTrigger className="mt-1.5">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
                 <SelectItem value="webhook">Webhook</SelectItem>
                 <SelectItem value="schedule">Schedule</SelectItem>
                 <SelectItem value="email">Email</SelectItem>
@@ -110,7 +110,7 @@ export function TriggerNodePanel({ node, setNodes, recalculateNodeWidth }: Trigg
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
                   <SelectItem value="none">None</SelectItem>
                   <SelectItem value="apikey">API Key</SelectItem>
                   <SelectItem value="oauth">OAuth</SelectItem>
@@ -134,7 +134,7 @@ export function TriggerNodePanel({ node, setNodes, recalculateNodeWidth }: Trigg
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='bg-red-600 hover:bg-red-700 text-white'>
                   <SelectItem value="minutely">Every Minute</SelectItem>
                   <SelectItem value="hourly">Hourly</SelectItem>
                   <SelectItem value="daily">Daily</SelectItem>
