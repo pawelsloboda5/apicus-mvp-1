@@ -718,6 +718,7 @@ export function BuildPageContent() {
               taskTypeMultipliers={TASK_TYPE_MULTIPLIERS}
               benchmarks={BENCHMARKS}
               updateScenarioROI={(updates) => scenarioManager.updateScenario(updates)}
+              nodes={nodes}
               onGenerateReport={() => {
                 try {
                   console.log('Generate ROI Report clicked');

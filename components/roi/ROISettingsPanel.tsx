@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { HelpCircle, TrendingUp, DollarSign, Calculator, Zap } from "lucide-react";
+import { HelpCircle, TrendingUp, DollarSign, Calculator, Zap, BarChart3 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { pricing } from "@/app/api/data/pricing";
@@ -33,6 +33,8 @@ import {
   formatPaybackPeriod,
   calculateAppCosts,
 } from "@/lib/roi-utils";
+import { useROICalculations } from "@/lib/hooks/useROICalculations";
+import { Node } from "@xyflow/react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -77,6 +79,7 @@ interface ROISettingsPanelProps {
   onGenerateReport?: () => void;
   appPricingMap?: Record<string, AppPricingData>;
   selectedTiers?: Record<string, string>;
+  nodes?: Node[]; // Add nodes for centralized ROI calculations
 }
 
 // Helper function for dynamic minute steps
@@ -224,48 +227,78 @@ export function ROISettingsPanel({
   onGenerateReport,
   appPricingMap,
   selectedTiers,
+  nodes = [],
 }: ROISettingsPanelProps) {
   
   const [stepsPerRun] = useState(5); // Average steps per workflow
 
+  // Use centralized ROI calculations that sync with StatsBar and NodePropertiesPanel
+  const roiCalculations = useROICalculations({
+    runsPerMonth,
+    minutesPerRun,
+    hourlyRate,
+    taskMultiplier,
+    platform,
+    nodes,
+  });
+
   const renderROISummary = () => {
-    const timeValue = calculateTimeValue(runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier);
+    // Calculate aggregate metrics across all nodes
+    const workflowNodes = nodes.filter(n => 
+      n.type && !['group', 'email', 'emailPreview'].includes(n.type) && 
+      !['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value'].includes(n.type)
+    );
+
+    // Sum up individual node contributions
+    let totalMonthlyValue = 0;
+    let totalPlatformCost = 0;
+    let totalAppCost = 0;
+
+    workflowNodes.forEach(node => {
+      const nodeROI = roiCalculations.calculateNodeROI(node);
+      totalMonthlyValue += nodeROI.stepValue;
+      totalPlatformCost += nodeROI.monthlyCostNode;
+      totalAppCost += nodeROI.appCostForNode;
+    });
+
+    // Add additional value factors (risk, revenue)
     const riskValue = calculateRiskValue(complianceEnabled, runsPerMonth, riskFrequency, errorCost, riskLevel);
     const revenueValue = calculateRevenueValue(revenueEnabled, monthlyVolume, conversionRate, valuePerConversion);
-    const totalValue = calculateTotalValue(timeValue, riskValue, revenueValue);
-    const platformCostVal = calculatePlatformCost(platform, runsPerMonth, pricing);
-    const appCostVal = calculateAppCosts(appPricingMap, selectedTiers);
-    const netROIValue = calculateNetROI(totalValue, platformCostVal, appCostVal);
-    const roiRatioValue = calculateROIRatio(totalValue, platformCostVal, appCostVal);
-    const totalCost = platformCostVal + appCostVal;
-    const paybackDays = calculatePaybackPeriod(totalCost, netROIValue);
+    const totalValue = totalMonthlyValue + riskValue + revenueValue;
+    
+    const totalCost = totalPlatformCost + totalAppCost;
+    const netROIValue = totalValue - totalCost;
+    const roiRatioValue = totalCost > 0 ? totalValue / totalCost : 0;
+    const paybackDays = totalCost > 0 && netROIValue > 0 ? (totalCost / (netROIValue / 30)) : 0;
 
     return (
       <div className="space-y-6">
-        {/* Key Metrics Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 rounded-lg border border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Monthly Value</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  ${totalValue.toFixed(0)}
-                </p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-green-600 dark:text-green-400 opacity-20" />
+        {/* Primary Metrics - Modern Card Design */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 p-5">
+            <div className="relative z-10">
+              <p className="text-sm font-medium text-green-700 dark:text-green-300">Monthly Value</p>
+              <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-1">
+                ${totalValue.toLocaleString()}
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                {workflowNodes.length} automation steps
+              </p>
             </div>
+            <TrendingUp className="absolute bottom-2 right-2 h-6 w-6 text-green-600/20" />
           </div>
           
-          <div className="p-4 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Net ROI</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  ${netROIValue.toFixed(0)}
-                </p>
-              </div>
-              <DollarSign className="h-8 w-8 text-blue-600 dark:text-blue-400 opacity-20" />
+          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 p-5">
+            <div className="relative z-10">
+              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Net ROI</p>
+              <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-1">
+                ${netROIValue.toLocaleString()}
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                {roiRatioValue.toFixed(1)}x return ratio
+              </p>
             </div>
+            <DollarSign className="absolute bottom-2 right-2 h-6 w-6 text-blue-600/20" />
           </div>
         </div>
 
@@ -277,8 +310,8 @@ export function ROISettingsPanel({
           </div>
           
           <div className="flex justify-between items-center py-2 border-b">
-            <span className="text-sm text-muted-foreground">Time value</span>
-            <span className="font-medium text-green-600 dark:text-green-400">+${timeValue.toFixed(0)}</span>
+            <span className="text-sm text-muted-foreground">Automation value</span>
+            <span className="font-medium text-green-600 dark:text-green-400">+${totalMonthlyValue.toLocaleString()}</span>
           </div>
           
           {complianceEnabled && (
@@ -296,25 +329,30 @@ export function ROISettingsPanel({
           )}
           
           <div className="flex justify-between items-center py-2 border-b">
-            <span className="text-sm text-muted-foreground">Platform cost</span>
-            <span className="font-medium text-red-600 dark:text-red-400">-${platformCostVal.toFixed(2)}</span>
+            <span className="text-sm text-muted-foreground">Platform cost ({platform})</span>
+            <span className="font-medium text-red-600 dark:text-red-400">-${totalPlatformCost.toFixed(2)}</span>
           </div>
           
-          {appCostVal > 0 && (
+          {totalAppCost > 0 && (
             <div className="flex justify-between items-center py-2 border-b">
               <span className="text-sm text-muted-foreground">App costs</span>
-              <span className="font-medium text-red-600 dark:text-red-400">-${appCostVal.toFixed(2)}</span>
+              <span className="font-medium text-red-600 dark:text-red-400">-${totalAppCost.toFixed(2)}</span>
             </div>
           )}
           
-          <div className="flex justify-between items-center py-2 font-medium">
-            <span>ROI Ratio</span>
-            <span className="text-lg">{formatROIRatio(roiRatioValue)}</span>
+          <div className="flex justify-between items-center py-2 bg-muted/30 rounded-lg px-3 mt-3">
+            <span className="font-medium text-sm">Total Costs</span>
+            <span className="font-bold text-red-600 dark:text-red-400">${totalCost.toFixed(2)}</span>
           </div>
           
-          <div className="flex justify-between items-center py-2">
-            <span className="text-sm text-muted-foreground">Payback period</span>
-            <span className="font-medium">{formatPaybackPeriod(paybackDays)}</span>
+          <div className="flex justify-between items-center py-3 bg-primary/5 rounded-lg px-3">
+            <span className="font-semibold">ROI Ratio</span>
+            <span className="font-bold text-lg text-primary">{roiRatioValue.toFixed(1)}x</span>
+          </div>
+          
+          <div className="flex justify-between items-center py-2 bg-muted/20 rounded-lg px-3">
+            <span className="font-medium text-sm">Payback Period</span>
+            <span className="font-bold">{paybackDays > 0 ? paybackDays.toFixed(1) + ' days' : 'Immediate'}</span>
           </div>
         </div>
       </div>

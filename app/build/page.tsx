@@ -2944,6 +2944,7 @@ function BuildPageContent() {
           taskTypeMultipliers={taskTypeMultipliers}
           benchmarks={benchmarks}
           updateScenarioROI={updateCurrentScenarioROI}
+          nodes={nodes}
         />
 
         {/* Drag overlay */}

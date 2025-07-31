@@ -155,6 +155,23 @@
 - **Result**: All node types now show consistent, synchronized ROI calculations from centralized source
 - **Architecture**: Complete ROI unification across StatsBar, individual panels, and ROI Settings Panel
 
+#### 2025-01-07 - Enhanced ROI Settings Panel with Centralized Calculations ✅
+- **Root Cause**: ROI Settings Panel was using separate calculation logic, causing sync issues when deleting nodes
+- **Fixed** ROI Settings Panel to use centralized `useROICalculations` hook for perfect synchronization
+- **Added** nodes prop to ROISettingsPanel and BuildPageContent integration
+- **Enhanced** ROI Summary UI with modern, detailed, minimalistic design
+- **Features**: Individual node cost aggregation, app costs display, platform-specific costs, improved visual hierarchy
+- **Result**: ROI Settings Panel now shows detailed breakdown including app costs and syncs perfectly when nodes are added/removed
+- **UI**: Modern gradient cards, clean breakdown lists, highlighted summary metrics
+
+#### 2025-01-07 - Fixed ROI Settings Panel Missing Nodes Prop ✅
+- **Root Cause**: `app/build/page.tsx` ROISettingsPanel was missing the `nodes` prop, causing "totalNodes: 0" and all $0 ROI calculations
+- **Issue**: Two BuildPageContent components existed - one in components/ had nodes prop, but main page.tsx version was missing it
+- **Fixed** `app/build/page.tsx` line 2947 to include `nodes={nodes}` prop in ROISettingsPanel
+- **Removed** debug console logs from ROISettingsPanel after identifying the issue
+- **Result**: ROI Settings Panel now receives actual workflow nodes and displays correct calculations
+- **Expected Impact**: ROI Summary should now show proper monthly values, platform costs, and app costs based on actual workflow nodes
+
 ## Technical Notes
 
 ### Data Flow Dependencies
