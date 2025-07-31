@@ -62,13 +62,19 @@ export function useROICalculations({
     };
     const currentTierName = tierName[platform] || Object.values(tierName)[0];
     
-    // Use appropriate tier based on platform - for Zapier, use 750 task tier for most accurate pricing
+    // Automatically select the appropriate tier based on total usage
     let tier;
     if (platform === 'zapier') {
-      // Use the most common Professional tier (750 tasks at $19.99/month)
-      tier = data.tiers.find((t: { name: string; monthlyUSD: number; quota: number }) => 
-        t.name.includes("Professional 750")
-      ) || data.tiers.find((t: { name: string; monthlyUSD: number; quota: number }) => 
+      // Calculate total workflow tasks per month (all nodes × runs)
+      const totalTasksPerMonth = runsPerMonth * nodes.length;
+      
+      // Find the most cost-effective tier that can handle the load
+      const professionalTiers = data.tiers.filter((t: { name: string; quota: number }) => 
+        t.name.includes("Professional") && t.quota >= totalTasksPerMonth
+      ).sort((a: { quota: number }, b: { quota: number }) => a.quota - b.quota);
+      
+      // Use the smallest tier that fits, or fall back to the default lookup
+      tier = professionalTiers[0] || data.tiers.find((t: { name: string; monthlyUSD: number; quota: number }) => 
         t.name.includes(currentTierName)
       ) || data.tiers[0];
     } else {

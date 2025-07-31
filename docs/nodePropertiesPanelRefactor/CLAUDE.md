@@ -131,6 +131,14 @@
 - **Result**: StatsBar ROI now updates dynamically when nodes are added/removed and matches individual panel calculations
 - **Expected Impact**: Adding action nodes will now immediately update the StatsBar ROI metrics
 
+#### 2025-01-07 - Fixed Automatic Tier Selection for High-Volume Workflows ✅
+- **Root Cause**: ROI calculations were stuck using "Professional 750" tier even for workflows exceeding 750 tasks
+- **Issue**: 6,400 runs × 8 nodes = 51,200 tasks/month but using 750-task pricing ($0.0267/task = $170.58/node)
+- **Fixed** automatic tier selection to choose the most cost-effective tier that can handle total workflow load
+- **Added** logic to calculate total workflow tasks and select appropriate Professional tier
+- **Result**: Now uses Professional 100K tier ($0.007335/task = $46.94/node) for high-volume workflows
+- **Expected Impact**: Much more accurate and reasonable per-node costs for large workflows
+
 ## Technical Notes
 
 ### Data Flow Dependencies
