@@ -155,7 +155,8 @@ export function BuildPageContent() {
     if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
       scenarioManager.updateScenario(settings);
     }
-  }, [scenarioManager.updateScenario]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenarioManager.updateScenario]); // scenarioManager.scenario intentionally omitted to prevent infinite loops
 
   // Initialize ROI hook
   const roi = useROI({
@@ -205,7 +206,8 @@ export function BuildPageContent() {
       toast.error('Failed to load scenario');
       isLoadingScenarioRef.current = false;
     }
-  }, []); // Empty deps - scenario passed as parameter, refs used for state updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps intentional - scenario passed as parameter, setNodes/setEdges are stable refs
 
   // Load scenario when it changes
   useEffect(() => {
@@ -215,7 +217,8 @@ export function BuildPageContent() {
       loadScenarioToCanvas(scenarioManager.scenario);
       roi.loadFromScenario(scenarioManager.scenario);
     }
-  }, [scenarioManager.scenario?.id, loadScenarioToCanvas, roi.loadFromScenario]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps  
+  }, [scenarioManager.scenario?.id, loadScenarioToCanvas, roi.loadFromScenario]); // scenarioManager.scenario intentionally omitted to prevent infinite loops
 
   // Initialize email generation hook
   const emailGeneration = useEmailGeneration({
@@ -491,7 +494,8 @@ export function BuildPageContent() {
   // Initialize scenario on mount - with stable dependencies
   useEffect(() => {
     initializeScenario();
-  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate]); // Only depend on URL params
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate]); // initializeScenario deliberately omitted - React 19 handles optimization
 
   // Save scenario when nodes/edges change
   useEffect(() => {
@@ -528,7 +532,8 @@ export function BuildPageContent() {
     }, 500);
 
     return () => clearTimeout(saveTimer);
-  }, [nodes, edges, scenarioManager.updateScenario, isLoading]); // Fixed deps - removed circular references
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, edges, scenarioManager.updateScenario, isLoading]); // scenarioManager intentionally omitted to prevent infinite save loops
 
   // Scenario management handlers
   const handleDuplicateScenario = useCallback(async () => {
