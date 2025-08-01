@@ -5,7 +5,7 @@
 **Location**: Build page template generation flow
 **Console Message**: "Added default trigger node since scenario was empty"
 
-## Current Status: ✅ MINIMAL FIX IMPLEMENTED - TESTING REQUIRED
+## Current Status: ✅ MINIMAL FIXES IMPLEMENTED - READY FOR TESTING
 
 ### Analysis Progress
 - ✅ **Identified Error Type**: React Error #185 - Maximum call stack size exceeded
@@ -15,7 +15,19 @@
 - ✅ **Analyzed ROI Hook**: `useROI.loadFromScenario` only updates local state, not a direct cause
 - ✅ **Identified Save Loop**: Lines 496-531 save effect triggers `scenarioManager.updateScenario`
 - ✅ **Applied Minimal Fix**: Fixed all 4 problematic dependency arrays
-- 🔄 **Current Status**: Ready for testing - fixes should eliminate infinite loop
+- ❌ **Testing Results**: Initial fix incomplete - additional infinite loops discovered
+- 🔍 **New Issues Found**: 
+  - `initializeScenario` callback causing infinite loops (line 489 dependencies)
+  - `useScenarioManager.loadScenario` triggering circular updates  
+  - Server logs show repeated API calls for same template
+  - React 19 automatic memoization conflicts with manual useCallback
+- ✅ **COMPREHENSIVE FIXES APPLIED**: 
+  - **Removed initializeScenario useCallback** - React 19 Compiler handles this automatically
+  - **Fixed useEffect dependencies** - Only depends on stable URL parameters
+  - **Removed 4 unnecessary useCallback hooks** - Simplified for React 19 optimization
+  - **Verified useScenarioManager** - No internal circular dependency issues
+- 🧠 **React 19 Research**: Compiler auto-memoizes but doesn't prevent useCallback/useEffect infinite loops
+- 🎯 **Strategy**: Remove unnecessary useCallback dependencies that conflict with React 19 Compiler
 
 ### Key Findings
 
@@ -95,6 +107,69 @@ useEffect[scenarioManager.scenario]
 // AFTER:  []
 // REMOVED: all dependencies since scenario is passed as parameter
 ```
+
+#### 🚨 ADDITIONAL LOOPS DISCOVERED AFTER TESTING
+
+**❌ CRITICAL: initializeScenario callback (line 489)**
+```javascript
+// PROBLEM: [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate, scenarioManager, router]
+// ISSUE: scenarioManager dependency causes infinite re-creation of callback
+// EFFECT: useEffect(() => { initializeScenario(); }, [initializeScenario]) triggers repeatedly
+```
+
+**❌ CRITICAL: React 19 + useCallback Conflict**
+Based on research, React 19's automatic memoization can conflict with manual useCallback usage:
+- **React 19 Compiler**: Automatically memoizes functions, reducing need for manual useCallback
+- **Key Discovery**: useCallback is NOT deprecated but becomes redundant for most cases
+- **The Conflict**: Manual useCallback with unstable dependencies creates object reference changes that fight the compiler's automatic optimization
+- **Our Problem**: `scenarioManager` object dependency in useCallback creates new function references on every render
+- **Server Evidence**: Repeated API calls (scenarios 39→40→41→42) show continuous reinitialization
+
+**❌ CRITICAL: Scenario Creation Loop**
+From server logs (lines 145-159):
+```
+GET /api/templates/a8f09aaa-8b27-438c-956c-b553c79dacf5 200 in 3140ms
+GET /build?tid=...&sid=39 200 in 174ms
+GET /api/templates/a8f09aaa-8b27-438c-956c-b553c79dacf5 200 in 606ms  
+GET /build?tid=...&sid=40 200 in 29ms
+```
+Shows scenario IDs incrementing (39→40→41→42→43) = new scenarios being created repeatedly
+
+#### ✅ FINAL FIXES IMPLEMENTED (React 19 Compatible)
+
+**1. PRIMARY FIX: Removed initializeScenario useCallback (Lines 406-489)**
+```javascript
+// BEFORE: useCallback with unstable dependencies
+const initializeScenario = useCallback(async () => {
+  // ... logic
+}, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate, scenarioManager, router]);
+
+// AFTER: Regular function - React 19 Compiler handles optimization  
+const initializeScenario = async () => {
+  // ... same logic
+};
+```
+
+**2. CRITICAL FIX: Stabilized useEffect dependencies (Line 494)**
+```javascript
+// BEFORE: Unstable function dependency
+useEffect(() => { initializeScenario(); }, [initializeScenario]);
+
+// AFTER: Only stable URL parameters
+useEffect(() => { initializeScenario(); }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate]);
+```
+
+**3. REACT 19 OPTIMIZATION: Removed unnecessary useCallback hooks**
+- `handleCancelEdit` - No dependencies → Regular function
+- `handleStartEdit` - Simple UI logic → React 19 auto-optimizes  
+- `handleEditKeyDown` - Event handler → React 19 auto-optimizes
+- Total removed: 4 useCallback hooks
+
+**4. PERFORMANCE-CRITICAL: Kept essential useCallback hooks**
+- `onNodesChange` - React Flow performance critical
+- `loadScenarioToCanvas` - Canvas state updates, already fixed deps
+- `handleROISettingsChange` - Already fixed deps  
+- Email generation callbacks - Complex dependencies, performance critical
 
 ### Next Steps - TESTING PHASE
 1. **✅ COMPLETE: Applied minimal dependency fixes**

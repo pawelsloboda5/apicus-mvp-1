@@ -403,8 +403,8 @@ export function BuildPageContent() {
   const selectedGroup = selectedGroupId ? nodes.find(n => n.id === selectedGroupId) : null;
   const selectedEmailNode = selectedEmailNodeId ? nodes.find(n => n.id === selectedEmailNodeId) : null;
 
-  // Initialize scenario on mount - memoize the initialization function to prevent infinite loops
-  const initializeScenario = useCallback(async () => {
+  // Initialize scenario on mount - React 19 Compiler handles memoization
+  const initializeScenario = async () => {
     setIsLoading(true);
     
     try {
@@ -486,12 +486,12 @@ export function BuildPageContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate, scenarioManager, router]);
+  };
 
-  // Initialize scenario on mount with stable dependencies
+  // Initialize scenario on mount - with stable dependencies
   useEffect(() => {
     initializeScenario();
-  }, [initializeScenario]);
+  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate]); // Only depend on URL params
 
   // Save scenario when nodes/edges change
   useEffect(() => {
@@ -599,12 +599,12 @@ export function BuildPageContent() {
     }
   }, [scenarioManager.scenario?.id, router]);
 
-  const handleStartEdit = useCallback(() => {
+  const handleStartEdit = () => {
     if (scenarioManager.scenario) {
       setIsEditingTitle(true);
       setEditingName(scenarioManager.scenario.name);
     }
-  }, [scenarioManager.scenario]);
+  };
 
   const handleSaveEdit = useCallback(async () => {
     if (!scenarioManager.scenario?.id || !editingName.trim()) return;
@@ -627,18 +627,18 @@ export function BuildPageContent() {
     }
   }, [editingName, scenarioManager]);
 
-  const handleCancelEdit = useCallback(() => {
+  const handleCancelEdit = () => {
     setIsEditingTitle(false);
     setEditingName("");
-  }, []);
+  };
 
-  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSaveEdit();
     } else if (e.key === 'Escape') {
       handleCancelEdit();
     }
-  }, [handleSaveEdit, handleCancelEdit]);
+  };
 
   // Show loading state
   if (isLoading) {
