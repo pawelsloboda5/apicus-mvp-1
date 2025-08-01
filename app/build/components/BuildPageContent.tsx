@@ -155,7 +155,7 @@ export function BuildPageContent() {
     if (scenarioManager.scenario && !isLoadingScenarioRef.current) {
       scenarioManager.updateScenario(settings);
     }
-  }, [scenarioManager]);
+  }, [scenarioManager.updateScenario]);
 
   // Initialize ROI hook
   const roi = useROI({
@@ -205,7 +205,7 @@ export function BuildPageContent() {
       toast.error('Failed to load scenario');
       isLoadingScenarioRef.current = false;
     }
-  }, [setNodes, setEdges, rfInstance]);
+  }, []); // Empty deps - scenario passed as parameter, refs used for state updates
 
   // Load scenario when it changes
   useEffect(() => {
@@ -215,7 +215,7 @@ export function BuildPageContent() {
       loadScenarioToCanvas(scenarioManager.scenario);
       roi.loadFromScenario(scenarioManager.scenario);
     }
-  }, [scenarioManager.scenario?.id, loadScenarioToCanvas, roi, scenarioManager.scenario]);
+  }, [scenarioManager.scenario?.id, loadScenarioToCanvas, roi.loadFromScenario]);
 
   // Initialize email generation hook
   const emailGeneration = useEmailGeneration({
@@ -528,7 +528,7 @@ export function BuildPageContent() {
     }, 500);
 
     return () => clearTimeout(saveTimer);
-  }, [nodes, edges, scenarioManager.scenario?.id, scenarioManager, isLoading]); // Minimal deps
+  }, [nodes, edges, scenarioManager.updateScenario, isLoading]); // Fixed deps - removed circular references
 
   // Scenario management handlers
   const handleDuplicateScenario = useCallback(async () => {
