@@ -53,6 +53,18 @@ import { GroupPropertiesPanel } from "@/components/flow/GroupPropertiesPanel";
 import { EmailNodePropertiesPanel } from "@/components/flow/EmailNodePropertiesPanel";
 import { ROISettingsPanel } from "@/components/roi/ROISettingsPanel";
 import { ROIReportNode } from "@/components/flow/ROIReportNode";
+// dnd-kit
+import {
+  DndContext,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+  DragEndEvent,
+  pointerWithin,
+  useDroppable,
+} from "@dnd-kit/core";
+import { createSnapModifier } from "@dnd-kit/modifiers";
 
 // Import icons
 import { Copy, Edit2 as Edit2Icon, Trash2, Check, X } from "lucide-react";
@@ -139,6 +151,15 @@ export function BuildPageContent() {
 
   // ReactFlow refs
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const reactFlowWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  // dnd-kit sensors and canvas droppable setup
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({ id: "canvas" });
   
   // Flag to prevent save loops
   const isLoadingScenarioRef = useRef(false);
@@ -645,6 +666,59 @@ export function BuildPageContent() {
     }
   };
 
+  // Handle drop from Toolbox into canvas
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && over.id !== 'canvas') return;
+
+    const nodeType = active.data.current?.nodeType as NodeType | undefined;
+    const isEmailContext = active.data.current?.isEmailContext as boolean | undefined;
+    const contextValue = active.data.current?.contextValue as string | undefined;
+    const category = active.data.current?.category as string | undefined;
+
+    if (!nodeType || !reactFlowWrapperRef.current || !rfInstance) return;
+
+    const wrapperRect = reactFlowWrapperRef.current.getBoundingClientRect();
+    const rect = active.rect.current.translated ?? active.rect.current.initial;
+    if (!rect) return;
+
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const viewport = rfInstance.getViewport();
+    const pos = {
+      x: (centerX - wrapperRect.left - viewport.x) / viewport.zoom,
+      y: (centerY - wrapperRect.top - viewport.y) / viewport.zoom,
+    };
+    const snapped = {
+      x: Math.round(pos.x / 8) * 8,
+      y: Math.round(pos.y / 8) * 8,
+    };
+
+    const labelBase = `${nodeType.charAt(0).toUpperCase()}${nodeType.slice(1)}`;
+
+    const newNode: Node = {
+      id: `node-${Date.now()}`,
+      type: nodeType,
+      position: snapped,
+      data: isEmailContext
+        ? {
+            label: labelBase,
+            isEmailContext: true,
+            contextType: nodeType,
+            contextValue: contextValue || '',
+            category: category || '',
+          }
+        : {
+            label: labelBase,
+            ...(nodeType === 'trigger' && { typeOf: 'webhook' }),
+            ...(nodeType === 'action' && { appName: 'New Action', action: 'configure', typeOf: 'data_processing' }),
+            ...(nodeType === 'decision' && { conditionType: 'value', operator: 'equals' }),
+          },
+    };
+
+    onNodesChange([{ type: 'add', item: newNode }]);
+  }, [onNodesChange, rfInstance]);
+
   // Show loading state
   if (isLoading) {
     return (
@@ -659,6 +733,12 @@ export function BuildPageContent() {
 
   return (
     <ReactFlowProvider>
+      <DndContext
+        sensors={sensors}
+        modifiers={[createSnapModifier(8)]}
+        collisionDetection={pointerWithin}
+        onDragEnd={handleDragEnd}
+      >
       <div className="flex-1 flex flex-col" data-page="build">
         {/* StatsBar */}
         <StatsBar
@@ -905,6 +985,9 @@ export function BuildPageContent() {
                 edgeTypes={edgeTypes}
                 selectedNodeType={selectedNodeType}
                 onNodeTypeChange={setSelectedNodeType}
+                setWrapperRef={(n) => { reactFlowWrapperRef.current = n; }}
+                setDroppableRef={setDroppableRef}
+                isOver={isOver}
               />
               </div>
             </div>
@@ -1159,6 +1242,7 @@ export function BuildPageContent() {
           />
         )}
       </div>
+      </DndContext>
     </ReactFlowProvider>
   );
 } 

@@ -286,7 +286,20 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({ 
     id: "canvas",
     data: {
-      accepts: ['tool-trigger', 'tool-action', 'tool-decision']
+      accepts: [
+        'tool-trigger', 
+        'tool-action', 
+        'tool-decision',
+        // Email context node types
+        'tool-context-persona',
+        'tool-context-industry', 
+        'tool-context-painpoint',
+        'tool-context-metric',
+        'tool-context-urgency',
+        'tool-context-socialproof',
+        'tool-context-objection',
+        'tool-context-value'
+      ]
     }
   });
 
