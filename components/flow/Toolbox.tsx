@@ -35,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { AlternativeTemplateForDisplay } from "./AlternativeTemplatesSheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TemplateResponse } from "@/lib/types";
+import { transformTemplateNodes, transformTemplateEdges } from "@/lib/flow-utils";
 
 const ITEMS: { type: NodeType; label: string }[] = [
   { type: "trigger", label: "Trigger" },
@@ -391,19 +392,58 @@ function ToolboxContent({
     
     setIsGeneratingFromPrompt(true);
     try {
-      // For now, create a scenario with the prompt as the name
-      // Later this could call an AI API to generate the workflow
-      const scenarioName = promptInput.trim();
-      const newId = await createScenario(scenarioName);
+      const query = promptInput.trim();
+
+      // Try to find a matching template first (same behavior as homepage search)
+      const response = await fetch(`/api/templates/search?q=${encodeURIComponent(query)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        const templates: TemplateResponse[] = data.templates || [];
+
+        if (templates.length > 0) {
+          // Create scenario from the first/best template
+          const template = templates[0];
+          const transformedNodes = transformTemplateNodes(
+            (template.nodes || []) as unknown as Parameters<typeof transformTemplateNodes>[0],
+            template.templateId
+          );
+          const transformedEdges = transformTemplateEdges(
+            ((template.edges || []).map(e => ({ ...e, label: e.label ?? undefined })) as unknown) as Parameters<typeof transformTemplateEdges>[0],
+            template.templateId
+          );
+          const newId = await db.scenarios.add({
+            name: template.title || query || 'Untitled Scenario',
+            slug: nanoid(8),
+            platform: template.platform as PlatformType | undefined,
+            nodesSnapshot: transformedNodes,
+            edgesSnapshot: transformedEdges,
+            originalTemplateId: template.templateId,
+            searchQuery: query,
+            templatePricingData: template.appPricingMap,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+
+          if (newId && typeof newId === 'number') {
+            setNewScenarioModalOpen(false);
+            setPromptInput("");
+            router.push(`/build?sid=${newId}`);
+            if (onLoadScenario) onLoadScenario(newId);
+            if (isMobile && onClose) onClose();
+            return;
+          }
+        }
+      }
+
+      // Fallback: create a blank scenario if no template found or request failed
+      const fallbackName = query || "Untitled Scenario";
+      const fallbackId = await createScenario(fallbackName);
       setNewScenarioModalOpen(false);
       setPromptInput("");
-      router.push(`/build?sid=${newId}`);
-      if (onLoadScenario) {
-        onLoadScenario(newId);
-      }
-      if (isMobile && onClose) {
-        onClose();
-      }
+      router.push(`/build?sid=${fallbackId}`);
+      if (onLoadScenario) onLoadScenario(fallbackId);
+      if (isMobile && onClose) onClose();
     } catch (error) {
       console.error('Failed to generate scenario from prompt:', error);
     } finally {
@@ -548,12 +588,20 @@ function ToolboxContent({
   const handleCreateFromTemplate = async (template: TemplateResponse) => {
     try {
       // Create a new scenario with the template data
+      const transformedNodes = transformTemplateNodes(
+        (template.nodes || []) as unknown as Parameters<typeof transformTemplateNodes>[0],
+        template.templateId
+      );
+      const transformedEdges = transformTemplateEdges(
+        ((template.edges || []).map(e => ({ ...e, label: e.label ?? undefined })) as unknown) as Parameters<typeof transformTemplateEdges>[0],
+        template.templateId
+      );
       const newId = await db.scenarios.add({
         name: template.title || 'Untitled Scenario',
         slug: nanoid(8),
         platform: template.platform as PlatformType | undefined,
-        nodesSnapshot: template.nodes,
-        edgesSnapshot: template.edges,
+        nodesSnapshot: transformedNodes,
+        edgesSnapshot: transformedEdges,
         originalTemplateId: template.templateId,
         searchQuery: templateSearchQuery,
         templatePricingData: template.appPricingMap,
