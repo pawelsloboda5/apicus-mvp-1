@@ -358,6 +358,10 @@ export interface StatsBarProps {
   selectedIds?: string[];
   selectedGroupId?: string | null;
   isMultiSelectionActive?: boolean;
+
+  // View state controls
+  isAnalyticsView?: boolean;
+  onGoBackToCanvas?: () => void;
 }
 
 export interface PlatformSwitcherProps {

@@ -26,7 +26,8 @@ import {
   CheckSquare,
   Sun,
   Moon,
-  Timer
+  Timer,
+  ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlatformType, Scenario } from "@/lib/types";
@@ -76,6 +77,10 @@ interface StatsBarProps {
   
   // ROI Report generation
   onGenerateROIReport?: (node: Node) => void;
+
+  // View state
+  isAnalyticsView?: boolean;
+  onGoBackToCanvas?: () => void;
 }
 
 // Platform configurations
@@ -153,6 +158,8 @@ export function StatsBar({
   isMultiSelectionActive = false,
   currentScenario,
   onGenerateROIReport,
+  isAnalyticsView = false,
+  onGoBackToCanvas,
 }: StatsBarProps) {
   const { theme, setTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
@@ -1001,6 +1008,17 @@ export function StatsBar({
           <h1 className="text-lg font-display font-bold tracking-tight text-foreground">
             Apicus.io
           </h1>
+          {isAnalyticsView && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 ml-3"
+              onClick={() => onGoBackToCanvas?.()}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Go back
+            </Button>
+          )}
         </div>
 
                   {/* Center - Stats */}

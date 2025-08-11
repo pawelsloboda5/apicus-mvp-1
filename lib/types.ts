@@ -224,6 +224,22 @@ export interface StatsBarProps {
   onUpdateMinutes: (minutes: number) => void;
   nodes?: Node[];
   currentScenario?: unknown;
+
+  // Optional controls used in some contexts
+  onPlatformChange?: (platform: PlatformType) => void;
+  onOpenROISettings?: () => void;
+  onAddNode?: () => void;
+  onGenerateEmail?: () => void;
+  isGeneratingEmail?: boolean;
+  onCreateGroup?: () => void;
+  onUngroup?: () => void;
+  selectedIds?: string[];
+  selectedGroupId?: string | null;
+  isMultiSelectionActive?: boolean;
+
+  // View state
+  isAnalyticsView?: boolean;
+  onGoBackToCanvas?: () => void;
 }
 
 export interface PlatformSwitcherProps {
