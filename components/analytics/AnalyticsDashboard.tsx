@@ -5,7 +5,7 @@ import { Scenario } from '@/lib/types';
 import { Node } from '@xyflow/react';
 import { useScenarioMetrics } from '@/lib/db-hooks';
 import { RoiGauge, WaterfallChart, TrendChart, FlowTimeChart } from '@/app/chart-kit';
-import { useRoiMetrics } from '@/app/chart-kit/hooks';
+import { useRoiMetrics, RoiMetrics } from '@/app/chart-kit/hooks';
 import { transformToFlowTimeData } from '@/lib/chart-utils';
 import { captureROISnapshot, shouldCaptureSnapshot } from '@/lib/metrics-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,23 +18,9 @@ interface AnalyticsDashboardProps {
   onNodeClick?: (nodeId: string) => void;
 }
 
-// Define the metrics type to fix the reference error
-type RoiMetrics = {
-  timeValue: number;
-  riskValue: number;
-  revenueValue: number;
-  totalValue: number;
-  platformCost: number;
-  netROI: number;
-  roiRatio: number;
-  paybackPeriod: string;
-  breakEvenRuns: number;
-  isPositiveROI: boolean;
-} | null;
-
 export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDashboardProps) {
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | undefined>();
-  const [previousMetrics, setPreviousMetrics] = useState<RoiMetrics>(null);
+  const [previousMetrics, setPreviousMetrics] = useState<RoiMetrics | null>(null);
   const [previousNodeCount, setPreviousNodeCount] = useState(0);
   
   // Use ref to prevent infinite loops in useEffect
@@ -67,7 +53,7 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
     
     setPreviousMetrics(metrics);
     setPreviousNodeCount(nodeCount);
-  }, [scenario, metrics, nodes, previousMetrics, previousNodeCount]); // Include all dependencies
+  }, [scenario, metrics, nodes, previousMetrics, previousNodeCount]);
   
   // Manual snapshot handler
   const handleCaptureSnapshot = async () => {
@@ -117,9 +103,9 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
   
   // Prepare waterfall data
   const waterfallData = useMemo(() => {
-    if (!metrics) return [];
+    if (!metrics) return [] as Array<{ label: string; value: number; start: number; end: number; category: 'value' | 'cost' | 'total' }>;
     
-    const data = [];
+    const data: Array<{ label: string; value: number; start: number; end: number; category: 'value' | 'cost' | 'total' }> = [];
     let runningTotal = 0;
     
     // Time value
@@ -129,7 +115,7 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
         value: metrics.timeValue,
         start: runningTotal,
         end: runningTotal + metrics.timeValue,
-        category: 'value' as const,
+        category: 'value',
       });
       runningTotal += metrics.timeValue;
     }
@@ -141,7 +127,7 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
         value: metrics.revenueValue,
         start: runningTotal,
         end: runningTotal + metrics.revenueValue,
-        category: 'value' as const,
+        category: 'value',
       });
       runningTotal += metrics.revenueValue;
     }
@@ -153,19 +139,21 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
         value: metrics.riskValue,
         start: runningTotal,
         end: runningTotal + metrics.riskValue,
-        category: 'value' as const,
+        category: 'value',
       });
       runningTotal += metrics.riskValue;
     }
     
     // Platform cost (negative)
+    // Note: Any app costs are already included in net ROI via the hook total cost, but
+    // here we continue to show the platformCost as the main cost bar.
     if (metrics.platformCost > 0) {
       data.push({
         label: 'Platform Cost',
         value: -metrics.platformCost,
         start: runningTotal,
         end: runningTotal - metrics.platformCost,
-        category: 'cost' as const,
+        category: 'cost',
       });
       runningTotal -= metrics.platformCost;
     }
@@ -176,7 +164,7 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
       value: runningTotal,
       start: 0,
       end: runningTotal,
-      category: 'total' as const,
+      category: 'total',
     });
     
     return data;
@@ -184,7 +172,7 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
   
   // Prepare trend data
   const trendData = useMemo(() => {
-    if (!historicalMetrics || historicalMetrics.length === 0) return [];
+    if (!historicalMetrics || historicalMetrics.length === 0) return [] as Array<{ date: Date; value: number; label?: string }>;
     
     return historicalMetrics
       .map(snapshot => ({
@@ -231,232 +219,233 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
   }
   
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-background">
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="container mx-auto p-6 space-y-6 pb-12 min-h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h2>
-              <p className="text-muted-foreground">
-                Track and analyze your automation ROI over time
-              </p>
+    <div className="h-full flex flex-col bg-background">
+      <div className="flex-1 relative">
+        <div className="absolute inset-0 overflow-auto">
+          <div className="container mx-auto p-6 space-y-6 pb-12 min-h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h2>
+                <p className="text-muted-foreground">
+                  Track and analyze your automation ROI over time
+                </p>
+              </div>
+              {/* Scenario Quick Stats */}
+              <div className="hidden xl:flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Platform</p>
+                  <p className="font-medium capitalize">{scenario.platform}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Runs/Month</p>
+                  <p className="font-medium">{scenario.runsPerMonth?.toLocaleString()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Workflow Steps</p>
+                  <p className="font-medium">{nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || '')).length}</p>
+                </div>
+                <div className="flex items-center gap-2 ml-4 pl-4 border-l">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCaptureSnapshot}
+                    className="gap-2"
+                  >
+                    <Camera className="h-4 w-4" />
+                    Capture
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleExportData}
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
+              </div>
             </div>
-            {/* Scenario Quick Stats */}
-            <div className="hidden xl:flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Platform</p>
-                <p className="font-medium capitalize">{scenario.platform}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Runs/Month</p>
-                <p className="font-medium">{scenario.runsPerMonth?.toLocaleString()}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Workflow Steps</p>
-                <p className="font-medium">{nodes.filter(n => ['trigger', 'action', 'decision'].includes(n.type || '')).length}</p>
-              </div>
-              <div className="flex items-center gap-2 ml-4 pl-4 border-l">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCaptureSnapshot}
-                  className="gap-2"
-                >
-                  <Camera className="h-4 w-4" />
-                  Capture
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExportData}
-                  className="gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          {/* Main Metrics Grid */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {/* ROI Gauge Card */}
-            <Card className="col-span-1">
-              <CardHeader>
-                <CardTitle>ROI Ratio</CardTitle>
-                <CardDescription>Current return on investment</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[200px] w-full">
-                  {metrics.roiRatio != null && !isNaN(metrics.roiRatio) ? (
-                    <RoiGauge ratio={metrics.roiRatio} size="lg" animate />
-                  ) : (
-                    <div className="h-full flex items-center justify-center">
-                      <p className="text-muted-foreground">Loading...</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
             
-            {/* Time Value Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Time Value</CardTitle>
-                <CardDescription>Monthly time savings value</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">
-                  ${metrics.timeValue.toLocaleString()}
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {((scenario.runsPerMonth || 0) * (scenario.minutesPerRun || 0) / 60).toFixed(1)} hours saved
-                </p>
-              </CardContent>
-            </Card>
-            
-            {/* Platform Cost Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Platform Cost</CardTitle>
-                <CardDescription>Monthly automation cost</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-red-600">
-                  ${metrics.platformCost.toLocaleString()}
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {scenario.platform} - {nodes.length} nodes
-                </p>
-              </CardContent>
-            </Card>
-            
-            {/* Net ROI Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Net ROI</CardTitle>
-                <CardDescription>Monthly net return</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className={`text-3xl font-bold ${metrics.isPositiveROI ? 'text-green-600' : 'text-red-600'}`}>
-                  ${metrics.netROI.toLocaleString()}
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {metrics.paybackPeriod} payback
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Additional Metrics Row */}
-          <div className="grid gap-6 md:grid-cols-3">
-            {/* Revenue Impact */}
-            {scenario.revenueEnabled && (
-              <Card>
+            {/* Main Metrics Grid */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {/* ROI Gauge Card */}
+              <Card className="col-span-1">
                 <CardHeader>
-                  <CardTitle>Revenue Impact</CardTitle>
-                  <CardDescription>From improved conversions</CardDescription>
+                  <CardTitle>ROI Ratio</CardTitle>
+                  <CardDescription>Current return on investment</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-purple-600">
-                    ${metrics.revenueValue.toLocaleString()}
+                  <div className="h-[200px] w-full">
+                    {metrics.roiRatio != null && !isNaN(metrics.roiRatio) ? (
+                      <RoiGauge ratio={metrics.roiRatio} size="lg" animate />
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-muted-foreground">Loading...</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Time Value Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Time Value</CardTitle>
+                  <CardDescription>Monthly time savings value</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-600">
+                    ${metrics.timeValue.toLocaleString()}
                   </div>
                   <p className="text-sm text-muted-foreground mt-2">
-                    {scenario.conversionRate}% conversion rate
+                    {((scenario.runsPerMonth || 0) * (scenario.minutesPerRun || 0) / 60).toFixed(1)} hours saved
                   </p>
                 </CardContent>
               </Card>
-            )}
-            
-            {/* Risk Mitigation */}
-            {scenario.complianceEnabled && (
+              
+              {/* Platform Cost Card */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Risk Mitigation</CardTitle>
-                  <CardDescription>Compliance value</CardDescription>
+                  <CardTitle>Platform Cost</CardTitle>
+                  <CardDescription>Monthly automation cost</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    ${metrics.riskValue.toLocaleString()}
+                  <div className="text-3xl font-bold text-red-600">
+                    ${metrics.platformCost.toLocaleString()}
                   </div>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Risk level: {scenario.riskLevel}/3
+                    {scenario.platform} - {nodes.length} nodes
                   </p>
                 </CardContent>
               </Card>
-            )}
+              
+              {/* Net ROI Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Net ROI</CardTitle>
+                  <CardDescription>Monthly net return</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-3xl font-bold ${metrics.isPositiveROI ? 'text-green-600' : 'text-red-600'}`}>
+                    ${metrics.netROI.toLocaleString()}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {metrics.paybackPeriod} payback
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
             
-            {/* Break-even Analysis */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Break-even Point</CardTitle>
-                <CardDescription>Runs needed to break even</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {metrics.breakEvenRuns} runs
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {metrics.isPositiveROI ? 'Already profitable' : 'Not yet profitable'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Coming Soon Sections */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* ROI Breakdown Waterfall */}
-            <Card>
-              <CardHeader>
-                <CardTitle>ROI Breakdown</CardTitle>
-                <CardDescription>Value sources vs costs</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  {waterfallData.length > 0 && waterfallData.every(d => d.value != null && !isNaN(d.value)) ? (
-                    <WaterfallChart data={waterfallData} animate />
-                  ) : (
-                    <div className="h-full flex items-center justify-center bg-muted rounded-lg">
-                      <p className="text-muted-foreground">No data to display</p>
+            {/* Additional Metrics Row */}
+            <div className="grid gap-6 md:grid-cols-3">
+              {/* Revenue Impact */}
+              {scenario.revenueEnabled && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Revenue Impact</CardTitle>
+                    <CardDescription>From improved conversions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">
+                      ${metrics.revenueValue.toLocaleString()}
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {scenario.conversionRate}% conversion rate
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Risk Mitigation */}
+              {scenario.complianceEnabled && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Risk Mitigation</CardTitle>
+                    <CardDescription>Compliance value</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      ${metrics.riskValue.toLocaleString()}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Risk level: {scenario.riskLevel}/3
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Break-even Analysis */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Break-even Point</CardTitle>
+                  <CardDescription>Runs needed to break even</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {metrics.breakEvenRuns} runs
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {metrics.isPositiveROI ? 'Already profitable' : 'Not yet profitable'}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
             
-            {/* Historical Metrics */}
+            {/* Coming Soon Sections */}
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* ROI Breakdown Waterfall */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>ROI Breakdown</CardTitle>
+                  <CardDescription>Value sources vs costs</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    {waterfallData.length > 0 && waterfallData.every(d => d.value != null && !isNaN(d.value)) ? (
+                      <WaterfallChart data={waterfallData} animate />
+                    ) : (
+                      <div className="h-full flex items-center justify-center bg-muted rounded-lg">
+                        <p className="text-muted-foreground">No data to display</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Historical Metrics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>ROI Trend</CardTitle>
+                  <CardDescription>Last 30 days</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    {trendData.length > 1 && trendData.every(d => d.value != null && !isNaN(d.value)) ? (
+                      <TrendChart data={trendData} animate />
+                    ) : (
+                      <div className="h-full flex items-center justify-center bg-muted rounded-lg">
+                        <p className="text-muted-foreground">
+                          {historicalMetrics && historicalMetrics.length > 0 
+                            ? `${historicalMetrics.length} snapshot${historicalMetrics.length > 1 ? 's' : ''} recorded - need more data for trend`
+                            : 'No historical data yet'
+                          }
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Workflow Analysis - Placeholder */}
             <Card>
               <CardHeader>
-                <CardTitle>ROI Trend</CardTitle>
-                <CardDescription>Last 30 days</CardDescription>
+                <CardTitle>Workflow Time Analysis</CardTitle>
+                <CardDescription>Time savings by automation step</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
-                  {trendData.length > 1 && trendData.every(d => d.value != null && !isNaN(d.value)) ? (
-                    <TrendChart data={trendData} animate />
-                  ) : (
-                    <div className="h-full flex items-center justify-center bg-muted rounded-lg">
-                      <p className="text-muted-foreground">
-                        {historicalMetrics && historicalMetrics.length > 0 
-                          ? `${historicalMetrics.length} snapshot${historicalMetrics.length > 1 ? 's' : ''} recorded - need more data for trend`
-                          : 'No historical data yet'
-                        }
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Workflow Analysis - Placeholder */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Workflow Time Analysis</CardTitle>
-              <CardDescription>Time savings by automation step</CardDescription>
-            </CardHeader>
-                          <CardContent>
                 <div className="h-[400px]">
                   {flowTimeData && flowTimeData.nodes?.length > 0 ? (
                     <FlowTimeChart 
@@ -479,7 +468,8 @@ export function AnalyticsDashboard({ scenario, nodes, onNodeClick }: AnalyticsDa
                   )}
                 </div>
               </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
