@@ -656,6 +656,8 @@ export function BuildPageCore({ scenarioIdParam, templateIdParam, queryParam }: 
                 selectedIds={selectedIds}
                 selectedGroupId={selectedGroupId}
                 isMultiSelectionActive={isMultiSelectionActive}
+                isAnalyticsView={activeTab === 'analytics'}
+                onGoBackToCanvas={() => setActiveTab('canvas')}
               />
 
               {/* Main content with lazy loading */}

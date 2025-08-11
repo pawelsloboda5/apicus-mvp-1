@@ -838,6 +838,8 @@ export function BuildPageContent() {
             onNodesChange([{ type: 'add', item: roiNode }]);
             console.log('📊 BuildPageContent: Called onNodesChange');
           }}
+          isAnalyticsView={activeTab === 'analytics'}
+          onGoBackToCanvas={() => setActiveTab('canvas')}
         />
 
         {/* Content */}
