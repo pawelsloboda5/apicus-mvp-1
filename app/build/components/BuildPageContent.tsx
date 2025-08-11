@@ -1222,24 +1222,28 @@ export function BuildPageContent() {
           </div>
         ) : (
           // Analytics Dashboard
-          <AnalyticsDashboard
-            scenario={scenarioManager.scenario}
-            nodes={nodes}
-            onNodeClick={(nodeId) => {
-              // Focus on node in canvas when clicked in analytics
-              setActiveTab('canvas');
-              const node = nodes.find(n => n.id === nodeId);
-              if (node && rfInstance) {
-                rfInstance.fitBounds({ 
-                  x: node.position.x - 100, 
-                  y: node.position.y - 100,
-                  width: 300,
-                  height: 300
-                });
-              }
-              setSelectedId(nodeId);
-            }}
-          />
+          <div className="flex-1 relative">
+            <div className="absolute inset-0 overflow-auto">
+              <AnalyticsDashboard
+                scenario={scenarioManager.scenario}
+                nodes={nodes}
+                onNodeClick={(nodeId) => {
+                  // Focus on node in canvas when clicked in analytics
+                  setActiveTab('canvas');
+                  const node = nodes.find(n => n.id === nodeId);
+                  if (node && rfInstance) {
+                    rfInstance.fitBounds({ 
+                      x: node.position.x - 100, 
+                      y: node.position.y - 100,
+                      width: 300,
+                      height: 300
+                    });
+                  }
+                  setSelectedId(nodeId);
+                }}
+              />
+            </div>
+          </div>
         )}
       </div>
       </DndContext>
