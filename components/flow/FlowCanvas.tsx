@@ -60,6 +60,9 @@ export function FlowCanvas({
   const [isMobile, setIsMobile] = useState(false);
   const [containerReady, setContainerReady] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const layoutStateRef = React.useRef<{ userMoved: boolean; scheduled: number | null }>({ userMoved: false, scheduled: null });
+  const sizeByNodeIdRef = React.useRef<Map<string, { width: number; height: number }>>(new Map());
+  const lastLayoutDepsRef = React.useRef<{ nodeCount: number; edgeCount: number }>({ nodeCount: nodes.length, edgeCount: edges.length });
   
   // Get React Flow instance for coordinate conversion
   const { screenToFlowPosition } = useReactFlow();
@@ -104,6 +107,158 @@ export function FlowCanvas({
       window.removeEventListener('resize', checkContainer);
     };
   }, []);
+
+  // Listen for node width/height updates bubbling from `PixelNode`
+  useEffect(() => {
+    const onSize = (e: Event) => {
+      const evt = e as CustomEvent<{ nodeId: string; width: number; height: number; contentHash?: string }>;
+      const { nodeId, width, height } = evt.detail || ({} as any);
+      if (!nodeId || !width) return;
+      sizeByNodeIdRef.current.set(nodeId, { width, height: height || 60 });
+      scheduleLayout();
+    };
+    document.addEventListener('nodeWidthChanged', onSize as EventListener);
+    return () => document.removeEventListener('nodeWidthChanged', onSize as EventListener);
+  }, []);
+
+  // Wrapper to capture manual movement so we stop auto-layout after user edits
+  const handleMoveEndInternal = React.useCallback<NonNullable<typeof onMoveEnd>>((event, viewport) => {
+    layoutStateRef.current.userMoved = true;
+    onMoveEnd?.(event, viewport);
+  }, [onMoveEnd]);
+
+  // Minimal layered auto-layout: uniform spacing, no overlaps
+  const scheduleLayout = React.useCallback(() => {
+    if (layoutStateRef.current.userMoved) return; // don't fight manual layout
+    if (layoutStateRef.current.scheduled) cancelAnimationFrame(layoutStateRef.current.scheduled);
+    layoutStateRef.current.scheduled = requestAnimationFrame(() => {
+      layoutStateRef.current.scheduled = null;
+      applyUniformLayout();
+    });
+  }, []);
+
+  const applyUniformLayout = React.useCallback(() => {
+    if (!nodes?.length) return;
+    // Only layout core flow nodes
+    const eligibleTypes = new Set(['trigger', 'action', 'decision']);
+    const eligibleNodes = nodes.filter(n => eligibleTypes.has(n.type || ''));
+    if (!eligibleNodes.length) return;
+
+    const eligibleIds = new Set(eligibleNodes.map(n => n.id));
+    const layoutEdges = edges.filter(e => eligibleIds.has(e.source) && eligibleIds.has(e.target) && !e.data?.isEmailContext);
+
+    // Build indegree and adjacency
+    const indegree = new Map<string, number>();
+    const adj = new Map<string, string[]>();
+    eligibleNodes.forEach(n => { indegree.set(n.id, 0); adj.set(n.id, []); });
+    layoutEdges.forEach(e => {
+      indegree.set(e.target, (indegree.get(e.target) || 0) + 1);
+      adj.get(e.source)!.push(e.target);
+    });
+
+    // Kahn-style layering
+    const level = new Map<string, number>();
+    const queue: string[] = [];
+    eligibleNodes.forEach(n => {
+      if ((indegree.get(n.id) || 0) === 0) {
+        queue.push(n.id);
+        level.set(n.id, 0);
+      }
+    });
+    while (queue.length) {
+      const u = queue.shift()!;
+      const nexts = adj.get(u) || [];
+      for (const v of nexts) {
+        const newLv = (level.get(u) || 0) + 1;
+        if ((level.get(v) ?? -1) < newLv) level.set(v, newLv);
+        const newIn = (indegree.get(v) || 0) - 1;
+        indegree.set(v, newIn);
+        if (newIn === 0) queue.push(v);
+      }
+    }
+    // Fallback for any unvisited nodes
+    eligibleNodes.forEach(n => { if (!level.has(n.id)) level.set(n.id, 0); });
+
+    // Group by column(level)
+    const byLevel = new Map<number, string[]>();
+    eligibleNodes.forEach(n => {
+      const lv = level.get(n.id) || 0;
+      if (!byLevel.has(lv)) byLevel.set(lv, []);
+      byLevel.get(lv)!.push(n.id);
+    });
+
+    // Spacing constants
+    const baseX = 80;
+    const baseY = 120;
+    const gapX = 48; // horizontal gap between columns
+    const gapY = 32; // vertical gap between nodes
+    const defaultWidth = 180;
+    const defaultHeight = 60;
+
+    const getSize = (id: string) => sizeByNodeIdRef.current.get(id) || { width: defaultWidth, height: defaultHeight };
+
+    // Compute max width per column
+    const levels = Array.from(byLevel.keys()).sort((a, b) => a - b);
+    const levelMaxWidth = new Map<number, number>();
+    for (const lv of levels) {
+      const ids = byLevel.get(lv)!;
+      levelMaxWidth.set(lv, Math.max(...ids.map(id => getSize(id).width), defaultWidth));
+    }
+
+    // Compute x offset per column
+    const xByLevel = new Map<number, number>();
+    let runningX = baseX;
+    for (const lv of levels) {
+      xByLevel.set(lv, runningX);
+      runningX += (levelMaxWidth.get(lv) || defaultWidth) + gapX;
+    }
+
+    // Compute y positions per column, preserve original relative ordering by current y
+    const idToNode = new Map(nodes.map(n => [n.id, n] as const));
+    const yById = new Map<string, number>();
+    for (const lv of levels) {
+      const ids = byLevel.get(lv)!;
+      const sorted = ids
+        .map(id => ({ id, y: idToNode.get(id)?.position?.y ?? 0 }))
+        .sort((a, b) => a.y - b.y || a.id.localeCompare(b.id));
+      let y = baseY;
+      for (const { id } of sorted) {
+        const h = getSize(id).height || defaultHeight;
+        yById.set(id, y);
+        y += h + gapY;
+      }
+    }
+
+    // Emit minimal replace changes only for moved nodes
+    const changes = eligibleNodes
+      .map(n => {
+        const targetX = xByLevel.get(level.get(n.id) || 0) ?? baseX;
+        const targetY = yById.get(n.id) ?? (n.position?.y ?? baseY);
+        if (Math.abs((n.position?.x ?? 0) - targetX) < 1 && Math.abs((n.position?.y ?? 0) - targetY) < 1) return null;
+        return {
+          id: n.id,
+          type: 'replace' as const,
+          item: { ...n, position: { x: targetX, y: targetY } }
+        };
+      })
+      .filter(Boolean) as any[];
+
+    if (changes.length) {
+      startTransition(() => {
+        onNodesChange(changes);
+      });
+    }
+  }, [nodes, edges, onNodesChange]);
+
+  // Trigger layout on first load and whenever node/edge counts change
+  useEffect(() => {
+    if (layoutStateRef.current.userMoved) return;
+    const prev = lastLayoutDepsRef.current;
+    if (prev.nodeCount !== nodes.length || prev.edgeCount !== edges.length) {
+      lastLayoutDepsRef.current = { nodeCount: nodes.length, edgeCount: edges.length };
+      scheduleLayout();
+    }
+  }, [nodes.length, edges.length, scheduleLayout]);
   
   // Detect mobile device
   useEffect(() => {
@@ -620,7 +775,9 @@ export function FlowCanvas({
             edgeTypes={edgeTypes}
             fitView
             defaultViewport={defaultViewport}
-            onMoveEnd={onMoveEnd}
+            // Respect manual movement and stop future auto-layouts
+            onMoveEnd={handleMoveEndInternal}
+            onNodeDragStop={() => { layoutStateRef.current.userMoved = true; }}
             snapToGrid
             snapGrid={[8, 8]}
             onInit={onInit}
