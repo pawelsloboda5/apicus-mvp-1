@@ -114,5 +114,5 @@ export function useRoiMetrics(scenario: Scenario | null, nodes: Node[]): RoiMetr
       breakEvenRuns,
       isPositiveROI: netROI > 0
     };
-  }, [scenario, nodes.length]); // Only re-calculate when scenario or node count changes
+  }, [scenario, nodes]); // Recalculate when scenario or nodes change
 } 

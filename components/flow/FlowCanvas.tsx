@@ -8,6 +8,7 @@ import {
   IsValidConnection,
   SelectionMode,
   Node,
+  NodeChange,
   Edge,
   useReactFlow,
   EdgeChange,
@@ -108,18 +109,7 @@ export function FlowCanvas({
     };
   }, []);
 
-  // Listen for node width/height updates bubbling from `PixelNode`
-  useEffect(() => {
-    const onSize = (e: Event) => {
-      const evt = e as CustomEvent<{ nodeId: string; width: number; height: number; contentHash?: string }>;
-      const { nodeId, width, height } = evt.detail || ({} as any);
-      if (!nodeId || !width) return;
-      sizeByNodeIdRef.current.set(nodeId, { width, height: height || 60 });
-      scheduleLayout();
-    };
-    document.addEventListener('nodeWidthChanged', onSize as EventListener);
-    return () => document.removeEventListener('nodeWidthChanged', onSize as EventListener);
-  }, []);
+  
 
   // Wrapper to capture manual movement so we stop auto-layout after user edits
   const handleMoveEndInternal = React.useCallback<NonNullable<typeof onMoveEnd>>((event, viewport) => {
@@ -128,15 +118,6 @@ export function FlowCanvas({
   }, [onMoveEnd]);
 
   // Minimal layered auto-layout: uniform spacing, no overlaps
-  const scheduleLayout = React.useCallback(() => {
-    if (layoutStateRef.current.userMoved) return; // don't fight manual layout
-    if (layoutStateRef.current.scheduled) cancelAnimationFrame(layoutStateRef.current.scheduled);
-    layoutStateRef.current.scheduled = requestAnimationFrame(() => {
-      layoutStateRef.current.scheduled = null;
-      applyUniformLayout();
-    });
-  }, []);
-
   const applyUniformLayout = React.useCallback(() => {
     if (!nodes?.length) return;
     // Only layout core flow nodes
@@ -230,18 +211,19 @@ export function FlowCanvas({
     }
 
     // Emit minimal replace changes only for moved nodes
-    const changes = eligibleNodes
-      .map(n => {
+    const changes: NodeChange[] = eligibleNodes
+      .map<NodeChange | null>(n => {
         const targetX = xByLevel.get(level.get(n.id) || 0) ?? baseX;
         const targetY = yById.get(n.id) ?? (n.position?.y ?? baseY);
         if (Math.abs((n.position?.x ?? 0) - targetX) < 1 && Math.abs((n.position?.y ?? 0) - targetY) < 1) return null;
-        return {
+        const change: NodeChange = {
           id: n.id,
           type: 'replace' as const,
           item: { ...n, position: { x: targetX, y: targetY } }
         };
+        return change;
       })
-      .filter(Boolean) as any[];
+      .filter((c): c is NodeChange => c !== null);
 
     if (changes.length) {
       startTransition(() => {
@@ -249,6 +231,30 @@ export function FlowCanvas({
       });
     }
   }, [nodes, edges, onNodesChange]);
+
+  const scheduleLayout = React.useCallback(() => {
+    if (layoutStateRef.current.userMoved) return; // don't fight manual layout
+    if (layoutStateRef.current.scheduled) cancelAnimationFrame(layoutStateRef.current.scheduled);
+    layoutStateRef.current.scheduled = requestAnimationFrame(() => {
+      layoutStateRef.current.scheduled = null;
+      applyUniformLayout();
+    });
+  }, [applyUniformLayout]);
+
+  // Listen for node width/height updates bubbling from `PixelNode`
+  useEffect(() => {
+    const onSize = (e: Event) => {
+      const evt = e as CustomEvent<{ nodeId: string; width: number; height: number; contentHash?: string }>;
+      const detail = evt.detail as { nodeId: string; width: number; height: number; contentHash?: string } | undefined;
+      if (!detail) return;
+      const { nodeId, width, height } = detail;
+      if (!nodeId || !width) return;
+      sizeByNodeIdRef.current.set(nodeId, { width, height: height ?? 60 });
+      scheduleLayout();
+    };
+    document.addEventListener('nodeWidthChanged', onSize as EventListener);
+    return () => document.removeEventListener('nodeWidthChanged', onSize as EventListener);
+  }, [scheduleLayout]);
 
   // Trigger layout on first load and whenever node/edge counts change
   useEffect(() => {
