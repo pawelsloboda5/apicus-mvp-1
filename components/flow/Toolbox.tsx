@@ -278,7 +278,7 @@ export function Toolbox({
       style={{
         display: isCollapsed ? 'none' : 'grid',
         gridTemplateRows: activeTab === 'canvas' 
-          ? '15% 10% 25% 20%' // Email Context (20%), Basic Nodes (10%), Scenarios (30%), Emails (20%)
+          ? '15% 15% 25% 10%' // Email Context (20%), Basic Nodes (10%), Scenarios (30%), Emails (20%)
           : '1fr', // Analytics takes full space
       }}
       >
