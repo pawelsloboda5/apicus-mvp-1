@@ -220,13 +220,16 @@ export function PixelNode({ data, type, selected, id }: NodeProps) {
         nodeRef.current.style.width = `${newWidth}px`;
         
         // Dispatch a custom event to notify parent about width change
+        const measuredHeight = nodeRef.current.getBoundingClientRect().height || (nodeData.calculatedHeight || 60);
         const event = new CustomEvent('nodeWidthChanged', {
           detail: {
             nodeId: id,
             width: newWidth,
-            height: nodeData.calculatedHeight || 60,
+            height: measuredHeight,
             contentHash
-          }
+          },
+          bubbles: true,
+          composed: true
         });
         nodeRef.current.dispatchEvent(event);
       }
