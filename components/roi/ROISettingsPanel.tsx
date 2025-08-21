@@ -440,7 +440,7 @@ export function ROISettingsPanel({
                 <SelectTrigger>
                   <SelectValue placeholder="Select task type" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background/95 backdrop-blur-sm border shadow-lg">
                   <SelectItem value="general">General Automation</SelectItem>
                   <SelectItem value="admin">Administrative</SelectItem>
                   <SelectItem value="customer_support">Customer Support</SelectItem>

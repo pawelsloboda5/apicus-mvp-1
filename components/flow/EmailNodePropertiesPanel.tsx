@@ -188,7 +188,7 @@ export function EmailNodePropertiesPanel({
                   <ChevronDown className="h-3 w-3 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="bg-background/95 backdrop-blur-sm border shadow-lg">
                 {AI_PROMPT_OPTIONS.length.map((opt) => (
                   <DropdownMenuItem
                     key={opt.value}
@@ -196,9 +196,9 @@ export function EmailNodePropertiesPanel({
                     onSelect={() => {
                       setSelectedLength(opt.value as 'concise' | 'standard' | 'detailed');
                       if (selectedNode) {
-                        onUpdateNodeData(selectedNode.id, { 
+                        onUpdateNodeData(selectedNode.id, {
                           ...(selectedNode.data as EmailPreviewNodeData),
-                          lengthOption: opt.value 
+                          lengthOption: opt.value
                         } as Partial<EmailPreviewNodeData>);
                       }
                     }}
@@ -227,7 +227,7 @@ export function EmailNodePropertiesPanel({
                   <ChevronDown className="h-3 w-3 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="bg-background/95 backdrop-blur-sm border shadow-lg">
                 {AI_PROMPT_OPTIONS[promptKey].map((opt) => (
                   <DropdownMenuItem
                     key={opt.value}
@@ -411,7 +411,7 @@ export function EmailNodePropertiesPanel({
                         <ChevronDown className="h-4 w-4 ml-2" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuContent align="end" className="w-56 bg-background/95 backdrop-blur-sm border shadow-lg">
                       {AI_PROMPT_OPTIONS.tone.map((opt) => (
                         <DropdownMenuItem
                           key={opt.value}
@@ -419,14 +419,14 @@ export function EmailNodePropertiesPanel({
                           onSelect={() => {
                             setSelectedTone(opt.value);
                             if (selectedNode) {
-                              onUpdateNodeData(selectedNode.id, { 
+                              onUpdateNodeData(selectedNode.id, {
                                 ...(selectedNode.data as EmailPreviewNodeData),
-                                toneOption: opt.value 
+                                toneOption: opt.value
                               } as Partial<EmailPreviewNodeData>);
                             }
                           }}
                         >
-                          <Check 
+                          <Check
                             className={cn(
                               "mr-2 h-4 w-4",
                               selectedTone === opt.value ? "opacity-100" : "opacity-0"

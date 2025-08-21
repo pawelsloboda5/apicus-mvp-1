@@ -199,7 +199,7 @@ export function EmailSectionInlineEditor({
                 <ChevronDown className="h-3 w-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-48 bg-background/95 backdrop-blur-sm border shadow-lg">
               <DropdownMenuLabel className="text-xs">Section Tone</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {TONE_OPTIONS.map(tone => (
@@ -224,7 +224,7 @@ export function EmailSectionInlineEditor({
                 <ChevronDown className="h-3 w-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent align="end" className="w-40 bg-background/95 backdrop-blur-sm border shadow-lg">
               <DropdownMenuLabel className="text-xs">Section Length</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {LENGTH_OPTIONS.map(length => (
@@ -271,7 +271,7 @@ export function EmailSectionInlineEditor({
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuContent align="end" className="w-64 bg-background/95 backdrop-blur-sm border shadow-lg">
                   <DropdownMenuLabel className="text-xs">
                     Regenerate with {TONE_OPTIONS.find(t => t.value === sectionTone)?.label} tone
                   </DropdownMenuLabel>

@@ -303,7 +303,7 @@ export function StatsBar({
             <ChevronDown className="h-3 w-3 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-40 p-1">
+        <PopoverContent className="w-40 p-1 bg-background/95 backdrop-blur-sm border shadow-lg">
           <div className="space-y-1">
             {Object.entries(PLATFORM_CONFIG).map(([key, conf]) => {
               const Icon = conf.icon;
@@ -506,7 +506,7 @@ export function StatsBar({
               <Menu className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-48 p-2">
+          <PopoverContent className="w-48 p-2 bg-background/95 backdrop-blur-sm border shadow-lg">
             <div className="space-y-2">
               <Button
                 variant="ghost"
@@ -744,7 +744,7 @@ export function StatsBar({
                   {displayValue}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-36 p-2 bg-white">
+              <PopoverContent className="w-36 p-2 bg-background/95 backdrop-blur-sm border shadow-lg">
                 <Input
                   type="text"
                   inputMode={label.includes("Minutes") ? "decimal" : "numeric"}
@@ -905,7 +905,7 @@ export function StatsBar({
               <span className="font-mono text-sm">{formattedRoiRatio}</span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-4">
+          <PopoverContent className="w-80 p-4 bg-background/95 backdrop-blur-sm border shadow-lg">
             <div className="space-y-3">
               <h3 className="font-display font-semibold text-sm">ROI Metrics</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">

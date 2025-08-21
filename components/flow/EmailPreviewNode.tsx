@@ -238,7 +238,7 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
                 <ChevronDown className="h-3 w-3 ml-2" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="bg-background/95 backdrop-blur-sm border shadow-lg">
               <DropdownMenuLabel className="text-xs">Global Email Tone</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {GLOBAL_TONE_OPTIONS.map(tone => (
@@ -264,7 +264,7 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
                 <ChevronDown className="h-3 w-3 ml-2" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="bg-background/95 backdrop-blur-sm border shadow-lg">
               <DropdownMenuLabel className="text-xs">Global Email Length</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {GLOBAL_LENGTH_OPTIONS.map(length => (
