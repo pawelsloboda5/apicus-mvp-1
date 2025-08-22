@@ -111,7 +111,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td align="center" style="background:#f1f5ff;border-radius:6px;padding:10px;">
-                  <span style="font-size:16px;font-weight:bold;color:#3B82F6;">${stats.roiX && stats.roiX > 0 ? `${stats.roiX}×` : 'N/A'}</span><br>
+                  <span style="font-size:16px;font-weight:bold;color:#3B82F6;">${stats.roiX && stats.roiX > 0 ? `${Math.round(stats.roiX)}×` : 'N/A'}</span><br>
                   <span style="font-size:11px;color:#555555;">Projected ROI</span>
                 </td>
                 <td width="8"></td>
@@ -121,7 +121,7 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
                 </td>
                 <td width="8"></td>
                 <td align="center" style="background:#f1f5ff;border-radius:6px;padding:10px;">
-                  <span style="font-size:16px;font-weight:bold;color:#3B82F6;">${stats.runs || 0}</span><br>
+                  <span style="font-size:16px;font-weight:bold;color:#3B82F6;">${stats.runs ? Math.round(stats.runs) : 0}</span><br>
                   <span style="font-size:11px;color:#555555;">Runs / month</span>
                 </td>
               </tr>

@@ -364,7 +364,7 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
         {emailProps.stats && (
           <div className="flex justify-center gap-3 my-4">
             <div className="bg-primary/10 rounded-lg p-3 text-center">
-              <div className="text-lg font-bold text-primary">{emailProps.stats.roiX || 0}×</div>
+              <div className="text-lg font-bold text-primary">{emailProps.stats?.roiX ? Math.round(emailProps.stats.roiX) : 0}×</div>
               <div className="text-xs text-muted-foreground">ROI</div>
             </div>
             <div className="bg-primary/10 rounded-lg p-3 text-center">
@@ -372,7 +372,7 @@ export const EmailPreviewNode: React.FC<EmailPreviewNodeProps> = ({ data }) => {
               <div className="text-xs text-muted-foreground">Payback</div>
             </div>
             <div className="bg-primary/10 rounded-lg p-3 text-center">
-              <div className="text-lg font-bold text-primary">{emailProps.stats.runs || 0}</div>
+              <div className="text-lg font-bold text-primary">{emailProps.stats?.runs ? Math.round(emailProps.stats.runs) : 0}</div>
               <div className="text-xs text-muted-foreground">Runs/mo</div>
             </div>
           </div>
