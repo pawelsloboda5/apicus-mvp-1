@@ -75,7 +75,7 @@ export function ImportWorkflowDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="bg-white">
         <DialogHeader>
           <DialogTitle>Import Workflow</DialogTitle>
           <DialogDescription>
