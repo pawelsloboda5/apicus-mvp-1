@@ -31,11 +31,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { AlternativeTemplateForDisplay } from "./AlternativeTemplatesSheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TemplateResponse } from "@/lib/types";
 import { transformTemplateNodes, transformTemplateEdges } from "@/lib/flow-utils";
+
+// Dynamically import ImportWorkflowDialog to avoid SSR issues
+const ImportWorkflowDialog = dynamic(
+  () => import("@/components/flow/ImportWorkflowDialog").then(mod => mod.ImportWorkflowDialog),
+  { ssr: false }
+);
 
 const ITEMS: { type: NodeType; label: string }[] = [
   { type: "trigger", label: "Trigger" },
@@ -532,6 +539,7 @@ function ToolboxContent({
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedPlatformFilter, setSelectedPlatformFilter] = useState<'all' | 'zapier' | 'make' | 'n8n'>('all');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   
   // New scenario modal state
   const [newScenarioModalOpen, setNewScenarioModalOpen] = useState(false);
@@ -669,6 +677,11 @@ function ToolboxContent({
 
   return (
     <>
+      {/* Import Workflow Dialog (same as homepage) */}
+      <ImportWorkflowDialog 
+        isOpen={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+      />
       {isMobile ? (
         // Mobile layout - keep existing implementation
         <div className={cn("flex flex-col h-full overflow-hidden p-4")}>
@@ -767,7 +780,7 @@ function ToolboxContent({
                     variant="outline" 
                     size="sm"
                     className="h-8 text-xs"
-                    onClick={handleAddNewScenario}
+                    onClick={() => setImportDialogOpen(true)}
                   >
                     <Import className="h-3.5 w-3.5 mr-1" />
                     Import
