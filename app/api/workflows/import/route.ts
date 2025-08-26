@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mapMakeToApicus } from './make-to-apicus-mapper';
-
-// Interface for Make.com workflow structure - matching what mapMakeToApicus expects
-interface MakeWorkflowData {
-  name: string;
-  flow: Array<{
-    id: number;
-    module: string;
-    [key: string]: unknown;
-  }>;
-  [key: string]: unknown;
-}
+import { detectPlatform, ImportError } from '@/lib/import/detect';
+import { parseMakeBlueprint } from '@/lib/import/parsers/make';
+import { parseN8nWorkflow } from '@/lib/import/parsers/n8n';
 
 export async function POST(request: NextRequest) {
   try {
-    let makeJson: unknown;
+    let rawData: unknown;
     
     // Handle both FormData (file upload) and JSON body
     const contentType = request.headers.get('content-type') || '';
@@ -33,7 +24,7 @@ export async function POST(request: NextRequest) {
       
       const text = await file.text();
       try {
-        makeJson = JSON.parse(text);
+        rawData = JSON.parse(text);
       } catch {
         return NextResponse.json({
           success: false,
@@ -44,7 +35,7 @@ export async function POST(request: NextRequest) {
     } else if (contentType.includes('application/json')) {
       // Direct JSON upload
       const body = await request.json();
-      makeJson = body.data || body;
+      rawData = body.data || body;
       
     } else {
       return NextResponse.json({
@@ -53,46 +44,36 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Type guard to check if it's a valid Make.com workflow
-    function isMakeWorkflow(data: unknown): data is MakeWorkflowData {
-      return (
-        typeof data === 'object' &&
-        data !== null &&
-        'flow' in data &&
-        Array.isArray((data as { flow: unknown }).flow)
-      );
+    // Detect platform and parse accordingly
+    const platform = detectPlatform(rawData);
+    if (!platform) {
+      return NextResponse.json({ success: false, error: 'Unsupported or unknown workflow format' }, { status: 400 });
+    }
+
+    let imported;
+    if (platform === 'make') {
+      imported = parseMakeBlueprint(rawData);
+    } else if (platform === 'n8n') {
+      imported = parseN8nWorkflow(rawData);
+    } else {
+      return NextResponse.json({ success: false, error: 'Zapier imports not supported yet' }, { status: 400 });
     }
     
-    if (!isMakeWorkflow(makeJson)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid Make.com workflow format. Expected a "flow" array.',
-      }, { status: 400 });
-    }
-    
-    // Ensure name field exists
-    const workflowData: MakeWorkflowData = {
-      ...makeJson,
-      name: makeJson.name || 'Imported Make.com Workflow'
-    };
-    
-    // Convert to Apicus template schema
-    const template = mapMakeToApicus(workflowData);
-    
-    // Return only the template
     return NextResponse.json({
       success: true,
-      template,
+      template: imported,
       stats: {
-        nodeCount: template.nodes.length,
-        edgeCount: template.edges.length,
-        detectedApps: template.appNames,
+        platform: imported.metadata.platform,
+        nodeCount: imported.metadata.nodeCount,
       }
     });
     
   } catch (error) {
     console.error('Import API error:', error);
     
+    if (error instanceof ImportError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
     return NextResponse.json({
       success: false,
       error: 'Failed to import workflow',

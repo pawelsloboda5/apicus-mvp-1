@@ -41,7 +41,9 @@ export function ImportWorkflowDialog({
       });
 
       if (!response.ok) {
-        throw new Error(`Import failed: ${response.statusText}`);
+        const maybeJson = await response.json().catch(() => null);
+        const message = maybeJson?.error || response.statusText || 'Import failed';
+        throw new Error(message);
       }
 
       const result = await response.json();

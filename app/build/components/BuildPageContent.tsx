@@ -441,9 +441,47 @@ export function BuildPageContent() {
                     "Untitled Scenario";
         
         let templateData: Parameters<typeof scenarioManager.createScenario>[1] = undefined;
+
+        // Handle session import first
+        const importParam = params.get("import");
+        if (!templateIdParam && importParam === "session" && typeof window !== 'undefined') {
+          const stored = sessionStorage.getItem('importedTemplate');
+          if (stored) {
+            try {
+              const payload = JSON.parse(stored);
+              let nodesSnapshot: Node[] = [];
+              let edgesSnapshot: Edge[] = [];
+              const platform = payload?.metadata?.platform || payload?.platform || "zapier";
+
+              // If parser returned React Flow nodes directly
+              if (Array.isArray(payload?.nodes) && payload.nodes[0]?.id) {
+                nodesSnapshot = payload.nodes as Node[];
+                edgesSnapshot = (payload.edges as Edge[]) || [];
+              }
+              // If template uses reactFlowId shape
+              else if (Array.isArray(payload?.nodes) && payload.nodes[0]?.reactFlowId) {
+                nodesSnapshot = transformTemplateNodes(payload.nodes, 'import');
+                edgesSnapshot = transformTemplateEdges(payload.edges || [], 'import');
+              }
+
+              if (nodesSnapshot.length > 0) {
+                templateData = {
+                  nodesSnapshot,
+                  edgesSnapshot,
+                  platform,
+                };
+                name = payload?.metadata?.originalName || payload?.title || "Imported Workflow";
+                // optional: clear after use
+                sessionStorage.removeItem('importedTemplate');
+              }
+            } catch {
+              // ignore parse errors; fall back to default behavior
+            }
+          }
+        }
         
         // Use default template if requested
-        if (useDefaultTemplate) {
+        if (!templateData && useDefaultTemplate) {
           templateData = {
             nodesSnapshot: DEFAULT_TEMPLATE.nodes,
             edgesSnapshot: DEFAULT_TEMPLATE.edges,
@@ -457,7 +495,7 @@ export function BuildPageContent() {
           name = queryParam ? `${queryParam} - ${DEFAULT_TEMPLATE.name}` : DEFAULT_TEMPLATE.name;
         }
         // Load template data if template ID is provided
-        else if (templateIdParam) {
+        else if (!templateData && templateIdParam) {
           try {
             const response = await fetch(`/api/templates/${templateIdParam}`);
             if (response.ok) {
@@ -499,6 +537,8 @@ export function BuildPageContent() {
         // Update URL
         const urlQuery = new URLSearchParams(window.location.search);
         urlQuery.set("sid", newScenario.id!.toString());
+        // Clean up the import param from URL if present
+        urlQuery.delete("import");
         if (templateIdParam && !templateData) urlQuery.set("tid", templateIdParam); // Keep tid if template failed to load
         if (queryParam) urlQuery.set("q", queryParam);
         router.replace(`/build?${urlQuery.toString()}`, { scroll: false });
