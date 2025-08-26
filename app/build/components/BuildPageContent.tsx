@@ -53,6 +53,8 @@ import { GroupPropertiesPanel } from "@/components/flow/GroupPropertiesPanel";
 import { EmailNodePropertiesPanel } from "@/components/flow/EmailNodePropertiesPanel";
 import { ROISettingsPanel } from "@/components/roi/ROISettingsPanel";
 import { ROIReportNode } from "@/components/flow/ROIReportNode";
+import { ROINodePropertiesPanel } from "@/components/flow/ROINodePropertiesPanel";
+import type { ROIReportNodeData } from "@/components/flow/ROIReportNode";
 // dnd-kit
 import {
   DndContext,
@@ -138,6 +140,7 @@ export function BuildPageContent() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedEmailNodeId, setSelectedEmailNodeId] = useState<string | null>(null);
+  const [selectedROINodeId, setSelectedROINodeId] = useState<string | null>(null);
   const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('action');
 
   // UI state
@@ -426,6 +429,7 @@ export function BuildPageContent() {
   const selectedNode = selectedId ? nodes.find(n => n.id === selectedId) : null;
   const selectedGroup = selectedGroupId ? nodes.find(n => n.id === selectedGroupId) : null;
   const selectedEmailNode = selectedEmailNodeId ? nodes.find(n => n.id === selectedEmailNodeId) : null;
+  const selectedROINode = selectedROINodeId ? nodes.find(n => n.id === selectedROINodeId) : null;
 
   // Initialize scenario on mount - React 19 Compiler handles memoization
   const initializeScenario = async () => {
@@ -564,12 +568,8 @@ export function BuildPageContent() {
       return;
     }
 
-    // Filter out temporary nodes that shouldn't be saved to scenario
-    const persistentNodes = nodes.filter(node => {
-      // Exclude ROI report nodes from being saved to scenario
-      // These are temporary visualization nodes that should exist only in the session
-      return node.type !== 'roiReport';
-    });
+    // Persist all nodes, including ROI report nodes, so reports remain across scenario switches
+    const persistentNodes = nodes;
 
     // Check if persistent nodes/edges actually changed
     const currentNodesStr = JSON.stringify(persistentNodes);
@@ -1012,12 +1012,29 @@ export function BuildPageContent() {
                     setSelectedGroupId(node.id);
                     setSelectedId(null);
                     setSelectedEmailNodeId(null);
+                    setSelectedROINodeId(null);
                   } else if (node.type === 'emailPreview') {
                     setSelectedEmailNodeId(node.id);
                     setSelectedId(null);
                     setSelectedGroupId(null);
+                    setSelectedROINodeId(null);
+                  } else if (node.type === 'roiReport') {
+                    // Do not open ROI panel on single click
+                    setSelectedId(null);
+                    setSelectedGroupId(null);
+                    setSelectedEmailNodeId(null);
+                    // Keep selectedROINodeId unchanged until double-click
                   } else {
                     setSelectedId(node.id);
+                    setSelectedGroupId(null);
+                    setSelectedEmailNodeId(null);
+                    setSelectedROINodeId(null);
+                  }
+                }}
+                onNodeDoubleClick={(event, node) => {
+                  if (node.type === 'roiReport') {
+                    setSelectedROINodeId(node.id);
+                    setSelectedId(null);
                     setSelectedGroupId(null);
                     setSelectedEmailNodeId(null);
                   }
@@ -1102,6 +1119,21 @@ export function BuildPageContent() {
                       value: nodeData.contextValue || '',
                     };
                   })}
+              />
+            )}
+
+            {selectedROINode && (
+              <ROINodePropertiesPanel
+                selectedNode={selectedROINode as unknown as Node<ROIReportNodeData>}
+                onClose={() => setSelectedROINodeId(null)}
+                onUpdateNodeData={(nodeId, data) => {
+                  setNodes(nodes => nodes.map(n => 
+                    n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n
+                  ));
+                }}
+                onGenerateReport={async () => { /* handled elsewhere */ }}
+                onRegenerateSection={async () => { /* handled elsewhere */ }}
+                isGenerating={false}
               />
             )}
 

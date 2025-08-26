@@ -253,6 +253,7 @@ export interface FlowCanvasProps {
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
+  onNodeDoubleClick?: (event: React.MouseEvent, node: Node) => void;
   onMoveEnd?: (event: MouseEvent | TouchEvent | null, viewport: Viewport) => void;
   onInit?: (instance: ReactFlowInstance) => void;
   nodeTypes?: NodeTypes;

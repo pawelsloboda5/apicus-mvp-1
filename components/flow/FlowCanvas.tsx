@@ -30,6 +30,7 @@ export function FlowCanvas({
   onNodesChange,
   onEdgesChange,
   onNodeClick,
+  onNodeDoubleClick,
   onMoveEnd,
   onInit,
   nodeTypes,
@@ -471,68 +472,9 @@ export function FlowCanvas({
   };
 
   // Get appropriate data for the selected node type
-  const getNodeData = (type: NodeType, count: number) => {
-    switch (type) {
-      case 'trigger':
-        return {
-          label: `Trigger ${count}`,
-          typeOf: 'webhook',
-        };
-      case 'action':
-        return {
-          label: `Action ${count}`,
-          appName: 'New Action',
-          action: 'configure',
-        };
-      case 'decision':
-        return {
-          label: `Decision ${count}`,
-          conditionType: 'value',
-          operator: 'equals',
-        };
-      default:
-        return {
-          label: `Node ${count}`,
-        };
-    }
-  };
+  
 
-  // Handle double-click to add a new node (uses selected type from Toolbox)
-  const handlePaneClick = (event: React.MouseEvent) => {
-    // Only handle double-clicks
-    if (event.detail !== 2) return;
-    
-    // Prevent default double-click behavior
-    event.preventDefault();
-    
-    // Convert screen coordinates to flow coordinates (accounts for zoom/pan)
-    const position = screenToFlowPosition({
-      x: event.clientX - 5, // 5px to the left of cursor
-      y: event.clientY,
-    });
-    
-    // Create a new node with the selected type from Toolbox
-    const newNode: Node = {
-      id: `node-${nanoid(6)}`,
-      type: selectedNodeType,
-      position,
-      data: getNodeData(selectedNodeType, nodes.length + 1),
-    };
-    
-    // Wrap optimistic update in startTransition for React 19 compatibility
-    startTransition(() => {
-      // Optimistically add the node for instant UI feedback
-      addOptimisticNode(newNode);
-      
-      // Actually add the node through onNodesChange
-      onNodesChange([
-        {
-          type: 'add',
-          item: newNode,
-        },
-      ]);
-    });
-  };
+  
 
   // Add new edge on connect - also wrap in startTransition
   const handleConnect = (connection: Connection) => {
@@ -776,7 +718,7 @@ export function FlowCanvas({
             onEdgesChange={handleEdgesChange}
             onConnect={handleConnect}
             onNodeClick={onNodeClick}
-            onPaneClick={handlePaneClick}
+            onNodeDoubleClick={onNodeDoubleClick}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView

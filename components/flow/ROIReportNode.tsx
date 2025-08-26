@@ -362,8 +362,143 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
     setEditingSubtitle(false);
   };
 
+  const sanitizeFileName = (name: string) => {
+    return name
+      .replace(/[^a-z0-9\-\s_]+/gi, "")
+      .replace(/\s+/g, "-")
+      .toLowerCase()
+      .slice(0, 64) || "roi-report";
+  };
+
+  const serializeForJson = () => {
+    return {
+      ...data,
+      generatedAt: new Date().toISOString(),
+    };
+  };
+
+  const buildExportHtml = () => {
+    // Minimal, self-contained HTML using inline styles.
+    const title = titleValue || nodeTitle;
+    const dateStr = new Date(generatedDate).toLocaleDateString();
+    const tpl = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${title}</title>
+    <style>
+      body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:#ffffff; color:#0f172a; margin:24px;}
+      .card{max-width:800px; margin:0 auto; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1),0 4px 6px -2px rgba(0,0,0,0.05);}
+      .section{padding:16px 24px;}
+      .row{display:flex; gap:16px;}
+      .col{flex:1;}
+      .muted{color:#64748b}
+      .badge{display:inline-flex; align-items:center; gap:6px; background:#dcfce7; color:#166534; padding:4px 8px; border-radius:9999px; font-size:12px; font-weight:600}
+      .metric{font-size:22px; font-weight:800}
+      h1{font-size:22px; font-weight:800; margin:0}
+      h3{font-size:16px; font-weight:700; margin:12px 0}
+      table{width:100%; border-collapse:collapse}
+      td,th{padding:6px 4px; text-align:right}
+      td.label,th.label{text-align:left; color:#334155}
+      .divider{border-top:1px solid #e5e7eb; margin:16px 0}
+    </style></head><body>
+    <div class="card">
+      <div class="section" style="border-bottom:1px solid #e5e7eb">
+        <div class="row" style="align-items:center; justify-content:space-between">
+          <div>
+            <h1>${title}</h1>
+            <div class="muted" style="font-size:12px">Generated: ${dateStr}</div>
+          </div>
+          <div class="row" style="gap:24px">
+            <div style="text-align:center"><div class="muted" style="font-size:12px">Total ROI</div><div class="metric">${formatCurrency(netROI)}</div></div>
+            <div style="text-align:center"><div class="muted" style="font-size:12px">Monthly Cost</div><div class="metric" style="color:#dc2626">${formatCurrency(platformCost)}</div></div>
+            <div style="text-align:center"><div class="muted" style="font-size:12px">Runs/Month</div><div class="metric" style="color:#2563eb">${runsPerMonth.toLocaleString()}</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="row">
+          <div class="col">
+            <h3>Revenue Breakdown</h3>
+            <table>
+              <tr><td class="label">Time Savings</td><td>${formatCurrency(timeValue)}</td></tr>
+              <tr><td class="label">Revenue Uplift</td><td>${formatCurrency(revenueValue)}</td></tr>
+              <tr><td class="label">Risk Reduction</td><td>${formatCurrency(riskValue)}</td></tr>
+            </table>
+          </div>
+          <div class="col">
+            <h3>Business Impact</h3>
+            <div style="font-size:14px; line-height:1.6; color:#334155">${(businessImpact || '').toString().replace(/</g,'&lt;')}</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="row">
+          <div class="col">
+            <h3>Performance Metrics</h3>
+            <table>
+              <tr><td class="label">Payback Period</td><td>${paybackPeriod < 30 ? `${Math.ceil(paybackPeriod)} days` : `${(paybackPeriod/30).toFixed(1)} months`}</td></tr>
+              <tr><td class="label">Break-even Runs</td><td>${breakEvenRuns}</td></tr>
+              <tr><td class="label">Confidence</td><td>${(confidence/100).toFixed(2)}</td></tr>
+            </table>
+          </div>
+          <div class="col">
+            <h3>ROI Summary</h3>
+            <table>
+              <tr><td class="label">Total Value</td><td>${formatCurrency(timeValue + riskValue + revenueValue)}</td></tr>
+              <tr><td class="label">Platform Cost</td><td>${formatCurrency(platformCost)}</td></tr>
+              <tr><td class="label">Monthly Net ROI</td><td>${formatCurrency(netROI)}</td></tr>
+              <tr><td class="label">Annual Net ROI</td><td>${formatCurrency(netROI * 12)}</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    </body></html>`;
+    return tpl;
+  };
+
   const handleExport = (format: 'pdf' | 'json' | 'html') => {
-    console.log(`Export as ${format}`);
+    const base = sanitizeFileName(titleValue || nodeTitle || 'roi-report');
+    if (format === 'json') {
+      try {
+        const blob = new Blob([JSON.stringify(serializeForJson(), null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${base}-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error('JSON export failed', e);
+      }
+      return;
+    }
+    if (format === 'html') {
+      try {
+        const html = buildExportHtml();
+        void navigator.clipboard.writeText(html);
+      } catch (e) {
+        console.error('Copy HTML failed', e);
+      }
+      return;
+    }
+    if (format === 'pdf') {
+      try {
+        const html = buildExportHtml();
+        const win = window.open('', '_blank');
+        if (!win) return;
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        // Ensure background is solid white
+        win.document.body.style.background = '#ffffff';
+        setTimeout(() => {
+          win.focus();
+          win.print();
+          // Do not auto-close; some browsers block closing after print
+        }, 300);
+      } catch (e) {
+        console.error('PDF export failed', e);
+      }
+    }
   };
 
   // Generate title using AI
@@ -598,7 +733,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                   <Download className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="bg-white dark:bg-gray-950 border shadow-md">
                 <DropdownMenuItem onClick={() => handleExport('pdf')}>
                   <FileText className="h-3 w-3 mr-2" />
                   Export as PDF
