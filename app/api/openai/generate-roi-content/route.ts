@@ -26,19 +26,56 @@ const openai = new OpenAI({
 interface ROIContentRequest {
   type: 'title' | 'businessImpact';
   context: {
+    // Basic info
     projectName?: string;
     clientName?: string;
     taskType?: string;
     platform?: string;
+
+    // Core ROI metrics (optional for title; richer for businessImpact)
     roiRatio?: number;
     paybackDays?: number;
     hoursSaved?: number;
     netROI?: number;
-    uniqueApps?: string[];
+
+    // ROI settings
+    runsPerMonth?: number;
+    minutesPerRun?: number;
+    hourlyRate?: number;
+    taskMultiplier?: number;
+
+    // Risk & Compliance
     complianceEnabled?: boolean;
+    riskLevel?: number;
+    riskFrequency?: number;
+    errorCost?: number;
+
+    // Revenue uplift
     revenueEnabled?: boolean;
+    monthlyVolume?: number;
+    conversionRate?: number;
+    valuePerConversion?: number;
     revenueValue?: number;
     riskValue?: number;
+
+    // Workflow context (sanitized JSON from client)
+    workflow?: {
+      nodes?: Array<{
+        id?: string;
+        type?: string;
+        data?: {
+          label?: string;
+          appId?: string;
+          appName?: string;
+          action?: string;
+          typeOf?: string;
+          logoUrl?: string;
+        };
+      }>;
+    };
+
+    // Legacy field used by older callers
+    uniqueApps?: string[];
   };
 }
 
@@ -81,31 +118,41 @@ export async function POST(req: Request) {
       Apps used: ${context.uniqueApps?.slice(0, 3).join(', ') || 'Multiple'}`;
     
     } else if (type === 'businessImpact') {
-      systemPrompt = `You are an expert automation consultant writing compelling business impact statements. 
-      Generate a business impact statement that is EXACTLY 30 words or less. Be specific, quantitative, and outcome-focused.
-      
-      Rules:
-      - Maximum 30 words (strict limit)
-      - Include specific metrics when available
-      - Focus on business outcomes, not technical details
-      - Use active voice
-      - Be persuasive but factual
-      - Tailor to automation consultants/agencies and their clients
-      
-      Structure options:
-      - Start with the biggest benefit
-      - Lead with time or cost savings
-      - Emphasize competitive advantage
-      - Focus on growth enablement`;
+      // New 2–4 sentences business impact guidance
+      systemPrompt = `Write a concise business impact summary (2–4 sentences) for this automation. Focus on the business outcome and practical value rather than repeating metrics. Explain how the automation changes the way work is done, what problems it removes, and what benefits the business gains (e.g., faster response times, fewer errors, improved client experience, more consistent follow-up). Avoid simply restating numbers already shown in the ROI breakdown.`;
 
-      userPrompt = `Generate a 30-word business impact statement:
-      Hours saved monthly: ${context.hoursSaved?.toFixed(1) || 'significant'}
-      ROI: ${context.roiRatio ? context.roiRatio.toFixed(1) + 'x' : 'High'}
-      Payback: ${context.paybackDays} days
-      ${context.complianceEnabled ? 'Reduces compliance risks by 95%.' : ''}
-      ${context.revenueEnabled && context.revenueValue ? `Generates $${context.revenueValue.toFixed(0)} additional monthly revenue.` : ''}
-      Platform: ${context.platform || 'automation'}
-      Client: ${context.clientName || 'agency clients'}`;
+      // Derive a compact workflow summary from provided workflow JSON
+      const nodes = context.workflow?.nodes || [];
+      const appNames = Array.from(
+        new Set(
+          nodes
+            .map(n => n?.data?.appName)
+            .filter((v): v is string => Boolean(v))
+        )
+      );
+      const stepSnippets = nodes
+        .filter(n => ['trigger', 'action', 'decision'].includes((n.type || '').toLowerCase()))
+        .slice(0, 6)
+        .map(n => {
+          const parts = [n?.data?.label, n?.data?.appName, n?.data?.action, n?.data?.typeOf]
+            .filter(Boolean)
+            .join(' - ');
+          return parts || n.type || 'step';
+        });
+
+      userPrompt = `Context for the automation project:
+Project: ${context.projectName || 'Automation'}
+Client: ${context.clientName || 'Agency client'}
+Use case: ${context.taskType || 'general'} on ${context.platform || 'platform'}
+Runs per month: ${context.runsPerMonth ?? 'n/a'}
+Minutes saved per run: ${context.minutesPerRun ?? 'n/a'}
+Hourly rate: ${context.hourlyRate ?? 'n/a'}
+Compliance risk reduction enabled: ${context.complianceEnabled ? 'yes' : 'no'} (level: ${context.riskLevel ?? 'n/a'}, freq: ${context.riskFrequency ?? 'n/a'}, error cost: ${context.errorCost ?? 'n/a'})
+Revenue uplift enabled: ${context.revenueEnabled ? 'yes' : 'no'} (volume: ${context.monthlyVolume ?? 'n/a'}, CR: ${context.conversionRate ?? 'n/a'}%, value/conv: ${context.valuePerConversion ?? 'n/a'})
+Workflow apps: ${appNames.length ? appNames.join(', ') : 'n/a'}
+Workflow steps: ${stepSnippets.length ? stepSnippets.join(' | ') : 'n/a'}
+
+Write the business impact summary now (2–4 sentences).`;
     }
 
     const completion = await openai.chat.completions.create({
@@ -120,17 +167,11 @@ export async function POST(req: Request) {
 
     const generatedContent = completion.choices[0]?.message?.content?.trim() || "";
 
-    // Validate word count
+    // Validate title word count only
     const wordCount = generatedContent.split(/\s+/).length;
     if (type === 'title' && wordCount > 5) {
-      // Truncate to 5 words if needed
       const truncated = generatedContent.split(/\s+/).slice(0, 5).join(' ');
       return NextResponse.json({ content: truncated, wordCount: 5 });
-    }
-    if (type === 'businessImpact' && wordCount > 30) {
-      // Truncate to 30 words if needed
-      const truncated = generatedContent.split(/\s+/).slice(0, 30).join(' ');
-      return NextResponse.json({ content: truncated, wordCount: 30 });
     }
 
     return NextResponse.json({ content: generatedContent, wordCount });

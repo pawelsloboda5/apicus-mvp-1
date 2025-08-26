@@ -173,6 +173,7 @@ export function StatsBar({
   const [platformCost, setPlatformCost] = useState(0);
   const [netROI, setNetROI] = useState(0);
   const [roiRatio, setRoiRatio] = useState(0);
+  const [isGeneratingROI, setIsGeneratingROI] = useState(false);
 
   // Use the same ROI calculations as individual node panels
   const roiCalculations = useROICalculations({
@@ -376,13 +377,63 @@ export function StatsBar({
               <Button
                 className="h-10 px-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-md hover:shadow-lg transition-all duration-200 border border-primary/20"
                 size="sm"
-                onClick={() => {
-                  console.log('🎯 Generate ROI button clicked!');
-                  console.log('onGenerateROIReport available:', !!onGenerateROIReport);
-                  console.log('currentScenario:', currentScenario);
-                  console.log('nodes length:', nodes?.length || 0);
-                  
-                  if (onGenerateROIReport) {
+                disabled={isGeneratingROI}
+                onClick={async () => {
+                  if (!onGenerateROIReport) {
+                    console.warn('❌ onGenerateROIReport is not available');
+                    return;
+                  }
+                  try {
+                    setIsGeneratingROI(true);
+                    // Prepare sanitized workflow for the API
+                    const sanitizedNodes = (nodes || []).map(n => ({
+                      id: n.id,
+                      type: n.type,
+                      data: {
+                        label: (n.data as any)?.label,
+                        appId: (n.data as any)?.appId,
+                        appName: (n.data as any)?.appName,
+                        action: (n.data as any)?.action,
+                        typeOf: (n.data as any)?.typeOf,
+                        logoUrl: (n.data as any)?.logoUrl,
+                      }
+                    }));
+
+                    const res = await fetch('/api/openai/generate-roi-content', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        type: 'businessImpact',
+                        context: {
+                          projectName: currentScenario?.name || 'Automation Project',
+                          clientName: currentScenario?.emailYourCompany,
+                          taskType: taskType || currentScenario?.taskType || 'general',
+                          platform,
+                          runsPerMonth,
+                          minutesPerRun,
+                          hourlyRate,
+                          taskMultiplier,
+                          complianceEnabled: currentScenario?.complianceEnabled || false,
+                          riskLevel: currentScenario?.riskLevel || 3,
+                          riskFrequency: currentScenario?.riskFrequency || 5,
+                          errorCost: currentScenario?.errorCost || 500,
+                          revenueEnabled: currentScenario?.revenueEnabled || false,
+                          monthlyVolume: currentScenario?.monthlyVolume || 100,
+                          conversionRate: currentScenario?.conversionRate || 5,
+                          valuePerConversion: currentScenario?.valuePerConversion || 200,
+                          workflow: { nodes: sanitizedNodes },
+                        }
+                      })
+                    });
+
+                    let businessImpact: string | undefined;
+                    if (res.ok) {
+                      const data = await res.json();
+                      businessImpact = data?.content?.trim();
+                    } else {
+                      console.warn('Business impact generation failed:', res.status);
+                    }
+
                     // Generate the ROI report node
                     const roiNode = generateROIReportNode({
                       position: { x: 400, y: 200 },
@@ -403,16 +454,24 @@ export function StatsBar({
                       valuePerConversion: currentScenario?.valuePerConversion || 200,
                       nodes: nodes || []
                     });
-                    console.log('✅ Generated ROI Node:', roiNode);
+                    if (businessImpact) {
+                      (roiNode.data as any).businessImpact = businessImpact;
+                    }
                     onGenerateROIReport(roiNode);
-                    console.log('✅ Called onGenerateROIReport with node');
                     toast.success("ROI Report generated successfully!");
-                  } else {
-                    console.warn('❌ onGenerateROIReport is not available');
+                  } catch (e) {
+                    console.error('Error generating ROI report with business impact', e);
+                    toast.error('Failed to generate ROI report');
+                  } finally {
+                    setIsGeneratingROI(false);
                   }
                 }}
               >
-                <TrendingUp className="h-4 w-4" />
+                {isGeneratingROI ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <TrendingUp className="h-4 w-4" />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -448,14 +507,62 @@ export function StatsBar({
             <Button
               className="h-10 px-4 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-md hover:shadow-lg transition-all duration-200 border border-primary/20"
               size="sm"
-              onClick={() => {
-                console.log('🎯 Generate ROI button clicked (desktop)!');
-                console.log('onGenerateROIReport available:', !!onGenerateROIReport);
-                console.log('currentScenario:', currentScenario);
-                console.log('nodes length:', nodes?.length || 0);
-                
-                if (onGenerateROIReport) {
-                  // Generate the ROI report node
+              disabled={isGeneratingROI}
+              onClick={async () => {
+                if (!onGenerateROIReport) {
+                  console.warn('❌ onGenerateROIReport is not available');
+                  return;
+                }
+                try {
+                  setIsGeneratingROI(true);
+                  const sanitizedNodes = (nodes || []).map(n => ({
+                    id: n.id,
+                    type: n.type,
+                    data: {
+                      label: (n.data as any)?.label,
+                      appId: (n.data as any)?.appId,
+                      appName: (n.data as any)?.appName,
+                      action: (n.data as any)?.action,
+                      typeOf: (n.data as any)?.typeOf,
+                      logoUrl: (n.data as any)?.logoUrl,
+                    }
+                  }));
+
+                  const res = await fetch('/api/openai/generate-roi-content', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      type: 'businessImpact',
+                      context: {
+                        projectName: currentScenario?.name || 'Automation Project',
+                        clientName: currentScenario?.emailYourCompany,
+                        taskType: taskType || currentScenario?.taskType || 'general',
+                        platform,
+                        runsPerMonth,
+                        minutesPerRun,
+                        hourlyRate,
+                        taskMultiplier,
+                        complianceEnabled: currentScenario?.complianceEnabled || false,
+                        riskLevel: currentScenario?.riskLevel || 3,
+                        riskFrequency: currentScenario?.riskFrequency || 5,
+                        errorCost: currentScenario?.errorCost || 500,
+                        revenueEnabled: currentScenario?.revenueEnabled || false,
+                        monthlyVolume: currentScenario?.monthlyVolume || 100,
+                        conversionRate: currentScenario?.conversionRate || 5,
+                        valuePerConversion: currentScenario?.valuePerConversion || 200,
+                        workflow: { nodes: sanitizedNodes },
+                      }
+                    })
+                  });
+
+                  let businessImpact: string | undefined;
+                  if (res.ok) {
+                    const data = await res.json();
+                    businessImpact = data?.content?.trim();
+                  } else {
+                    console.warn('Business impact generation failed:', res.status);
+                  }
+
                   const roiNode = generateROIReportNode({
                     position: { x: 400, y: 200 },
                     projectName: currentScenario?.name || 'Automation Project',
@@ -475,16 +582,24 @@ export function StatsBar({
                     valuePerConversion: currentScenario?.valuePerConversion || 200,
                     nodes: nodes || []
                   });
-                  console.log('✅ Generated ROI Node:', roiNode);
+                  if (businessImpact) {
+                    (roiNode.data as any).businessImpact = businessImpact;
+                  }
                   onGenerateROIReport(roiNode);
-                  console.log('✅ Called onGenerateROIReport with node');
                   toast.success("ROI Report generated successfully!");
-                } else {
-                  console.warn('❌ onGenerateROIReport is not available');
+                } catch (e) {
+                  console.error('Error generating ROI report with business impact', e);
+                  toast.error('Failed to generate ROI report');
+                } finally {
+                  setIsGeneratingROI(false);
                 }
               }}
             >
-              <TrendingUp className="h-4 w-4 mr-2" />
+              {isGeneratingROI ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <TrendingUp className="h-4 w-4 mr-2" />
+              )}
               Generate ROI
             </Button>
           </TooltipTrigger>
