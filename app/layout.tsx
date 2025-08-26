@@ -72,6 +72,11 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
     creator: "@apicus_io",
   },
+  icons: {
+    icon: [
+      { url: "/abacus-calculation-education-svgrepo-com.svg", type: "image/svg+xml" },
+    ],
+  },
   robots: {
     index: true,
     follow: true,
