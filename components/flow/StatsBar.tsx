@@ -30,7 +30,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PlatformType, Scenario } from "@/lib/types";
+import { PlatformType, Scenario, NodeData } from "@/lib/types";
 import { Node } from "@xyflow/react";
 import { formatROIRatio } from "@/lib/roi-utils";
 import { useROICalculations } from "@/lib/hooks/useROICalculations";
@@ -386,18 +386,21 @@ export function StatsBar({
                   try {
                     setIsGeneratingROI(true);
                     // Prepare sanitized workflow for the API
-                    const sanitizedNodes = (nodes || []).map(n => ({
-                      id: n.id,
-                      type: n.type,
-                      data: {
-                        label: (n.data as any)?.label,
-                        appId: (n.data as any)?.appId,
-                        appName: (n.data as any)?.appName,
-                        action: (n.data as any)?.action,
-                        typeOf: (n.data as any)?.typeOf,
-                        logoUrl: (n.data as any)?.logoUrl,
-                      }
-                    }));
+                    const sanitizedNodes = (nodes || []).map(n => {
+                      const d = n.data as Partial<NodeData> | undefined;
+                      return {
+                        id: n.id,
+                        type: n.type,
+                        data: {
+                          label: d?.label,
+                          appId: d?.appId,
+                          appName: d?.appName,
+                          action: d?.action,
+                          typeOf: d?.typeOf,
+                          logoUrl: d?.logoUrl,
+                        }
+                      };
+                    });
 
                     const res = await fetch('/api/openai/generate-roi-content', {
                       method: 'POST',
@@ -455,7 +458,7 @@ export function StatsBar({
                       nodes: nodes || []
                     });
                     if (businessImpact) {
-                      (roiNode.data as any).businessImpact = businessImpact;
+                      roiNode.data.businessImpact = businessImpact;
                     }
                     onGenerateROIReport(roiNode);
                     toast.success("ROI Report generated successfully!");
@@ -515,18 +518,21 @@ export function StatsBar({
                 }
                 try {
                   setIsGeneratingROI(true);
-                  const sanitizedNodes = (nodes || []).map(n => ({
-                    id: n.id,
-                    type: n.type,
-                    data: {
-                      label: (n.data as any)?.label,
-                      appId: (n.data as any)?.appId,
-                      appName: (n.data as any)?.appName,
-                      action: (n.data as any)?.action,
-                      typeOf: (n.data as any)?.typeOf,
-                      logoUrl: (n.data as any)?.logoUrl,
-                    }
-                  }));
+                  const sanitizedNodes = (nodes || []).map(n => {
+                    const d = n.data as Partial<NodeData> | undefined;
+                    return {
+                      id: n.id,
+                      type: n.type,
+                      data: {
+                        label: d?.label,
+                        appId: d?.appId,
+                        appName: d?.appName,
+                        action: d?.action,
+                        typeOf: d?.typeOf,
+                        logoUrl: d?.logoUrl,
+                      }
+                    };
+                  });
 
                   const res = await fetch('/api/openai/generate-roi-content', {
                     method: 'POST',
@@ -583,7 +589,7 @@ export function StatsBar({
                     nodes: nodes || []
                   });
                   if (businessImpact) {
-                    (roiNode.data as any).businessImpact = businessImpact;
+                    roiNode.data.businessImpact = businessImpact;
                   }
                   onGenerateROIReport(roiNode);
                   toast.success("ROI Report generated successfully!");
