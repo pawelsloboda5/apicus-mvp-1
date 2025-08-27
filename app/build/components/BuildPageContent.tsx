@@ -55,6 +55,7 @@ import { ROISettingsPanel } from "@/components/roi/ROISettingsPanel";
 import { ROIReportNode } from "@/components/flow/ROIReportNode";
 import { ROINodePropertiesPanel } from "@/components/flow/ROINodePropertiesPanel";
 import type { ROIReportNodeData } from "@/components/flow/ROIReportNode";
+import { generateRoiNodeWithBusinessImpact } from "@/lib/roi-report-generator";
 // dnd-kit
 import {
   DndContext,
@@ -1172,77 +1173,25 @@ export function BuildPageContent() {
               benchmarks={BENCHMARKS}
               updateScenarioROI={(updates) => scenarioManager.updateScenario(updates)}
               nodes={nodes}
-              onGenerateReport={() => {
+              onGenerateReport={async () => {
                 try {
-                  console.log('Generate ROI Report clicked');
-                  console.log('Current ROI metrics:', roi.metrics);
-                  console.log('Current ROI settings:', roi.settings);
-                  console.log('Creating ROI Report node...');
-                  
-                  // Create workflow steps from canvas nodes
-                  const workflowSteps = nodes
-                    .filter(n => ['trigger', 'action', 'decision'].includes(n.type || ''))
-                    .map(node => {
-                      const nodeData = node.data as Partial<NodeData>;
-                      return {
-                        id: node.id,
-                        label: nodeData.label || node.type || 'Step',
-                        platform: nodeData.appName || roi.settings.platform,
-                        description: nodeData.action || nodeData.typeOf || ''
-                      };
-                    });
-                  
-                  // Find the optimal position for ROI report to avoid overlap
-                  const getOptimalROIPosition = () => {
-                    if (!rfInstance?.getViewport()) {
-                      return { x: 400, y: 700 };
-                    }
-                    
+                  const center = (() => {
+                    if (!rfInstance?.getViewport()) return { x: 400, y: 700 };
                     const viewport = rfInstance.getViewport();
                     const zoom = viewport.zoom || 1;
-                    
-                    // Find the lowest Y position among existing nodes
-                    const maxY = nodes.reduce((max, node) => {
-                      return Math.max(max, node.position.y);
-                    }, 0);
-                    
-                    // Place ROI report 300px below the lowest node, or at minimum 600px from top
+                    const maxY = nodes.reduce((max, node) => Math.max(max, node.position.y), 0);
                     const optimalY = Math.max(maxY + 300, 600);
-                    
-                    return {
-                      x: (window.innerWidth / 2 - 400) / zoom, // Centered horizontally, accounting for ROI report width
-                      y: optimalY / zoom
-                    };
-                  };
+                    return { x: (window.innerWidth / 2 - 400) / zoom, y: optimalY / zoom };
+                  })();
 
-                  const center = getOptimalROIPosition();
-                
-                const newROINode: Node = {
-                  id: `roi-${Date.now()}`,
-                  type: 'roiReport',
-                  position: center,
-                  data: {
-                    nodeTitle: 'ROI Analysis Report',
-                    reportTitle: 'Automation ROI Analysis',
-                    projectName: scenarioManager.scenario?.name || 'Automation Project',
-                    clientName: 'Your Client',
-                    generatedDate: new Date(),
+                  const node = await generateRoiNodeWithBusinessImpact({
+                    currentScenarioName: scenarioManager.scenario?.name,
                     platform: roi.settings.platform,
                     runsPerMonth: roi.settings.runsPerMonth,
                     minutesPerRun: roi.settings.minutesPerRun,
                     hourlyRate: roi.settings.hourlyRate,
                     taskMultiplier: roi.settings.taskMultiplier,
-                    // Workflow steps
-                    workflowSteps,
-                    // ROI metrics
-                    netROI: roi.metrics.netROI,
-                    roiRatio: roi.metrics.roiRatio,
-                    paybackPeriod: roi.metrics.paybackDays, // Pass the numeric value, not the formatted string
-                    timeValue: roi.metrics.timeValue,
-                    platformCost: roi.metrics.platformCost,
-                    // Additional settings for advanced calculations
-                    riskValue: roi.metrics.riskValue || 0,
-                    revenueValue: roi.metrics.revenueValue || 0,
+                    taskType: roi.settings.taskType,
                     complianceEnabled: roi.settings.complianceEnabled,
                     riskLevel: roi.settings.riskLevel,
                     riskFrequency: roi.settings.riskFrequency,
@@ -1251,42 +1200,17 @@ export function BuildPageContent() {
                     monthlyVolume: roi.settings.monthlyVolume,
                     conversionRate: roi.settings.conversionRate,
                     valuePerConversion: roi.settings.valuePerConversion,
-                    // Visual options
-                    colorScheme: roi.settings.platform,
-                    showPlatformComparison: true,
-                    showRevenueBreakdown: true,
-                    // Business impact (will be generated)
-                    businessImpact: `This automation will save ${roi.metrics.timeSavedHours.toFixed(1)} hours per month, resulting in ${formatROIRatio(roi.metrics.roiRatio)} return on investment.`,
-                    keyBenefits: [
-                      `Saves ${roi.metrics.timeSavedHours.toFixed(1)} hours of manual work monthly`,
-                      `Delivers ${formatROIRatio(roi.metrics.roiRatio)} ROI with ${roi.metrics.paybackPeriod} payback`,
-                      `Reduces operational costs by automating ${roi.settings.runsPerMonth} tasks`,
-                    ],
-                  },
-                };
-                
-                console.log('Creating new ROI node:', newROINode);
-                
-                // Add the node to the canvas
-                onNodesChange([{ type: 'add', item: newROINode }]);
-                
-                // Center the camera on the newly created ROI report
-                if (rfInstance) {
-                  setTimeout(() => {
-                    rfInstance.fitBounds({
-                      x: center.x - 100,
-                      y: center.y - 100,
-                      width: 1000, // ROI report width (800px) + padding
-                      height: 1000, // ROI report height (~800-900px) + padding
-                    }, { padding: 0.1, duration: 800 });
-                  }, 100); // Small delay to ensure node is rendered
-                }
-                
-                // Close the ROI settings panel
-                setIsROISettingsOpen(false);
-                
-                // Show success message
-                toast.success('ROI Report generated successfully!');
+                    nodes,
+                  });
+                  node.position = center;
+                  onNodesChange([{ type: 'add', item: node }]);
+                  if (rfInstance) {
+                    setTimeout(() => {
+                      rfInstance.fitBounds({ x: center.x - 100, y: center.y - 100, width: 1000, height: 1000 }, { padding: 0.1, duration: 800 });
+                    }, 100);
+                  }
+                  setIsROISettingsOpen(false);
+                  toast.success('ROI Report generated successfully!');
                 } catch (error) {
                   console.error('Error generating ROI report:', error);
                   toast.error('Failed to generate ROI report');

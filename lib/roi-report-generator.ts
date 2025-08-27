@@ -216,6 +216,125 @@ export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIRepor
   return roiNode;
 }
 
+export async function generateRoiNodeWithBusinessImpact(params: {
+  projectName?: string;
+  platform: PlatformType;
+  runsPerMonth: number;
+  minutesPerRun: number;
+  hourlyRate: number;
+  taskMultiplier: number;
+  taskType?: string;
+  complianceEnabled?: boolean;
+  riskLevel?: number;
+  riskFrequency?: number;
+  errorCost?: number;
+  revenueEnabled?: boolean;
+  monthlyVolume?: number;
+  conversionRate?: number;
+  valuePerConversion?: number;
+  nodes: Node[];
+  currentScenarioName?: string;
+  clientName?: string;
+}): Promise<Node<ROIReportNodeData>> {
+  const {
+    projectName,
+    platform,
+    runsPerMonth,
+    minutesPerRun,
+    hourlyRate,
+    taskMultiplier,
+    taskType,
+    complianceEnabled,
+    riskLevel,
+    riskFrequency,
+    errorCost,
+    revenueEnabled,
+    monthlyVolume,
+    conversionRate,
+    valuePerConversion,
+    nodes,
+    currentScenarioName,
+    clientName,
+  } = params;
+
+  // Prepare sanitized nodes for prompt transparency
+  const sanitizedNodes = nodes.map(n => {
+    const d = n.data as Partial<NodeData> | undefined;
+    return {
+      id: n.id,
+      type: n.type,
+      data: {
+        label: d?.label,
+        appId: d?.appId,
+        appName: d?.appName,
+        action: d?.action,
+        typeOf: d?.typeOf,
+        logoUrl: d?.logoUrl,
+      }
+    };
+  });
+
+  let businessImpact: string | undefined;
+  try {
+    const res = await fetch('/api/openai/generate-roi-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'businessImpact',
+        context: {
+          projectName: currentScenarioName || projectName || 'Automation Project',
+          clientName,
+          taskType: taskType || 'general',
+          platform,
+          runsPerMonth,
+          minutesPerRun,
+          hourlyRate,
+          taskMultiplier,
+          complianceEnabled: Boolean(complianceEnabled),
+          riskLevel: riskLevel ?? 3,
+          riskFrequency: riskFrequency ?? 5,
+          errorCost: errorCost ?? 500,
+          revenueEnabled: Boolean(revenueEnabled),
+          monthlyVolume: monthlyVolume ?? 0,
+          conversionRate: conversionRate ?? 0,
+          valuePerConversion: valuePerConversion ?? 0,
+          workflow: { nodes: sanitizedNodes },
+        }
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      businessImpact = data?.content?.trim();
+    }
+  } catch {
+    // ignore AI errors; fall back to default business impact generated in node
+  }
+
+  const node = generateROIReportNode({
+    projectName: currentScenarioName || projectName,
+    platform,
+    runsPerMonth,
+    minutesPerRun,
+    hourlyRate,
+    taskMultiplier,
+    taskType,
+    complianceEnabled,
+    riskLevel,
+    riskFrequency,
+    errorCost,
+    revenueEnabled,
+    monthlyVolume,
+    conversionRate,
+    valuePerConversion,
+    nodes,
+  });
+
+  if (businessImpact) {
+    node.data.businessImpact = businessImpact;
+  }
+  return node;
+}
+
 // Helper function to calculate confidence score
 function calculateConfidenceScore(roiRatio: number, paybackDays: number): number {
   let score = 50; // Base score

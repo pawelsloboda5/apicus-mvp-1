@@ -1022,10 +1022,6 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                     <p className="text-slate-600">Monthly Net ROI</p>
                     <p className="font-bold text-green-600">{formatCurrency(adjustedNetROI)}</p>
                   </div>
-                  <div>
-                    <p className="text-slate-600">Annual Net ROI</p>
-                    <p className="font-bold text-green-600">{formatCurrency(adjustedNetROI * 12)}</p>
-                  </div>
                 </div>
               </div>
             </Card>

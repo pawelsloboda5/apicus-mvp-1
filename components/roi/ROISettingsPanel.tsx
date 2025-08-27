@@ -22,6 +22,7 @@ import type { Scenario } from "@/lib/db";
 import { PlatformType } from "@/lib/types";
 // ROI utilities are now handled by the useROICalculations hook
 import { useROICalculations } from "@/lib/hooks/useROICalculations";
+import { calculateRoiMetrics } from "@/lib/roi-metrics";
 import { Node } from "@xyflow/react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -252,34 +253,21 @@ export function ROISettingsPanel({
   });
 
   const renderROISummary = () => {
-    // Calculate aggregate metrics across all nodes
-    const workflowNodes = nodes.filter(n => 
-      n.type && !['group', 'email', 'emailPreview'].includes(n.type) && 
-      !['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value'].includes(n.type)
-    );
-
-    // Sum up individual node contributions (including distributed risk/revenue)
-    let totalMonthlyValue = 0;
-    let totalPlatformCost = 0;
-    let totalAppCost = 0;
-    let totalRiskValue = 0;
-    let totalRevenueValue = 0;
-
-    workflowNodes.forEach(node => {
-      const nodeROI = roiCalculations.calculateNodeROI(node);
-      totalMonthlyValue += nodeROI.stepValue;
-      totalPlatformCost += nodeROI.monthlyCostNode;
-      totalAppCost += nodeROI.appCostForNode;
-      totalRiskValue += nodeROI.riskValue;
-      totalRevenueValue += nodeROI.revenueValue;
-    });
-
-    const totalValue = totalMonthlyValue + totalRiskValue + totalRevenueValue;
-    
-    const totalCost = totalPlatformCost + totalAppCost;
-    const netROIValue = totalValue - totalCost;
-    const roiRatioValue = totalCost > 0 ? totalValue / totalCost : 0;
-    const paybackDays = totalCost > 0 && netROIValue > 0 ? (totalCost / (netROIValue / 30)) : 0;
+    const metrics = calculateRoiMetrics({
+      platform,
+      runsPerMonth,
+      minutesPerRun,
+      hourlyRate,
+      taskMultiplier,
+      complianceEnabled,
+      riskLevel,
+      riskFrequency,
+      errorCost,
+      revenueEnabled,
+      monthlyVolume,
+      conversionRate,
+      valuePerConversion,
+    }, nodes);
 
     return (
       <div className="space-y-6">
@@ -289,10 +277,10 @@ export function ROISettingsPanel({
             <div className="relative z-10">
               <p className="text-sm font-medium text-green-700 dark:text-green-300">Monthly Value</p>
               <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-1">
-                ${Math.round(totalValue).toLocaleString()}
+                ${Math.round(metrics.totalValue).toLocaleString()}
               </p>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                {workflowNodes.length} automation steps
+                {nodes.filter(n => ['trigger','action','decision'].includes(n.type || '')).length} automation steps
               </p>
             </div>
             <TrendingUp className="absolute bottom-2 right-2 h-6 w-6 text-green-600/20" />
@@ -302,10 +290,10 @@ export function ROISettingsPanel({
             <div className="relative z-10">
               <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Net ROI</p>
               <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-1">
-                ${Math.round(netROIValue).toLocaleString()}
+                ${Math.round(metrics.netROI).toLocaleString()}
               </p>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                {roiRatioValue.toFixed(1)}x return ratio
+                {metrics.roiRatio.toFixed(1)}x return ratio
               </p>
             </div>
             <DollarSign className="absolute bottom-2 right-2 h-6 w-6 text-blue-600/20" />
@@ -316,53 +304,53 @@ export function ROISettingsPanel({
         <div className="space-y-2">
           <div className="flex justify-between items-center py-2 border-b">
             <span className="text-sm text-muted-foreground">Time saved monthly</span>
-            <span className="font-medium">{(runsPerMonth * minutesPerRun / 60).toFixed(1)} hours</span>
+            <span className="font-medium">{metrics.timeSavedHours.toFixed(1)} hours</span>
           </div>
           
           <div className="flex justify-between items-center py-2 border-b">
             <span className="text-sm text-muted-foreground">Automation value</span>
-            <span className="font-medium text-green-600 dark:text-green-400">+${totalMonthlyValue.toLocaleString()}</span>
+            <span className="font-medium text-green-600 dark:text-green-400">+${Math.round(metrics.timeValue).toLocaleString()}</span>
           </div>
           
           {complianceEnabled && (
             <div className="flex justify-between items-center py-2 border-b">
               <span className="text-sm text-muted-foreground">Risk reduction</span>
-              <span className="font-medium text-green-600 dark:text-green-400">+${totalRiskValue.toFixed(0)}</span>
+              <span className="font-medium text-green-600 dark:text-green-400">+${Math.round(metrics.riskValue).toLocaleString()}</span>
             </div>
           )}
           
           {revenueEnabled && (
             <div className="flex justify-between items-center py-2 border-b">
               <span className="text-sm text-muted-foreground">Revenue uplift</span>
-              <span className="font-medium text-green-600 dark:text-green-400">+${totalRevenueValue.toFixed(0)}</span>
+              <span className="font-medium text-green-600 dark:text-green-400">+${Math.round(metrics.revenueValue).toLocaleString()}</span>
             </div>
           )}
           
           <div className="flex justify-between items-center py-2 border-b">
             <span className="text-sm text-muted-foreground">Platform cost ({platform})</span>
-            <span className="font-medium text-red-600 dark:text-red-400">-${totalPlatformCost.toFixed(2)}</span>
+            <span className="font-medium text-red-600 dark:text-red-400">-${metrics.platformCost.toFixed(2)}</span>
           </div>
           
-          {totalAppCost > 0 && (
+          {metrics.appCosts > 0 && (
             <div className="flex justify-between items-center py-2 border-b">
               <span className="text-sm text-muted-foreground">App costs</span>
-              <span className="font-medium text-red-600 dark:text-red-400">-${totalAppCost.toFixed(2)}</span>
+              <span className="font-medium text-red-600 dark:text-red-400">-${metrics.appCosts.toFixed(2)}</span>
             </div>
           )}
           
           <div className="flex justify-between items-center py-2 bg-muted/30 rounded-lg px-3 mt-3">
             <span className="font-medium text-sm">Total Costs</span>
-            <span className="font-bold text-red-600 dark:text-red-400">${totalCost.toFixed(2)}</span>
+            <span className="font-bold text-red-600 dark:text-red-400">${metrics.totalCost.toFixed(2)}</span>
           </div>
           
           <div className="flex justify-between items-center py-3 bg-primary/5 rounded-lg px-3">
             <span className="font-semibold">ROI Ratio</span>
-            <span className="font-bold text-lg text-primary">{roiRatioValue.toFixed(1)}x</span>
+            <span className="font-bold text-lg text-primary">{metrics.roiRatio.toFixed(1)}x</span>
           </div>
           
           <div className="flex justify-between items-center py-2 bg-muted/20 rounded-lg px-3">
             <span className="font-medium text-sm">Payback Period</span>
-            <span className="font-bold">{paybackDays > 0 ? paybackDays.toFixed(1) + ' days' : 'Immediate'}</span>
+            <span className="font-bold">{metrics.paybackDays > 0 ? metrics.paybackDays.toFixed(1) + ' days' : 'Immediate'}</span>
           </div>
         </div>
       </div>
@@ -741,7 +729,7 @@ export function ROISettingsPanel({
         {/* Footer with Generate Report button */}
         <SheetFooter className="p-6 pt-0 border-t">
           <Button
-            onClick={onGenerateReport}
+            onClick={() => onGenerateReport?.()}
             className="w-full"
             size="lg"
           >

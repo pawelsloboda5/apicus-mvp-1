@@ -34,6 +34,7 @@ import { PlatformType, Scenario, NodeData } from "@/lib/types";
 import { Node } from "@xyflow/react";
 import { formatROIRatio } from "@/lib/roi-utils";
 import { useROICalculations } from "@/lib/hooks/useROICalculations";
+import { calculateRoiMetrics } from "@/lib/roi-metrics";
 import { generateROIReportNode } from "@/lib/roi-report-generator";
 import { toast } from "sonner";
 
@@ -214,51 +215,32 @@ export function StatsBar({
     setTempRuns(runsPerMonth);
   }, [minutesPerRun, runsPerMonth]);
 
-  // Calculate ROI values using the same logic as individual node panels
+  // Calculate unified monthly ROI values using centralized metrics
   useEffect(() => {
     const debounceTimeout = setTimeout(() => {
-      if (!nodes || nodes.length === 0) {
-        // No nodes, no ROI
-        setTimeValue(0);
-        setPlatformCost(0);
-        setNetROI(0);
-        setRoiRatio(0);
-        return;
-      }
+      const metrics = calculateRoiMetrics({
+        platform,
+        runsPerMonth,
+        minutesPerRun,
+        hourlyRate,
+        taskMultiplier,
+        complianceEnabled,
+        riskLevel,
+        riskFrequency,
+        errorCost,
+        revenueEnabled,
+        monthlyVolume,
+        conversionRate,
+        valuePerConversion,
+      }, nodes || []);
 
-      // Calculate cumulative ROI by summing all individual node contributions
-      let totalValue = 0;
-      let totalPlatformCost = 0;
-      let totalAppCost = 0;
-
-      nodes.forEach(node => {
-        // Skip email context nodes and groups as they don't contribute to ROI
-        if (['persona', 'industry', 'painpoint', 'metric', 'urgency', 'socialproof', 'objection', 'value', 'group'].includes(node.type || '')) {
-          return;
-        }
-
-        try {
-          const nodeROI = roiCalculations.calculateNodeROI(node);
-          totalValue += nodeROI.totalValue; // Use totalValue which includes risk and revenue
-          totalPlatformCost += nodeROI.monthlyCostNode;
-          totalAppCost += nodeROI.appCostForNode;
-        } catch (error) {
-          console.warn('Error calculating ROI for node:', node.id, error);
-        }
-      });
-
-      const totalCost = totalPlatformCost + totalAppCost;
-      const adjustedNetROI = totalValue - totalCost;
-      const adjustedRoiRatio = totalCost > 0 ? totalValue / totalCost : 0;
-      
-      setTimeValue(totalValue);
-      setPlatformCost(totalCost);
-      setNetROI(adjustedNetROI);
-      setRoiRatio(adjustedRoiRatio);
+      setTimeValue(metrics.totalValue);
+      setPlatformCost(metrics.totalCost);
+      setNetROI(metrics.netROI);
+      setRoiRatio(metrics.roiRatio);
     }, 200);
-    
     return () => clearTimeout(debounceTimeout);
-  }, [platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, nodes, roiCalculations]);
+  }, [platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, nodes, complianceEnabled, riskLevel, riskFrequency, errorCost, revenueEnabled, monthlyVolume, conversionRate, valuePerConversion]);
 
   // Responsive configurations
   const isCompact = screenSize === 'xs' || screenSize === 'sm';
