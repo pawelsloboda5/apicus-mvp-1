@@ -251,6 +251,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
   const [businessImpactValue, setBusinessImpactValue] = useState(businessImpact);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const subtitleInputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const isPositiveROI = netROI > 0;
   const hoursSaved = (runsPerMonth * minutesPerRun) / 60;
@@ -454,6 +455,59 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
   };
 
   const handleExport = (format: 'pdf' | 'json' | 'html') => {
+    // Exact PDF export: clone the live node DOM and print only that area
+    if (format === 'pdf') {
+      try {
+        const root = rootRef.current;
+        if (!root) return;
+        const clone = root.cloneNode(true) as HTMLElement;
+
+        const printRoot = document.createElement('div');
+        printRoot.id = 'apicus-print-root';
+        printRoot.style.position = 'fixed';
+        printRoot.style.inset = '0';
+        printRoot.style.background = '#ffffff';
+        printRoot.style.zIndex = '2147483647';
+        printRoot.style.display = 'flex';
+        printRoot.style.alignItems = 'flex-start';
+        printRoot.style.justifyContent = 'center';
+        printRoot.style.padding = '24px';
+        printRoot.style.overflow = 'auto';
+
+        const wrapper = document.createElement('div');
+        wrapper.style.width = '800px'; // match node width
+        wrapper.appendChild(clone);
+        printRoot.appendChild(wrapper);
+
+        const style = document.createElement('style');
+        style.textContent = `
+@media print {
+  body *:not(#apicus-print-root, #apicus-print-root *) { visibility: hidden !important; }
+  #apicus-print-root { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+/* Hide React Flow handles in print */
+#apicus-print-root .react-flow__handle { display: none !important; }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(printRoot);
+
+        // Give the browser a moment to attach to the DOM and load any images
+        setTimeout(() => {
+          window.print();
+          setTimeout(() => {
+            try {
+              document.body.removeChild(printRoot);
+            } catch {}
+            try {
+              document.head.removeChild(style);
+            } catch {}
+          }, 100);
+        }, 150);
+      } catch (e) {
+        console.error('PDF export failed', e);
+      }
+      return;
+    }
     const base = sanitizeFileName(titleValue || nodeTitle || 'roi-report');
     if (format === 'json') {
       try {
@@ -479,25 +533,6 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         console.error('Copy HTML failed', e);
       }
       return;
-    }
-    if (format === 'pdf') {
-      try {
-        const html = buildExportHtml();
-        const win = window.open('', '_blank');
-        if (!win) return;
-        win.document.open();
-        win.document.write(html);
-        win.document.close();
-        // Ensure background is solid white
-        win.document.body.style.background = '#ffffff';
-        setTimeout(() => {
-          win.focus();
-          win.print();
-          // Do not auto-close; some browsers block closing after print
-        }, 300);
-      } catch (e) {
-        console.error('PDF export failed', e);
-      }
     }
   };
 
@@ -602,7 +637,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
   const riskPercent = totalRevenue > 0 ? (riskValue / totalRevenue) * 100 : 0;
 
   return (
-    <div className="relative w-[800px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div ref={rootRef} className="relative w-[800px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
       {/* Connection handles */}
       <Handle
         type="target"
