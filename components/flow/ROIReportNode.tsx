@@ -487,13 +487,14 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         style.textContent = `
 @page {
   size: auto;
-  margin: 0.5in;
+  margin: 0.35in;
 }
 @media print {
   body *:not(#apicus-print-root, #apicus-print-root *) { visibility: hidden !important; }
   #apicus-print-root { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   #apicus-print-root { padding: 0 !important; }
-  #apicus-print-root .w-\\[800px\\] { width: 100% !important; max-width: 100% !important; }
+  /* Force node to full width and remove outer border/shadow/radius on export */
+  #apicus-print-root .w-\\[800px\\] { width: 100% !important; max-width: 100% !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; }
 }
 /* Hide React Flow handles in print */
 #apicus-print-root .react-flow__handle { display: none !important; }
