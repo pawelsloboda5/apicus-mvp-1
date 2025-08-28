@@ -461,6 +461,9 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         const root = rootRef.current;
         if (!root) return;
         const clone = root.cloneNode(true) as HTMLElement;
+        clone.style.width = '100%';
+        clone.style.maxWidth = '100%';
+        clone.style.boxSizing = 'border-box';
 
         const printRoot = document.createElement('div');
         printRoot.id = 'apicus-print-root';
@@ -471,19 +474,26 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         printRoot.style.display = 'flex';
         printRoot.style.alignItems = 'flex-start';
         printRoot.style.justifyContent = 'center';
-        printRoot.style.padding = '24px';
+        printRoot.style.padding = '0';
         printRoot.style.overflow = 'auto';
 
         const wrapper = document.createElement('div');
-        wrapper.style.width = '800px'; // match node width
+        wrapper.style.width = '100%'; // fill page width when printing
+        wrapper.style.maxWidth = '100%';
         wrapper.appendChild(clone);
         printRoot.appendChild(wrapper);
 
         const style = document.createElement('style');
         style.textContent = `
+@page {
+  size: auto;
+  margin: 0.5in;
+}
 @media print {
   body *:not(#apicus-print-root, #apicus-print-root *) { visibility: hidden !important; }
   #apicus-print-root { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #apicus-print-root { padding: 0 !important; }
+  #apicus-print-root .w-\\[800px\\] { width: 100% !important; max-width: 100% !important; }
 }
 /* Hide React Flow handles in print */
 #apicus-print-root .react-flow__handle { display: none !important; }
