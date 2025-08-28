@@ -299,8 +299,8 @@ export function PixelNode({ data, type, selected, id }: NodeProps) {
         />
       </div>
       
-      {/* Platform indicator badge */}
-      {platform && PlatformIcon && !isEmailContext && (
+      {/* Platform indicator badge (hidden for n8n per design) */}
+      {platform && platform !== 'n8n' && PlatformIcon && !isEmailContext && (
         <div 
           className={cn(
             "absolute -top-2 -right-2 rounded-full p-1.5 shadow-md ring-2 ring-white dark:ring-gray-900 transition-all duration-200",

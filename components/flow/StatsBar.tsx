@@ -176,7 +176,8 @@ export function StatsBar({
   const [roiRatio, setRoiRatio] = useState(0);
   const [isGeneratingROI, setIsGeneratingROI] = useState(false);
 
-  // Use the same ROI calculations as individual node panels
+  // Keep hook for potential per-node panels; currently metrics use centralized monthly calculator
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const roiCalculations = useROICalculations({
     runsPerMonth,
     minutesPerRun,
@@ -184,12 +185,10 @@ export function StatsBar({
     taskMultiplier,
     platform,
     nodes: nodes || [],
-    // Risk & Compliance parameters
     complianceEnabled,
     riskLevel,
     riskFrequency,
     errorCost,
-    // Revenue Uplift parameters
     revenueEnabled,
     monthlyVolume,
     conversionRate,

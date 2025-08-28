@@ -277,19 +277,37 @@ interface TemplateEdgeData {
 /**
  * Transform template nodes from MongoDB format (with reactFlowId) to React Flow format (with id)
  */
-export function transformTemplateNodes(nodes: TemplateNodeData[], templateId?: string): Node[] {
+export function transformTemplateNodes(
+  nodes: TemplateNodeData[],
+  templateId?: string,
+  platformHint?: 'zapier' | 'make' | 'n8n'
+): Node[] {
   if (!nodes || !Array.isArray(nodes)) return [];
   
-  return nodes.map((node, index) => ({
-    id: node.id || node.reactFlowId || `node-${templateId || 'template'}-${index}-${nanoid(6)}`,
-    type: node.type || 'action',
-    position: node.position || { x: CANVAS_CONFIG.rankSpacing * index, y: 200 },
-    data: {
-      label: node.label || node.data?.label || 'Node',
-      ...node.data,
-      ...(node.platformMeta || {}),
-    }
-  }));
+  const mapToCanvasType = (n: TemplateNodeData): 'trigger' | 'action' | 'decision' => {
+    // Prefer explicit hint from node data/platformMeta action
+    const action = String((n.data as Record<string, unknown> | undefined)?.action || (n.platformMeta as Record<string, unknown> | undefined)?.action || '').toLowerCase();
+    const label = String(n.label || '').toLowerCase();
+    if (action.includes('trigger') || label.includes('trigger')) return 'trigger';
+    if (/(filter|router|switch|split|path)/.test(action) || /(filter|router|switch|split|path)/.test(label)) return 'decision';
+    return 'action';
+  };
+
+  return nodes.map((node, index) => {
+    const canvasType = mapToCanvasType(node);
+    return {
+      id: node.id || node.reactFlowId || `node-${templateId || 'template'}-${index}-${nanoid(6)}`,
+      type: canvasType,
+      position: node.position || { x: CANVAS_CONFIG.rankSpacing * index, y: 200 },
+      data: {
+        label: node.label || (node.data as Record<string, unknown> | undefined)?.label || 'Node',
+        ...node.data,
+        ...(node.platformMeta || {}),
+        // Ensure platform is explicitly present so renderer styles consistently
+        ...(platformHint ? { platform: platformHint } : {}),
+      }
+    };
+  });
 }
 
 /**

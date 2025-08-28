@@ -232,7 +232,8 @@ export function ROISettingsPanel({
     return Math.max(1, workflowNodes.length); // At least 1 step
   }, [nodes]);
 
-  // Use centralized ROI calculations that sync with StatsBar and NodePropertiesPanel
+  // Keep hook available for per-node panels; main summary relies on centralized monthly calculator
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const roiCalculations = useROICalculations({
     runsPerMonth,
     minutesPerRun,
@@ -240,12 +241,10 @@ export function ROISettingsPanel({
     taskMultiplier,
     platform,
     nodes,
-    // Risk & Compliance parameters
     complianceEnabled,
     riskLevel,
     riskFrequency,
     errorCost,
-    // Revenue Uplift parameters
     revenueEnabled,
     monthlyVolume,
     conversionRate,

@@ -413,7 +413,8 @@ function ToolboxContent({
           const template = templates[0];
           const transformedNodes = transformTemplateNodes(
             (template.nodes || []) as unknown as Parameters<typeof transformTemplateNodes>[0],
-            template.templateId
+            template.templateId,
+            (template.platform || template.source) === 'n8n' ? 'n8n' : (template.platform || template.source) === 'make' ? 'make' : 'zapier'
           );
           const transformedEdges = transformTemplateEdges(
             ((template.edges || []).map(e => ({ ...e, label: e.label ?? undefined })) as unknown) as Parameters<typeof transformTemplateEdges>[0],
@@ -598,7 +599,8 @@ function ToolboxContent({
       // Create a new scenario with the template data
       const transformedNodes = transformTemplateNodes(
         (template.nodes || []) as unknown as Parameters<typeof transformTemplateNodes>[0],
-        template.templateId
+        template.templateId,
+        (template.platform || template.source) === 'n8n' ? 'n8n' : (template.platform || template.source) === 'make' ? 'make' : 'zapier'
       );
       const transformedEdges = transformTemplateEdges(
         ((template.edges || []).map(e => ({ ...e, label: e.label ?? undefined })) as unknown) as Parameters<typeof transformTemplateEdges>[0],

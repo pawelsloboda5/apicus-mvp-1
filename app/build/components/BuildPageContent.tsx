@@ -29,7 +29,7 @@ import { TASK_TYPE_MULTIPLIERS, BENCHMARKS, CANVAS_CONFIG } from "@/lib/utils/co
 
 // Import utilities
 import { transformTemplateNodes, transformTemplateEdges } from "@/lib/flow-utils";
-import { formatROIRatio } from "@/lib/roi-utils";
+// import { formatROIRatio } from "@/lib/roi-utils";
 
 // Import default template
 import { DEFAULT_TEMPLATE } from "@/lib/templates/default-template";
@@ -465,7 +465,11 @@ export function BuildPageContent() {
               }
               // If template uses reactFlowId shape
               else if (Array.isArray(payload?.nodes) && payload.nodes[0]?.reactFlowId) {
-                nodesSnapshot = transformTemplateNodes(payload.nodes, 'import');
+                nodesSnapshot = transformTemplateNodes(
+                  payload.nodes,
+                  'import',
+                  (payload?.metadata?.platform || payload?.platform) === 'n8n' ? 'n8n' : (payload?.metadata?.platform || payload?.platform) === 'make' ? 'make' : 'zapier'
+                );
                 edgesSnapshot = transformTemplateEdges(payload.edges || [], 'import');
               }
 
@@ -508,7 +512,11 @@ export function BuildPageContent() {
               console.log('Template loaded:', template); // Debug log
               
               // Transform nodes to have 'id' instead of 'reactFlowId'
-              const transformedNodes = transformTemplateNodes(template.nodes, templateIdParam);
+              const transformedNodes = transformTemplateNodes(
+                template.nodes,
+                templateIdParam,
+                (template.platform || template.source) === 'n8n' ? 'n8n' : (template.platform || template.source) === 'make' ? 'make' : 'zapier'
+              );
               
               // Transform edges to have proper 'id', 'source', and 'target'
               const transformedEdges = transformTemplateEdges(template.edges, templateIdParam);

@@ -48,9 +48,52 @@ function mapType(n8nType: string): 'trigger' | 'action' | 'decision' {
   return 'action';
 }
 
+function toTitleCaseWords(input: string): string {
+  // Split camelCase into words and capitalize
+  const words = input
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .split(/\s+/);
+  return words
+    .map((w) => (w.toLowerCase() === 'http' ? 'HTTP' : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
 function extractApp(n8nType: string): string {
-  const last = n8nType.split('.').pop() || n8nType;
-  return last.charAt(0).toUpperCase() + last.slice(1);
+  const raw = n8nType.split('.').pop() || n8nType;
+  // Friendly names for common n8n base nodes
+  const map: Record<string, string> = {
+    httpRequest: 'HTTP',
+    webhook: 'Webhook',
+    webhookTrigger: 'Webhook',
+    cronTrigger: 'Cron',
+    emailTrigger: 'Email',
+    splitInBatches: 'Split',
+    merge: 'Merge',
+    set: 'Set',
+    function: 'Function',
+    code: 'Code',
+    if: 'If',
+    switch: 'Switch',
+  };
+  return map[raw] || toTitleCaseWords(raw);
+}
+
+function mapTypeOf(n8nType: string, parameters?: Record<string, unknown>): string | undefined {
+  const last = (n8nType.split('.').pop() || '').toLowerCase();
+  if (last.includes('webhook')) return 'webhook';
+  if (last === 'httprequest') return 'api';
+  if (last === 'merge') return 'merge';
+  if (last === 'function' || last === 'code' || last === 'set') return 'transform';
+  if (last.includes('email')) return 'messaging';
+  // Parameters sometimes include an operation which can hint intent
+  const op = parameters && typeof parameters === 'object' && 'operation' in parameters
+    ? String((parameters as Record<string, unknown>)['operation']).toLowerCase()
+    : undefined;
+  if (op?.includes('get') || op?.includes('request') || op?.includes('fetch')) return 'api';
+  if (op?.includes('send')) return 'messaging';
+  return undefined;
 }
 
 export function parseN8nWorkflow(data: unknown): ImportedWorkflow {
@@ -81,6 +124,8 @@ export function parseN8nWorkflow(data: unknown): ImportedWorkflow {
           n.parameters && typeof n.parameters === 'object' && 'operation' in n.parameters
             ? String((n.parameters as Record<string, unknown>)['operation'])
             : extractApp(n.type),
+        platform: 'n8n',
+        typeOf: mapTypeOf(n.type, n.parameters),
         platformMeta: {
           platform: 'n8n',
           type: n.type,
