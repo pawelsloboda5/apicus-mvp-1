@@ -492,12 +492,13 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
   margin: 0;
 }
 @media print {
-  html { font-size: 150% !important; }
-  body *:not(#apicus-print-root, #apicus-print-root *) { visibility: hidden !important; }
-  #apicus-print-root { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  #apicus-print-root { padding: 0 !important; }
+  html { height: auto !important; }
+  body { height: auto !important; }
+  /* Only print the injected print root */
+  body > *:not(#apicus-print-root) { display: none !important; }
+  #apicus-print-root { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; position: static !important; overflow: visible !important; height: auto !important; padding: 0 !important; }
   /* Fill printable area and remove border/shadow/radius when printing */
-  #apicus-print-root .a4-node { width: 100% !important; max-width: 100% !important; height: auto !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; }
+  #apicus-print-root .a4-node { width: 100% !important; max-width: 100% !important; height: auto !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; page-break-inside: avoid; page-break-after: avoid; }
   /* Hide sparkles AI buttons only in export */
   #apicus-print-root .print-hide-sparkles { display: none !important; }
   /* Hide export dropdown trigger only in export */
