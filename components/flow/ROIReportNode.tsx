@@ -461,8 +461,10 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         const root = rootRef.current;
         if (!root) return;
         const clone = root.cloneNode(true) as HTMLElement;
+        clone.classList.add('a4-node');
         clone.style.width = '100%';
         clone.style.maxWidth = '100%';
+        clone.style.minHeight = '100%';
         clone.style.boxSizing = 'border-box';
 
         const printRoot = document.createElement('div');
@@ -478,7 +480,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         printRoot.style.overflow = 'auto';
 
         const wrapper = document.createElement('div');
-        wrapper.style.width = '100%'; // fill page width when printing
+        wrapper.style.width = '100%';
         wrapper.style.maxWidth = '100%';
         wrapper.appendChild(clone);
         printRoot.appendChild(wrapper);
@@ -486,21 +488,28 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         const style = document.createElement('style');
         style.textContent = `
 @page {
-  size: auto;
-  margin: 0.35in;
+  size: A4;
+  margin: 0;
 }
 @media print {
+  html { font-size: 150% !important; }
   body *:not(#apicus-print-root, #apicus-print-root *) { visibility: hidden !important; }
   #apicus-print-root { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   #apicus-print-root { padding: 0 !important; }
-  /* Force node to full width and remove outer border/shadow/radius on export */
-  #apicus-print-root .w-\\[800px\\] { width: 100% !important; max-width: 100% !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; }
+  /* Fill printable area and remove border/shadow/radius when printing */
+  #apicus-print-root .a4-node { width: 100% !important; max-width: 100% !important; height: auto !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; }
+  /* Hide sparkles AI buttons only in export */
+  #apicus-print-root .print-hide-sparkles { display: none !important; }
+  /* Hide export dropdown trigger only in export */
+  #apicus-print-root .print-hide-export { display: none !important; }
 }
 /* Hide React Flow handles in print */
 #apicus-print-root .react-flow__handle { display: none !important; }
         `;
         document.head.appendChild(style);
         document.body.appendChild(printRoot);
+
+        // No transform scaling; width is forced to 100% and font-size is increased via print CSS
 
         // Give the browser a moment to attach to the DOM and load any images
         setTimeout(() => {
@@ -632,7 +641,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
 
   if (isLoading) {
     return (
-      <div className="w-[800px] h-[900px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex items-center justify-center">
+      <div className="a4-node w-[1024px] h-[1448px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto"></div>
           <p className="text-sm text-slate-600">Generating ROI report...</p>
@@ -648,7 +657,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
   const riskPercent = totalRevenue > 0 ? (riskValue / totalRevenue) * 100 : 0;
 
   return (
-    <div ref={rootRef} className="relative w-[800px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div ref={rootRef} className="a4-node relative w-[1024px] min-h-[1448px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
       {/* Connection handles */}
       <Handle
         type="target"
@@ -700,7 +709,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-7 w-7 print-hide-sparkles"
                       onClick={generateTitleAI}
                       disabled={isGeneratingTitle}
                       title="Generate title with AI"
@@ -775,7 +784,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
             {/* Export button */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 ml-4">
+                <Button variant="ghost" size="icon" className="h-8 w-8 ml-4 print-hide-export">
                   <Download className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -971,7 +980,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-7 w-7 print-hide-sparkles"
                   onClick={generateBusinessImpactAI}
                   disabled={isGeneratingImpact}
                   title="Generate with AI"
@@ -1037,13 +1046,6 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
               </div>
             </Card>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-slate-200 pt-3 text-center">
-          <p className="text-xs text-slate-500">
-            ROI Analysis Report • {projectName} • Confidential
-          </p>
         </div>
       </div>
     </div>
