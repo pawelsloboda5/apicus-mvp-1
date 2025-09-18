@@ -460,68 +460,73 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
       try {
         const root = rootRef.current;
         if (!root) return;
+
+        // Measure the node's intrinsic layout size (not affected by canvas zoom)
+        const nodeWidth = root.offsetWidth || 1024;
+        const nodeHeight = root.offsetHeight || 1448;
+
         const clone = root.cloneNode(true) as HTMLElement;
         clone.classList.add('a4-node');
-        clone.style.width = '100%';
-        clone.style.maxWidth = '100%';
-        clone.style.minHeight = '100%';
+        // Lock intrinsic size so content doesn't reflow or change height
+        clone.style.width = `${nodeWidth}px`;
+        clone.style.height = `${nodeHeight}px`;
         clone.style.boxSizing = 'border-box';
+        clone.style.transformOrigin = 'top left';
+        clone.style.position = 'absolute';
 
+        // Create print root and an A4 paper container in mm so the browser knows exact page size
         const printRoot = document.createElement('div');
         printRoot.id = 'apicus-print-root';
         printRoot.style.position = 'fixed';
         printRoot.style.inset = '0';
         printRoot.style.background = '#ffffff';
         printRoot.style.zIndex = '2147483647';
-        printRoot.style.display = 'flex';
-        printRoot.style.alignItems = 'flex-start';
-        printRoot.style.justifyContent = 'center';
+        printRoot.style.display = 'block';
         printRoot.style.padding = '0';
-        printRoot.style.overflow = 'auto';
+        printRoot.style.overflow = 'hidden';
 
-        const wrapper = document.createElement('div');
-        wrapper.style.width = '100%';
-        wrapper.style.maxWidth = '100%';
-        wrapper.appendChild(clone);
-        printRoot.appendChild(wrapper);
+        const paper = document.createElement('div');
+        paper.id = 'apicus-paper';
+        paper.style.width = '210mm';
+        paper.style.height = '297mm';
+        paper.style.margin = '0 auto';
+        paper.style.position = 'relative';
+        paper.style.overflow = 'hidden';
+        paper.style.background = '#ffffff';
+
+        paper.appendChild(clone);
+        printRoot.appendChild(paper);
 
         const style = document.createElement('style');
         style.textContent = `
-@page {
-  size: A4;
-  margin: 0;
-}
+@page { size: A4; margin: 0; }
 @media print {
   html { height: auto !important; }
   body { height: auto !important; }
-  /* Only print the injected print root */
   body > *:not(#apicus-print-root) { display: none !important; }
-  #apicus-print-root { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; position: static !important; overflow: visible !important; height: auto !important; padding: 0 !important; }
-  /* Fill printable area and remove border/shadow/radius when printing */
-  #apicus-print-root .a4-node { width: 100% !important; max-width: 100% !important; height: auto !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; page-break-inside: avoid; page-break-after: avoid; }
-  /* Hide sparkles AI buttons only in export */
-  #apicus-print-root .print-hide-sparkles { display: none !important; }
-  /* Hide export dropdown trigger only in export */
-  #apicus-print-root .print-hide-export { display: none !important; }
+  #apicus-print-root { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; position: static !important; overflow: visible !important; padding: 0 !important; }
+  #apicus-paper { width: 210mm; height: 297mm; margin: 0 auto; overflow: hidden; }
+  #apicus-paper .a4-node { border: none !important; box-shadow: none !important; border-radius: 0 !important; page-break-inside: avoid; page-break-after: avoid; }
+  #apicus-print-root .print-hide-sparkles, #apicus-print-root .print-hide-export { display: none !important; }
 }
-/* Hide React Flow handles in print */
 #apicus-print-root .react-flow__handle { display: none !important; }
         `;
         document.head.appendChild(style);
         document.body.appendChild(printRoot);
 
-        // No transform scaling; width is forced to 100% and font-size is increased via print CSS
+        // Compute scale to fit within A4 without upscaling, preserving aspect ratio
+        const paperRect = paper.getBoundingClientRect();
+        const scale = Math.min(paperRect.width / nodeWidth, paperRect.height / nodeHeight, 1);
+        clone.style.transform = `translateX(${(paperRect.width - nodeWidth * scale) / 2}px) scale(${scale})`;
+        clone.style.top = '0';
+        clone.style.left = '0';
 
         // Give the browser a moment to attach to the DOM and load any images
         setTimeout(() => {
           window.print();
           setTimeout(() => {
-            try {
-              document.body.removeChild(printRoot);
-            } catch {}
-            try {
-              document.head.removeChild(style);
-            } catch {}
+            try { document.body.removeChild(printRoot); } catch {}
+            try { document.head.removeChild(style); } catch {}
           }, 100);
         }, 150);
       } catch (e) {
@@ -645,7 +650,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
       <div className="a4-node w-[1024px] h-[1448px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto"></div>
-          <p className="text-sm text-slate-600">Generating ROI report...</p>
+          <p className="text-lg text-slate-600">Generating ROI report...</p>
         </div>
       </div>
     );
@@ -658,7 +663,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
   const riskPercent = totalRevenue > 0 ? (riskValue / totalRevenue) * 100 : 0;
 
   return (
-    <div ref={rootRef} className="a4-node relative w-[1024px] min-h-[1448px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div ref={rootRef} className="a4-node relative w-[1024px] h-[1448px] bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
       {/* Connection handles */}
       <Handle
         type="target"
@@ -673,7 +678,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         style={{ top: '50%' }}
       />
 
-      <div className="p-6 space-y-5">
+      <div className="p-6 h-full flex flex-col gap-5">
         {/* Header Section */}
         <div className="border-b border-slate-200 pb-4">
           <div className="flex items-center justify-between">
@@ -697,11 +702,11 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                             setEditingTitle(false);
                           }
                         }}
-                        className="h-8 text-2xl font-bold px-2 flex-1"
+                        className="h-8 text-4xl font-bold px-2 flex-1"
                       />
                     ) : (
                       <h1 
-                        className="text-2xl font-bold text-slate-900 cursor-pointer hover:text-primary transition-colors flex-1"
+                        className="text-4xl font-bold text-slate-900 cursor-pointer hover:text-primary transition-colors flex-1"
                         onClick={() => setEditingTitle(true)}
                       >
                         {titleValue}
@@ -735,12 +740,12 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                           setEditingSubtitle(false);
                         }
                       }}
-                      className="h-6 text-sm font-medium px-2 mt-1"
+                      className="h-6 text-xl font-medium px-2 mt-1"
                       placeholder="Your agency or consultant name"
                     />
                   ) : (
                     <p 
-                      className="text-slate-600 text-sm font-medium cursor-pointer hover:text-primary transition-colors"
+                      className="text-slate-600 text-xl font-medium cursor-pointer hover:text-primary transition-colors"
                       onClick={() => setEditingSubtitle(true)}
                     >
                       {subtitleValue}
@@ -759,26 +764,26 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                   )}></div>
                   {isPositiveROI ? 'Positive ROI' : 'Negative ROI'}
                 </Badge>
-                <span className="text-xs text-slate-500">Generated: {generatedDate.toLocaleDateString()}</span>
+                <span className="text-lg text-slate-500">Generated: {generatedDate.toLocaleDateString()}</span>
               </div>
             </div>
             
             {/* Key Metrics Cards - Better spacing */}
             <div className="flex gap-6 pl-6">
               <div className="text-center">
-                <p className="text-xs text-slate-600">Total ROI</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(adjustedNetROI)}</p>
-                <p className="text-xs text-slate-500">monthly</p>
+                <p className="text-lg text-slate-600">Total ROI</p>
+                <p className="text-4xl font-bold text-green-600">{formatCurrency(adjustedNetROI)}</p>
+                <p className="text-lg text-slate-500">monthly</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-600">Monthly Cost</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(totalCosts)}</p>
-                <p className="text-xs text-slate-500">platform + apps</p>
+                <p className="text-lg text-slate-600">Monthly Cost</p>
+                <p className="text-4xl font-bold text-red-600">{formatCurrency(totalCosts)}</p>
+                <p className="text-lg text-slate-500">platform + apps</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-600">Runs/Month</p>
-                <p className="text-2xl font-bold text-blue-600">{runsPerMonth.toLocaleString()}</p>
-                <p className="text-xs text-slate-500">automated</p>
+                <p className="text-lg text-slate-600">Runs/Month</p>
+                <p className="text-4xl font-bold text-blue-600">{runsPerMonth.toLocaleString()}</p>
+                <p className="text-lg text-slate-500">automated</p>
               </div>
             </div>
             
@@ -810,7 +815,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         {/* Applications Used Section */}
         {uniqueApps.length > 0 && (
           <div className="bg-slate-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Applications Used</h3>
+            <h3 className="text-xl font-semibold text-slate-700 mb-3 uppercase tracking-wide">Applications Used</h3>
             <div className="flex items-center gap-3 flex-wrap">
               {uniqueApps.slice(0, 6).map((app) => (
                 <div 
@@ -835,9 +840,9 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                     />
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-slate-700">{app.appName}</span>
+                    <span className="text-xl font-medium text-slate-700">{app.appName}</span>
                     {app.pricingData && (
-                      <div className="text-xs text-slate-500 mt-0.5">
+                      <div className="text-lg text-slate-500 mt-0.5">
                         {app.pricingData.hasFreeTier ? (
                           <span className="text-green-600 font-medium">Free tier</span>
                         ) : app.pricingData.lowestMonthlyPrice ? (
@@ -853,12 +858,12 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                 </div>
               ))}
               {uniqueApps.length > 6 && (
-                <span className="text-sm text-slate-500 font-medium px-2">
+                <span className="text-xl text-slate-500 font-medium px-2">
                   +{uniqueApps.length - 6} more
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-600 mt-3">
+            <p className="text-lg text-slate-600 mt-3">
               Avg. processing time: {minutesPerRun < 1 ? `${(minutesPerRun * 60).toFixed(0)} seconds` : `${minutesPerRun} minutes`}
               {breakEvenRuns > 0 && ` • Success rate: ${confidence}%`}
               {appCosts > 0 && ` • Total app costs: ${formatCurrency(appCosts)}/mo`}
@@ -867,12 +872,12 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
         )}
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
           {/* Left Column */}
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4 h-full">
             {/* Revenue Breakdown - Always show all 3 */}
-            <Card className="p-4">
-              <h3 className="text-lg font-bold text-slate-900 mb-3">Revenue Breakdown</h3>
+            <Card className="p-4 flex-1">
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Revenue Breakdown</h3>
               
               {/* Progress Bar */}
               <div className="mb-4">
@@ -884,7 +889,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
               </div>
 
               {/* Breakdown Table - Always show all 3 */}
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-xl">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-blue-500"></div>
@@ -919,33 +924,33 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
             </Card>
 
             {/* Performance Metrics */}
-            <Card className="p-4">
-              <h3 className="text-lg font-bold text-slate-900 mb-3">Performance Metrics</h3>
+            <Card className="p-4 flex-1">
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Performance Metrics</h3>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div>
                   <Clock className="h-4 w-4 text-green-600 mx-auto mb-1" />
-                  <p className="text-xs text-slate-600">Payback Period</p>
-                  <p className="text-lg font-bold text-green-600">
+                  <p className="text-lg text-slate-600">Payback Period</p>
+                  <p className="text-2xl font-bold text-green-600">
                     {paybackPeriod < 30 ? `${Math.ceil(paybackPeriod)} Days` : `${(paybackPeriod / 30).toFixed(1)} Months`}
                   </p>
                 </div>
                 <div>
                   <Target className="h-4 w-4 text-green-600 mx-auto mb-1" />
-                  <p className="text-xs text-slate-600">Break-even</p>
-                  <p className="text-lg font-bold text-green-600">{breakEvenRuns} runs</p>
+                  <p className="text-lg text-slate-600">Break-even</p>
+                  <p className="text-2xl font-bold text-green-600">{breakEvenRuns} runs</p>
                 </div>
                 <div>
                   <TrendingUp className="h-4 w-4 text-green-600 mx-auto mb-1" />
-                  <p className="text-xs text-slate-600">Confidence</p>
-                  <p className="text-lg font-bold text-green-600">{(confidence / 100).toFixed(2)}</p>
+                  <p className="text-lg text-slate-600">Confidence</p>
+                  <p className="text-2xl font-bold text-green-600">{(confidence / 100).toFixed(2)}</p>
                 </div>
               </div>
             </Card>
 
             {/* Platform Comparison - Show all platforms with calculated costs */}
             {showPlatformComparison && (
-              <Card className="p-4">
-                <h3 className="text-lg font-bold text-slate-900 mb-3">Platform Comparison</h3>
+              <Card className="p-4 flex-1">
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">Platform Comparison</h3>
                 <div className="space-y-2">
                   {platformCosts.map(({ platform: p, cost }) => {
                     const config = PLATFORM_CONFIG[p];
@@ -960,7 +965,7 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                           isActive && "ring-2 ring-offset-1 ring-primary"
                         )}
                       >
-                        <span className="font-medium text-sm">{config.name}</span>
+                        <span className="font-medium text-xl">{config.name}</span>
                         <span className={cn("font-bold", config.color)}>
                           {formatCurrency(cost)}
                         </span>
@@ -973,11 +978,11 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
           </div>
 
           {/* Right Column */}
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4 h-full">
             {/* Business Impact */}
-            <Card className="p-4">
+            <Card className="p-4 flex-1">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-bold text-slate-900">Business Impact</h3>
+                <h3 className="text-2xl font-bold text-slate-900">Business Impact</h3>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -993,32 +998,32 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
                   )}
                 </Button>
               </div>
-              <div className="space-y-3 text-sm">
+              <div className="space-y-3 text-xl">
                 <p className="text-slate-700 leading-relaxed">
                   {businessImpactValue || businessImpact || `Automate ${projectName} to save ${hoursSaved.toFixed(1)} hours monthly with ${roiRatio.toFixed(1)}x ROI and ${Math.ceil(paybackPeriod)}-day payback.`}
                 </p>
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   <div>
-                    <p className="text-xs text-slate-600 mb-1">Time Saved Weekly</p>
-                    <p className="text-lg font-bold text-blue-600">{weeklyHours.toFixed(2)} hrs</p>
+                    <p className="text-lg text-slate-600 mb-1">Time Saved Weekly</p>
+                    <p className="text-2xl font-bold text-blue-600">{weeklyHours.toFixed(2)} hrs</p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-600 mb-1">Hourly Rate</p>
-                    <p className="text-lg font-bold text-blue-600">${hourlyRate}</p>
+                    <p className="text-lg text-slate-600 mb-1">Hourly Rate</p>
+                    <p className="text-2xl font-bold text-blue-600">${hourlyRate}</p>
                   </div>
                 </div>
               </div>
             </Card>
 
             {/* ROI Summary */}
-            <Card className="p-4 bg-slate-50">
-              <h3 className="text-lg font-bold text-slate-900 mb-3">ROI Summary</h3>
+            <Card className="p-4 bg-slate-50 flex-1">
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">ROI Summary</h3>
               <div className="space-y-3">
                 <div className="text-center mb-4">
-                  <p className="text-3xl font-bold text-green-600">{formatROIRatio(adjustedROIRatio)}</p>
-                  <p className="text-xs text-slate-600 mt-1">Return on Investment</p>
+                  <p className="text-5xl font-bold text-green-600">{formatROIRatio(adjustedROIRatio)}</p>
+                  <p className="text-lg text-slate-600 mt-1">Return on Investment</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-2 gap-3 text-xl">
                   <div>
                     <p className="text-slate-600">Total Value</p>
                     <p className="font-bold text-green-600">{formatCurrency(timeValue + riskValue + revenueValue)}</p>

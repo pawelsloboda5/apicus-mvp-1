@@ -881,11 +881,29 @@ export function BuildPageContent() {
           selectedGroupId={null}
           isMultiSelectionActive={false}
           onGenerateROIReport={(roiNode) => {
-            console.log('📊 BuildPageContent: Received ROI node:', roiNode);
-            console.log('📊 BuildPageContent: About to call onNodesChange with add action');
-            // Add the ROI report node to the canvas
+            // Compute position: below the lowest node by a generous gap and horizontally centered
+            const ROI_WIDTH = 1024;
+            const ROI_HEIGHT = 1448;
+            const VERTICAL_GAP = 400;
+
+            const viewport = rfInstance?.getViewport();
+            const zoom = viewport?.zoom || 1;
+            const worldCenterX = ((window.innerWidth / 2) - (viewport?.x || 0)) / zoom;
+            const maxY = nodes.length ? Math.max(...nodes.map(n => n.position.y)) : 0;
+            const position = {
+              x: Math.round(worldCenterX - ROI_WIDTH / 2),
+              y: Math.round(maxY + VERTICAL_GAP),
+            };
+
+            // Place the node then fit the viewport to its exact bounds
+            roiNode.position = position;
             onNodesChange([{ type: 'add', item: roiNode }]);
-            console.log('📊 BuildPageContent: Called onNodesChange');
+
+            setTimeout(() => {
+              if (rfInstance) {
+                rfInstance.fitBounds({ x: position.x, y: position.y, width: ROI_WIDTH, height: ROI_HEIGHT }, { padding: 0.02, duration: 800 });
+              }
+            }, 80);
           }}
           isAnalyticsView={activeTab === 'analytics'}
           onGoBackToCanvas={() => setActiveTab('canvas')}
@@ -1183,14 +1201,16 @@ export function BuildPageContent() {
               nodes={nodes}
               onGenerateReport={async () => {
                 try {
-                  const center = (() => {
-                    if (!rfInstance?.getViewport()) return { x: 400, y: 700 };
-                    const viewport = rfInstance.getViewport();
-                    const zoom = viewport.zoom || 1;
-                    const maxY = nodes.reduce((max, node) => Math.max(max, node.position.y), 0);
-                    const optimalY = Math.max(maxY + 300, 600);
-                    return { x: (window.innerWidth / 2 - 400) / zoom, y: optimalY / zoom };
-                  })();
+                  // Determine placement similar to StatsBar path
+                  const ROI_WIDTH = 1024;
+                  const ROI_HEIGHT = 1448;
+                  const VERTICAL_GAP = 400;
+
+                  const viewport = rfInstance?.getViewport();
+                  const zoom = viewport?.zoom || 1;
+                  const worldCenterX = ((window.innerWidth / 2) - (viewport?.x || 0)) / zoom;
+                  const maxY = nodes.reduce((max, node) => Math.max(max, node.position.y), 0);
+                  const position = { x: Math.round(worldCenterX - ROI_WIDTH / 2), y: Math.round(maxY + VERTICAL_GAP) };
 
                   const node = await generateRoiNodeWithBusinessImpact({
                     currentScenarioName: scenarioManager.scenario?.name,
@@ -1210,11 +1230,11 @@ export function BuildPageContent() {
                     valuePerConversion: roi.settings.valuePerConversion,
                     nodes,
                   });
-                  node.position = center;
+                  node.position = position;
                   onNodesChange([{ type: 'add', item: node }]);
                   if (rfInstance) {
                     setTimeout(() => {
-                      rfInstance.fitBounds({ x: center.x - 100, y: center.y - 100, width: 1000, height: 1000 }, { padding: 0.1, duration: 800 });
+                      rfInstance.fitBounds({ x: position.x, y: position.y, width: ROI_WIDTH, height: ROI_HEIGHT }, { padding: 0.02, duration: 800 });
                     }, 100);
                   }
                   setIsROISettingsOpen(false);
