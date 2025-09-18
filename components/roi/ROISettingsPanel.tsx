@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { HelpCircle, TrendingUp, DollarSign, Calculator, Zap } from "lucide-react";
+import { HelpCircle, TrendingUp, DollarSign, Calculator, Zap, AlertTriangle, Sparkles, ChevronRight, Clock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { pricing } from "@/app/api/data/pricing";
@@ -26,6 +26,7 @@ import { calculateRoiMetrics } from "@/lib/roi-metrics";
 import { Node } from "@xyflow/react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface ROISettingsPanelProps {
@@ -126,60 +127,62 @@ const PlatformComparison = ({
   const maxCost = Math.max(...platformData.map(p => p.totalCost));
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-3 gap-3">
       {platformData.map((platform) => (
         <div 
           key={platform.name}
           className={cn(
-            "relative p-3 rounded-lg border transition-all",
+            "relative p-4 rounded-lg border transition-all",
             platform.isActive 
-              ? "border-primary bg-primary/5" 
+              ? "border-primary bg-primary/5 ring-2 ring-primary/20" 
               : "border-border hover:border-muted-foreground/50"
           )}
         >
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <span 
-                  className="font-semibold capitalize" 
-                  style={{ color: platform.color }}
-                >
-                  {platform.name}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span 
+                className="font-semibold capitalize text-sm" 
+                style={{ color: platform.color }}
+              >
+                {platform.name}
+              </span>
+              {platform.isActive && (
+                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                  Current
                 </span>
-                {platform.isActive && (
-                  <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                    Current
-                  </span>
-                )}
+              )}
+            </div>
+            
+            <div className="space-y-1">
+              <div className="text-2xl font-bold">${platform.totalCost.toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground">
+                {platform.tier}
               </div>
               <div className="text-xs text-muted-foreground">
-                {platform.tier} • {platform.units.toLocaleString()} {platform.unitType}s/mo
+                {platform.units.toLocaleString()} {platform.unitType}s
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-bold">${platform.totalCost.toFixed(2)}</div>
               <div className="text-xs text-muted-foreground">
                 ${platform.unitCost.toFixed(4)}/{platform.unitType}
               </div>
             </div>
-          </div>
-          
-          <Progress 
-            value={(platform.totalCost / maxCost) * 100} 
-            className="h-1.5 bg-muted"
-            style={{ 
-              // @ts-expect-error CSS custom properties are not recognized by TypeScript but are valid CSS
-              '--tw-bg-opacity': '1'
-            }}
-          >
-            <div 
-              className="h-full transition-all"
+            
+            <Progress 
+              value={(platform.totalCost / maxCost) * 100} 
+              className="h-2 bg-muted"
               style={{ 
-                width: `${(platform.totalCost / maxCost) * 100}%`,
-                backgroundColor: platform.color
+                // @ts-expect-error CSS custom properties are not recognized by TypeScript but are valid CSS
+                '--tw-bg-opacity': '1'
               }}
-            />
-          </Progress>
+            >
+              <div 
+                className="h-full transition-all rounded-full"
+                style={{ 
+                  width: `${(platform.totalCost / maxCost) * 100}%`,
+                  backgroundColor: platform.color
+                }}
+              />
+            </Progress>
+          </div>
         </div>
       ))}
     </div>
@@ -270,86 +273,159 @@ export function ROISettingsPanel({
 
     return (
       <div className="space-y-6">
-        {/* Primary Metrics - Modern Card Design */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 p-5">
+        {/* Primary Metrics - Enhanced Grid Layout for wider panel */}
+        <div className="grid grid-cols-4 gap-3">
+          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 p-4">
             <div className="relative z-10">
-              <p className="text-sm font-medium text-green-700 dark:text-green-300">Monthly Value</p>
-              <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-1">
+              <p className="text-xs font-medium text-green-700 dark:text-green-300">Monthly Value</p>
+              <p className="text-2xl font-bold text-green-900 dark:text-green-100 mt-1">
                 ${Math.round(metrics.totalValue).toLocaleString()}
               </p>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                {nodes.filter(n => ['trigger','action','decision'].includes(n.type || '')).length} automation steps
+                {nodes.filter(n => ['trigger','action','decision'].includes(n.type || '')).length} steps
               </p>
             </div>
-            <TrendingUp className="absolute bottom-2 right-2 h-6 w-6 text-green-600/20" />
+            <TrendingUp className="absolute bottom-1 right-1 h-5 w-5 text-green-600/20" />
           </div>
           
-          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 p-5">
+          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 p-4">
             <div className="relative z-10">
-              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Net ROI</p>
-              <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-1">
+              <p className="text-xs font-medium text-blue-700 dark:text-blue-300">Net ROI</p>
+              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">
                 ${Math.round(metrics.netROI).toLocaleString()}
               </p>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                {metrics.roiRatio.toFixed(1)}x return ratio
+                {metrics.roiRatio.toFixed(1)}x ratio
               </p>
             </div>
-            <DollarSign className="absolute bottom-2 right-2 h-6 w-6 text-blue-600/20" />
+            <DollarSign className="absolute bottom-1 right-1 h-5 w-5 text-blue-600/20" />
+          </div>
+          
+          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50 p-4">
+            <div className="relative z-10">
+              <p className="text-xs font-medium text-purple-700 dark:text-purple-300">Time Saved</p>
+              <p className="text-2xl font-bold text-purple-900 dark:text-purple-100 mt-1">
+                {metrics.timeSavedHours.toFixed(1)}h
+              </p>
+              <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                per month
+              </p>
+            </div>
+            <Clock className="absolute bottom-1 right-1 h-5 w-5 text-purple-600/20" />
+          </div>
+          
+          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/50 dark:to-amber-950/50 p-4">
+            <div className="relative z-10">
+              <p className="text-xs font-medium text-orange-700 dark:text-orange-300">Payback</p>
+              <p className="text-2xl font-bold text-orange-900 dark:text-orange-100 mt-1">
+                {metrics.paybackDays > 0 ? metrics.paybackDays.toFixed(0) : '0'}
+              </p>
+              <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                days
+              </p>
+            </div>
+            <Calculator className="absolute bottom-1 right-1 h-5 w-5 text-orange-600/20" />
           </div>
         </div>
 
-        {/* ROI Breakdown */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-center py-2 border-b">
-            <span className="text-sm text-muted-foreground">Time saved monthly</span>
-            <span className="font-medium">{metrics.timeSavedHours.toFixed(1)} hours</span>
-          </div>
-          
-          <div className="flex justify-between items-center py-2 border-b">
-            <span className="text-sm text-muted-foreground">Automation value</span>
-            <span className="font-medium text-green-600 dark:text-green-400">+${Math.round(metrics.timeValue).toLocaleString()}</span>
-          </div>
-          
-          {complianceEnabled && (
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-sm text-muted-foreground">Risk reduction</span>
-              <span className="font-medium text-green-600 dark:text-green-400">+${Math.round(metrics.riskValue).toLocaleString()}</span>
+        {/* ROI Breakdown - Grid Layout */}
+        <div className="space-y-4">
+          {/* Value Drivers */}
+          <div>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Value Drivers</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 rounded-lg bg-green-50/50 dark:bg-green-950/20 border border-green-200 dark:border-green-900">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs text-muted-foreground">Time Saved</span>
+                  <span className="text-xs font-medium">{metrics.timeSavedHours.toFixed(1)}h/mo</span>
+                </div>
+                <div className="mt-1 text-sm font-semibold text-green-700 dark:text-green-400">
+                  +${Math.round(metrics.timeValue).toLocaleString()}
+                </div>
+              </div>
+              
+              {complianceEnabled && (
+                <div className="p-3 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs text-muted-foreground">Risk Reduction</span>
+                    <AlertTriangle className="h-3 w-3 text-blue-500" />
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-blue-700 dark:text-blue-400">
+                    +${Math.round(metrics.riskValue).toLocaleString()}
+                  </div>
+                </div>
+              )}
+              
+              {revenueEnabled && (
+                <div className="p-3 rounded-lg bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900">
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs text-muted-foreground">Revenue Uplift</span>
+                    <TrendingUp className="h-3 w-3 text-purple-500" />
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-purple-700 dark:text-purple-400">
+                    +${Math.round(metrics.revenueValue).toLocaleString()}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-          
-          {revenueEnabled && (
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-sm text-muted-foreground">Revenue uplift</span>
-              <span className="font-medium text-green-600 dark:text-green-400">+${Math.round(metrics.revenueValue).toLocaleString()}</span>
+          </div>
+
+          {/* Cost Breakdown */}
+          <div>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Costs</h4>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-3 rounded-lg bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                <div className="text-xs text-muted-foreground">Platform</div>
+                <div className="mt-1 text-sm font-semibold text-red-700 dark:text-red-400">
+                  -${metrics.platformCost.toFixed(2)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">{platform}</div>
+              </div>
+              
+              {metrics.appCosts > 0 && (
+                <div className="p-3 rounded-lg bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900">
+                  <div className="text-xs text-muted-foreground">App Costs</div>
+                  <div className="mt-1 text-sm font-semibold text-orange-700 dark:text-orange-400">
+                    -${metrics.appCosts.toFixed(2)}
+                  </div>
+                </div>
+              )}
+              
+              <div className="p-3 rounded-lg bg-gray-100 dark:bg-gray-900 border">
+                <div className="text-xs text-muted-foreground">Total Costs</div>
+                <div className="mt-1 text-sm font-bold text-red-600 dark:text-red-400">
+                  ${metrics.totalCost.toFixed(2)}
+                </div>
+              </div>
             </div>
-          )}
-          
-          <div className="flex justify-between items-center py-2 border-b">
-            <span className="text-sm text-muted-foreground">Platform cost ({platform})</span>
-            <span className="font-medium text-red-600 dark:text-red-400">-${metrics.platformCost.toFixed(2)}</span>
           </div>
-          
-          {metrics.appCosts > 0 && (
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-sm text-muted-foreground">App costs</span>
-              <span className="font-medium text-red-600 dark:text-red-400">-${metrics.appCosts.toFixed(2)}</span>
+
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-4 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground">ROI Ratio</div>
+                  <div className="text-2xl font-bold text-primary mt-1">
+                    {metrics.roiRatio.toFixed(1)}x
+                  </div>
+                </div>
+                <Calculator className="h-8 w-8 text-primary/20" />
+              </div>
             </div>
-          )}
-          
-          <div className="flex justify-between items-center py-2 bg-muted/30 rounded-lg px-3 mt-3">
-            <span className="font-medium text-sm">Total Costs</span>
-            <span className="font-bold text-red-600 dark:text-red-400">${metrics.totalCost.toFixed(2)}</span>
-          </div>
-          
-          <div className="flex justify-between items-center py-3 bg-primary/5 rounded-lg px-3">
-            <span className="font-semibold">ROI Ratio</span>
-            <span className="font-bold text-lg text-primary">{metrics.roiRatio.toFixed(1)}x</span>
-          </div>
-          
-          <div className="flex justify-between items-center py-2 bg-muted/20 rounded-lg px-3">
-            <span className="font-medium text-sm">Payback Period</span>
-            <span className="font-bold">{metrics.paybackDays > 0 ? metrics.paybackDays.toFixed(1) + ' days' : 'Immediate'}</span>
+            
+            <div className="p-4 rounded-lg bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-950/30 dark:to-amber-950/10 border border-amber-300 dark:border-amber-900">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground">Payback Period</div>
+                  <div className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-1">
+                    {metrics.paybackDays > 0 ? metrics.paybackDays.toFixed(0) : '0'}
+                    <span className="text-sm ml-1">days</span>
+                  </div>
+                </div>
+                <Clock className="h-8 w-8 text-amber-600/20" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -365,14 +441,18 @@ export function ROISettingsPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[480px] sm:w-[540px] overflow-y-auto p-0 bg-white dark:bg-gray-950">
-        <SheetHeader className="p-6 pb-4 border-b">
-          <SheetTitle className="flex items-center gap-2">
-            <Calculator className="h-5 w-5" />
-            ROI Calculator
+      <SheetContent 
+        side="right" 
+        className="w-[50%] min-w-[768px] overflow-y-auto p-0 bg-white dark:bg-gray-950 data-[state=open]:duration-500"
+        style={{ maxWidth: 'none' }}
+      >
+        <SheetHeader className="p-6 pb-4 border-b bg-gradient-to-r from-background to-muted/20">
+          <SheetTitle className="flex items-center gap-2 text-lg">
+            <Calculator className="h-5 w-5 text-primary" />
+            Advanced ROI Calculator
           </SheetTitle>
-          <SheetDescription>
-            Configure your automation metrics to see real-time ROI projections
+          <SheetDescription className="text-sm">
+            Configure your automation metrics to see real-time ROI projections with task-specific factors
           </SheetDescription>
         </SheetHeader>
 
@@ -393,167 +473,269 @@ export function ROISettingsPanel({
             </p>
           </div>
 
-          {/* Task Configuration - Simplified */}
+          {/* Task Configuration - Compact Grid */}
           <div className="space-y-4">
             <h3 className="text-base font-semibold">Task Configuration</h3>
             
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="taskType" className="font-medium">Task Type</Label>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[280px]">
-                    <p>Select the type of task this automation performs. Each task type has different value multipliers based on business impact.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <Select 
-                value={taskType} 
-                onValueChange={(value) => {
-                  setTaskType(value);
-                  setTaskMultiplier(taskTypeMultipliers[value as keyof typeof taskTypeMultipliers]);
-                  handleMinutesPerRunChange(benchmarks.minutes[value as keyof typeof benchmarks.minutes]);
-                  setHourlyRate(benchmarks.hourlyRate[value as keyof typeof benchmarks.hourlyRate]);
-                  updateScenarioROI({ 
-                    taskType: value,
-                    taskMultiplier: taskTypeMultipliers[value as keyof typeof taskTypeMultipliers],
-                    minutesPerRun: parseFloat(benchmarks.minutes[value as keyof typeof benchmarks.minutes].toFixed(1)),
-                    hourlyRate: benchmarks.hourlyRate[value as keyof typeof benchmarks.hourlyRate],
-                  });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select task type" />
-                </SelectTrigger>
-                <SelectContent className="bg-background/95 backdrop-blur-sm border shadow-lg">
-                  <SelectItem value="general">General Automation</SelectItem>
-                  <SelectItem value="admin">Administrative</SelectItem>
-                  <SelectItem value="customer_support">Customer Support</SelectItem>
-                  <SelectItem value="sales">Sales Enablement</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                  <SelectItem value="compliance">Compliance/Legal</SelectItem>
-                  <SelectItem value="operations">Operations</SelectItem>
-                  <SelectItem value="finance">Finance</SelectItem>
-                  <SelectItem value="lead_gen">Lead Generation</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm">Task Value Multiplier</Label>
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <Progress value={taskMultiplier * 33.33} className="h-2 bg-muted [&>div]:bg-primary" />
+            <div className="grid grid-cols-2 gap-4">
+              {/* Task Type Selection */}
+              <div className="p-4 rounded-lg border bg-card">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="taskType" className="text-sm font-medium">Task Type</Label>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-[280px]">
+                        <p>Select the type of task this automation performs. Each task type has different value multipliers based on business impact.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select 
+                    value={taskType} 
+                    onValueChange={(value) => {
+                      setTaskType(value);
+                      setTaskMultiplier(taskTypeMultipliers[value as keyof typeof taskTypeMultipliers]);
+                      handleMinutesPerRunChange(benchmarks.minutes[value as keyof typeof benchmarks.minutes]);
+                      setHourlyRate(benchmarks.hourlyRate[value as keyof typeof benchmarks.hourlyRate]);
+                      updateScenarioROI({ 
+                        taskType: value,
+                        taskMultiplier: taskTypeMultipliers[value as keyof typeof taskTypeMultipliers],
+                        minutesPerRun: parseFloat(benchmarks.minutes[value as keyof typeof benchmarks.minutes].toFixed(1)),
+                        hourlyRate: benchmarks.hourlyRate[value as keyof typeof benchmarks.hourlyRate],
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select task type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background/95 backdrop-blur-sm border shadow-lg">
+                      <SelectItem value="general">General Automation</SelectItem>
+                      <SelectItem value="admin">Administrative</SelectItem>
+                      <SelectItem value="customer_support">Customer Support</SelectItem>
+                      <SelectItem value="sales">Sales Enablement</SelectItem>
+                      <SelectItem value="marketing">Marketing</SelectItem>
+                      <SelectItem value="compliance">Compliance/Legal</SelectItem>
+                      <SelectItem value="operations">Operations</SelectItem>
+                      <SelectItem value="finance">Finance</SelectItem>
+                      <SelectItem value="lead_gen">Lead Generation</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <span className="text-sm font-medium w-10 text-right">{taskMultiplier}×</span>
               </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Standard</span>
-                <span>Important</span>
-                <span>Critical</span>
+              
+              {/* Task Value Multiplier */}
+              <div className="p-4 rounded-lg border bg-card">
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Task Value Multiplier</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Progress value={taskMultiplier * 33.33} className="flex-1 h-2 bg-muted [&>div]:bg-primary" />
+                      <span className="text-sm font-bold text-primary w-8 text-right">{taskMultiplier}×</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Standard</span>
+                      <span>Important</span>
+                      <span>Critical</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Core Metrics - Simplified */}
-          <div className="space-y-6">
+          {/* Core Metrics - Tiled Layout */}
+          <div className="space-y-4">
             <h3 className="text-base font-semibold">Core Metrics</h3>
             
-            {/* Runs per month */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="runs" className="font-medium">Runs per Month</Label>
-                <Input
-                  id="runs"
-                  type="number"
-                  min={0}
-                  className="w-24 text-right tabular-nums h-9"
-                  value={runsPerMonth}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setRunsPerMonth(v);
-                    updateScenarioROI({ runsPerMonth: v });
-                  }}
-                />
+            <div className="grid grid-cols-3 gap-4">
+              {/* Runs per month tile */}
+              <div className="p-4 rounded-lg border bg-card">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <Label htmlFor="runs" className="text-sm font-medium">
+                      Runs per Month
+                    </Label>
+                    <Input
+                      id="runs"
+                      type="number"
+                      min={0}
+                      className="w-20 text-right tabular-nums h-8 text-sm"
+                      value={runsPerMonth}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setRunsPerMonth(v);
+                        updateScenarioROI({ runsPerMonth: v });
+                      }}
+                    />
+                  </div>
+                  <Slider
+                    id="runs-slider"
+                    min={0}
+                    max={10000}
+                    step={100}
+                    value={[runsPerMonth]}
+                    onValueChange={(values) => {
+                      const v = values[0];
+                      setRunsPerMonth(v);
+                      updateScenarioROI({ runsPerMonth: v });
+                    }}
+                    className="py-1"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0</span>
+                    <span>10K</span>
+                  </div>
+                </div>
               </div>
-              <Slider
-                id="runs-slider"
-                min={0}
-                max={10000}
-                step={100}
-                value={[runsPerMonth]}
-                onValueChange={(values) => {
-                  const v = values[0];
-                  setRunsPerMonth(v);
-                  updateScenarioROI({ runsPerMonth: v });
-                }}
-                className="py-2"
-              />
+
+              {/* Minutes saved tile */}
+              <div className="p-4 rounded-lg border bg-card">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <Label htmlFor="minutes" className="text-sm font-medium">
+                      Minutes Saved / Run
+                    </Label>
+                    <Input
+                      id="minutes"
+                      type="number"
+                      min={0.1}
+                      step={getMinuteStep(minutesPerRun)}
+                      className="w-20 text-right tabular-nums h-8 text-sm"
+                      value={minutesPerRun}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value);
+                        handleMinutesPerRunChange(v);
+                      }}
+                    />
+                  </div>
+                  <Slider
+                    id="minutes-slider"
+                    min={0.1}
+                    max={60}
+                    step={getMinuteStep(minutesPerRun)}
+                    value={[minutesPerRun]}
+                    onValueChange={(values) => {
+                      const v = values[0];
+                      handleMinutesPerRunChange(v);
+                    }}
+                    className="py-1"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0.1</span>
+                    <span>60 min</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hourly rate tile */}
+              <div className="p-4 rounded-lg border bg-card">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <Label htmlFor="hourly" className="text-sm font-medium">
+                      Labor Cost / hr
+                    </Label>
+                    <div className="flex items-center">
+                      <span className="text-sm text-muted-foreground mr-1">$</span>
+                      <Input
+                        id="hourly"
+                        type="number"
+                        min={0}
+                        className="w-16 text-right tabular-nums h-8 text-sm"
+                        value={hourlyRate}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setHourlyRate(v);
+                          updateScenarioROI({ hourlyRate: v });
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <Slider
+                    id="hourly-slider"
+                    min={15}
+                    max={100}
+                    step={5}
+                    value={[hourlyRate]}
+                    onValueChange={(values) => {
+                      const v = values[0];
+                      setHourlyRate(v);
+                      updateScenarioROI({ hourlyRate: v });
+                    }}
+                    className="py-1"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>$15</span>
+                    <span>$100</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Task-Specific Factors Section - NEW */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Task-Specific Optimization Factors
+              </h3>
+              <Badge variant="secondary" className="text-xs">
+                {taskType ? taskType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'General'}
+              </Badge>
+            </div>
+            
+            {/* Placeholder for future AI-generated factors */}
+            <div className="p-4 rounded-lg bg-muted/30 border-2 border-dashed border-muted-foreground/20">
+              <div className="text-center space-y-2">
+                <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  Task-Specific Factors Coming Soon
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  AI-powered factors tailored to your {taskType || 'automation'} workflow
+                </p>
+                <Button variant="outline" size="sm" disabled className="mt-2">
+                  <Sparkles className="h-3 w-3 mr-2" />
+                  Generate Factors
+                </Button>
+              </div>
             </div>
 
-            {/* Minutes saved */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="minutes" className="font-medium">Minutes Saved / Run</Label>
-                <Input
-                  id="minutes"
-                  type="number"
-                  min={0.1}
-                  step={getMinuteStep(minutesPerRun)}
-                  className="w-24 text-right tabular-nums h-9"
-                  value={minutesPerRun}
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value);
-                    handleMinutesPerRunChange(v);
-                  }}
-                />
-              </div>
-              <Slider
-                id="minutes-slider"
-                min={0.1}
-                max={60}
-                step={getMinuteStep(minutesPerRun)}
-                value={[minutesPerRun]}
-                onValueChange={(values) => {
-                  const v = values[0];
-                  handleMinutesPerRunChange(v);
-                }}
-                className="py-2"
-              />
-            </div>
-
-            {/* Hourly rate */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="hourly" className="font-medium">Labor Costs Per hr ($)</Label>
-                <Input
-                  id="hourly"
-                  type="number"
-                  min={0}
-                  className="w-24 text-right tabular-nums h-9"
-                  value={hourlyRate}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setHourlyRate(v);
-                    updateScenarioROI({ hourlyRate: v });
-                  }}
-                />
-              </div>
-              <Slider
-                id="hourly-slider"
-                min={15}
-                max={100}
-                step={5}
-                value={[hourlyRate]}
-                onValueChange={(values) => {
-                  const v = values[0];
-                  setHourlyRate(v);
-                  updateScenarioROI({ hourlyRate: v });
-                }}
-                className="py-2"
-              />
+            {/* Placeholder grid for future factor cards */}
+            <div className="hidden">
+              <Accordion type="multiple" className="space-y-3">
+                {/* Positive Factors */}
+                <AccordionItem value="positive-factors" className="border rounded-lg bg-green-50/50 dark:bg-green-950/10">
+                  <AccordionTrigger className="px-4 hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <span className="font-medium">Value Drivers (6)</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Factor cards will go here */}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+                
+                {/* Negative Factors */}
+                <AccordionItem value="negative-factors" className="border rounded-lg bg-red-50/50 dark:bg-red-950/10">
+                  <AccordionTrigger className="px-4 hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                      <span className="font-medium">Cost & Risk Factors (4)</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Factor cards will go here */}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           </div>
 
