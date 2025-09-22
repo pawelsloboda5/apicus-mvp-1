@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import {
   Sheet,
   SheetContent,
@@ -14,12 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { HelpCircle, TrendingUp, DollarSign, Calculator, Zap, AlertTriangle, Sparkles, ChevronRight, Clock } from "lucide-react";
+import { HelpCircle, TrendingUp, DollarSign, Calculator, Zap, AlertTriangle, Sparkles, Clock, Loader2, RotateCcw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { pricing } from "@/app/api/data/pricing";
 import type { Scenario } from "@/lib/db";
 import { PlatformType } from "@/lib/types";
+import type { NodeData } from "@/lib/types";
 // ROI utilities are now handled by the useROICalculations hook
 import { useROICalculations } from "@/lib/hooks/useROICalculations";
 import { calculateRoiMetrics } from "@/lib/roi-metrics";
@@ -28,6 +29,16 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { FactorCard } from "./FactorCard";
+import type { 
+  PositiveFactor, 
+  NegativeFactor,
+  GenerateROIFieldsRequest,
+  GenerateROIFieldsResponse,
+  WorkflowStep,
+  TaskType,
+  PlatformType as ROIPlatformType
+} from "@/app/api/openai/generate-roi-fields/types";
 
 interface ROISettingsPanelProps {
   open: boolean;
@@ -225,6 +236,155 @@ export function ROISettingsPanel({
   onGenerateReport,
   nodes = [],
 }: ROISettingsPanelProps) {
+  // Task-specific factors state
+  const [positiveFactors, setPositiveFactors] = React.useState<PositiveFactor[]>([]);
+  const [negativeFactors, setNegativeFactors] = React.useState<NegativeFactor[]>([]);
+  const [factorValues, setFactorValues] = React.useState<Record<string, number>>({});
+  const [isGeneratingFactors, setIsGeneratingFactors] = React.useState(false);
+  const [factorsGenerated, setFactorsGenerated] = React.useState(false);
+  const [factorConfidence, setFactorConfidence] = React.useState(0);
+  
+  // Generate task-specific factors using AI
+  const generateFactors = useCallback(async () => {
+    setIsGeneratingFactors(true);
+    try {
+      // Prepare workflow steps from nodes
+      const workflowSteps: WorkflowStep[] = nodes
+        .filter(n => n.type && ['trigger', 'action', 'decision'].includes(n.type))
+        .map((node, index) => {
+          const nodeData = node.data as Partial<NodeData> | undefined;
+          return {
+            appId: nodeData?.appId || 'unknown',
+            appName: nodeData?.appName || nodeData?.label || 'Unknown App',
+            action: nodeData?.action || nodeData?.typeOf || node.type || 'process',
+            typeOf: nodeData?.typeOf || node.type || 'action',
+            logoUrl: nodeData?.logoUrl,
+            index
+          };
+        });
+
+      // Calculate current net ROI
+      const metrics = calculateRoiMetrics({
+        platform,
+        runsPerMonth,
+        minutesPerRun,
+        hourlyRate,
+        taskMultiplier,
+        complianceEnabled,
+        riskLevel,
+        riskFrequency,
+        errorCost,
+        revenueEnabled,
+        monthlyVolume,
+        conversionRate,
+        valuePerConversion,
+      }, nodes);
+
+      const request: GenerateROIFieldsRequest = {
+        taskType: (taskType as TaskType) || 'general',
+        automationName: `${taskType} Automation Workflow`,
+        platform: platform as ROIPlatformType,
+        runsPerMonth,
+        minutesPerRun,
+        hourlyRate,
+        taskMultiplier,
+        currentNetROI: metrics.netROI,
+        workflowSteps,
+        // Optional context - could be enhanced with user inputs
+        industry: undefined,
+        companySize: 'medium',
+        automationMaturity: 'intermediate',
+        options: {
+          useIndustryBenchmarks: true,
+          includeAdvancedFactors: false,
+          confidenceLevel: 'moderate'
+        }
+      };
+
+      const response = await fetch('/api/openai/generate-roi-fields', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate factors: ${response.statusText}`);
+      }
+
+      const data: GenerateROIFieldsResponse = await response.json();
+      
+      if (data.success) {
+        setPositiveFactors(data.data.positiveFactors);
+        setNegativeFactors(data.data.negativeFactors);
+        setFactorConfidence(data.data.metadata.confidenceScore);
+        
+        // Initialize factor values with suggested values
+        const initialValues: Record<string, number> = {};
+        data.data.positiveFactors.forEach(f => {
+          initialValues[f.id] = f.suggestedValue;
+        });
+        data.data.negativeFactors.forEach(f => {
+          initialValues[f.id] = f.suggestedValue;
+        });
+        setFactorValues(initialValues);
+        
+        setFactorsGenerated(true);
+        
+        // Save to scenario (optional)
+        if (updateScenarioROI) {
+          updateScenarioROI({
+            taskSpecificFactors: {
+              positive: Object.fromEntries(
+                data.data.positiveFactors.map(f => [f.id, f.suggestedValue])
+              ),
+              negative: Object.fromEntries(
+                data.data.negativeFactors.map(f => [f.id, f.suggestedValue])
+              ),
+              definitions: {
+                positive: data.data.positiveFactors,
+                negative: data.data.negativeFactors
+              },
+              generatedAt: Date.now(),
+              confidence: data.data.metadata.confidenceScore
+            }
+          } as unknown as Partial<Scenario>);
+        }
+      }
+    } catch (error) {
+      console.error('Error generating factors:', error);
+      // Could show a toast notification here
+    } finally {
+      setIsGeneratingFactors(false);
+    }
+  }, [
+    taskType, platform, nodes, runsPerMonth, minutesPerRun, hourlyRate, 
+    taskMultiplier, complianceEnabled, riskLevel, riskFrequency, errorCost,
+    revenueEnabled, monthlyVolume, conversionRate, valuePerConversion, updateScenarioROI
+  ]);
+  
+  // Handle factor value changes
+  const handleFactorChange = useCallback((factorId: string, value: number) => {
+    setFactorValues(prev => ({
+      ...prev,
+      [factorId]: value
+    }));
+    
+    // Optionally update scenario
+    if (updateScenarioROI) {
+      const isPositive = factorId.startsWith('pf_');
+      updateScenarioROI({
+        [`taskSpecificFactors.${isPositive ? 'positive' : 'negative'}.${factorId}`]: value
+      } as unknown as Partial<Scenario>);
+    }
+  }, [updateScenarioROI]);
+  
+  // Reset factor to suggested value
+  const handleFactorReset = useCallback((factorId: string) => {
+    const factor = [...positiveFactors, ...negativeFactors].find(f => f.id === factorId);
+    if (factor) {
+      handleFactorChange(factorId, factor.suggestedValue);
+    }
+  }, [positiveFactors, negativeFactors, handleFactorChange]);
   
   // Calculate steps per run based on actual workflow nodes
   const stepsPerRun = useMemo(() => {
@@ -269,6 +429,20 @@ export function ROISettingsPanel({
       monthlyVolume,
       conversionRate,
       valuePerConversion,
+      // Include task-specific factors if generated
+      taskSpecificFactors: factorsGenerated && positiveFactors.length > 0 ? {
+        positive: Object.fromEntries(
+          positiveFactors.map(f => [f.id, factorValues[f.id] ?? f.suggestedValue])
+        ),
+        negative: Object.fromEntries(
+          negativeFactors.map(f => [f.id, factorValues[f.id] ?? f.suggestedValue])
+        ),
+        definitions: {
+          positive: positiveFactors,
+          negative: negativeFactors,
+        },
+        confidence: factorConfidence
+      } : undefined,
     }, nodes);
 
     return (
@@ -277,12 +451,21 @@ export function ROISettingsPanel({
         <div className="grid grid-cols-4 gap-3">
           <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 p-4">
             <div className="relative z-10">
-              <p className="text-xs font-medium text-green-700 dark:text-green-300">Monthly Value</p>
+              <p className="text-xs font-medium text-green-700 dark:text-green-300 flex items-center gap-1">
+                Monthly Value
+                {factorsGenerated && metrics.totalPositiveFactorImpact && (
+                  <Sparkles className="h-3 w-3 text-green-600" />
+                )}
+              </p>
               <p className="text-2xl font-bold text-green-900 dark:text-green-100 mt-1">
                 ${Math.round(metrics.totalValue).toLocaleString()}
               </p>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                {nodes.filter(n => ['trigger','action','decision'].includes(n.type || '')).length} steps
+                {factorsGenerated && metrics.totalPositiveFactorImpact ? (
+                  <>+${Math.round(metrics.totalPositiveFactorImpact).toLocaleString()} from factors</>
+                ) : (
+                  <>{nodes.filter(n => ['trigger','action','decision'].includes(n.type || '')).length} steps</>
+                )}
               </p>
             </div>
             <TrendingUp className="absolute bottom-1 right-1 h-5 w-5 text-green-600/20" />
@@ -290,12 +473,20 @@ export function ROISettingsPanel({
           
           <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 p-4">
             <div className="relative z-10">
-              <p className="text-xs font-medium text-blue-700 dark:text-blue-300">Net ROI</p>
+              <p className="text-xs font-medium text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                Net ROI
+                {factorsGenerated && metrics.factorBoost && metrics.factorBoost > 0 && (
+                  <Sparkles className="h-3 w-3 text-blue-600" />
+                )}
+              </p>
               <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">
                 ${Math.round(metrics.netROI).toLocaleString()}
               </p>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                 {metrics.roiRatio.toFixed(1)}x ratio
+                {factorsGenerated && metrics.factorBoost && metrics.factorBoost > 0 && (
+                  <> (+{(metrics.factorBoost * 100).toFixed(0)}%)</>
+                )}
               </p>
             </div>
             <DollarSign className="absolute bottom-1 right-1 h-5 w-5 text-blue-600/20" />
@@ -370,6 +561,42 @@ export function ROISettingsPanel({
             </div>
           </div>
 
+          {/* Factor Impacts - Show only if factors are generated */}
+          {factorsGenerated && metrics.totalPositiveFactorImpact && (
+            <div>
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">AI Factor Impacts</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 rounded-lg bg-green-50/50 dark:bg-green-950/20 border border-green-200 dark:border-green-900">
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs text-muted-foreground">Factor Boosts</span>
+                    <Sparkles className="h-3 w-3 text-green-500" />
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-green-700 dark:text-green-400">
+                    +${Math.round(metrics.totalPositiveFactorImpact || 0).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-green-600 dark:text-green-500 mt-1">
+                    {positiveFactors.length} optimizations
+                  </div>
+                </div>
+                
+                {metrics.totalNegativeFactorImpact !== undefined && metrics.totalNegativeFactorImpact > 0 && (
+                  <div className="p-3 rounded-lg bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                    <div className="flex justify-between items-start">
+                      <span className="text-xs text-muted-foreground">Factor Costs</span>
+                      <AlertTriangle className="h-3 w-3 text-red-500" />
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-red-700 dark:text-red-400">
+                      -${Math.round(metrics.totalNegativeFactorImpact || 0).toLocaleString()}
+                    </div>
+                    <div className="text-xs text-red-600 dark:text-red-500 mt-1">
+                      {negativeFactors.length} risks
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Cost Breakdown */}
           <div>
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Costs</h4>
@@ -400,30 +627,80 @@ export function ROISettingsPanel({
             </div>
           </div>
 
-          {/* Key Metrics */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-4 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-muted-foreground">ROI Ratio</div>
-                  <div className="text-2xl font-bold text-primary mt-1">
-                    {metrics.roiRatio.toFixed(1)}x
-                  </div>
+          {/* Comprehensive ROI Metrics Grid - 10 boxes as requested */}
+          <div>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Detailed ROI Metrics</h4>
+            <div className="grid grid-cols-5 gap-2">
+              {/* Row 1 - Primary Metrics */}
+              <div className="p-3 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                <div className="text-xs text-muted-foreground">ROI Ratio</div>
+                <div className="text-lg font-bold text-primary">
+                  {metrics.roiRatio.toFixed(1)}x
                 </div>
-                <Calculator className="h-8 w-8 text-primary/20" />
               </div>
-            </div>
-            
-            <div className="p-4 rounded-lg bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-950/30 dark:to-amber-950/10 border border-amber-300 dark:border-amber-900">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-muted-foreground">Payback Period</div>
-                  <div className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-1">
-                    {metrics.paybackDays > 0 ? metrics.paybackDays.toFixed(0) : '0'}
-                    <span className="text-sm ml-1">days</span>
-                  </div>
+              
+              <div className="p-3 rounded-lg bg-gradient-to-br from-green-100 to-green-50 dark:from-green-950/30 dark:to-green-950/10 border border-green-300 dark:border-green-900">
+                <div className="text-xs text-muted-foreground">Net ROI</div>
+                <div className="text-lg font-bold text-green-700 dark:text-green-400">
+                  ${Math.round(metrics.netROI).toLocaleString()}
                 </div>
-                <Clock className="h-8 w-8 text-amber-600/20" />
+              </div>
+              
+              <div className="p-3 rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-950/30 dark:to-blue-950/10 border border-blue-300 dark:border-blue-900">
+                <div className="text-xs text-muted-foreground">Total Value</div>
+                <div className="text-lg font-bold text-blue-700 dark:text-blue-400">
+                  ${Math.round(metrics.totalValue).toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-950/30 dark:to-amber-950/10 border border-amber-300 dark:border-amber-900">
+                <div className="text-xs text-muted-foreground">Payback</div>
+                <div className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                  {metrics.paybackDays > 0 ? metrics.paybackDays.toFixed(0) : '0'}d
+                </div>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-gradient-to-br from-purple-100 to-purple-50 dark:from-purple-950/30 dark:to-purple-950/10 border border-purple-300 dark:border-purple-900">
+                <div className="text-xs text-muted-foreground">Hours Saved</div>
+                <div className="text-lg font-bold text-purple-700 dark:text-purple-400">
+                  {metrics.timeSavedHours.toFixed(1)}h
+                </div>
+              </div>
+              
+              {/* Row 2 - Value & Cost Breakdown */}
+              <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
+                <div className="text-xs text-muted-foreground">Time Value</div>
+                <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                  ${Math.round(metrics.timeValue).toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-900">
+                <div className="text-xs text-muted-foreground">Risk Value</div>
+                <div className="text-lg font-bold text-cyan-700 dark:text-cyan-400">
+                  ${Math.round(metrics.riskValue).toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900">
+                <div className="text-xs text-muted-foreground">Revenue</div>
+                <div className="text-lg font-bold text-indigo-700 dark:text-indigo-400">
+                  ${Math.round(metrics.revenueValue).toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                <div className="text-xs text-muted-foreground">Total Cost</div>
+                <div className="text-lg font-bold text-red-700 dark:text-red-400">
+                  ${metrics.totalCost.toFixed(2)}
+                </div>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-gray-100 dark:bg-gray-900 border">
+                <div className="text-xs text-muted-foreground">Break Even</div>
+                <div className="text-lg font-bold text-gray-700 dark:text-gray-400">
+                  {metrics.breakEvenRuns || 0}
+                </div>
               </div>
             </div>
           </div>
@@ -674,69 +951,155 @@ export function ROISettingsPanel({
             </div>
           </div>
 
-          {/* Task-Specific Factors Section - NEW */}
+          {/* Task-Specific Factors Section - INTEGRATED */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
                 Task-Specific Optimization Factors
               </h3>
-              <Badge variant="secondary" className="text-xs">
-                {taskType ? taskType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'General'}
-              </Badge>
-            </div>
-            
-            {/* Placeholder for future AI-generated factors */}
-            <div className="p-4 rounded-lg bg-muted/30 border-2 border-dashed border-muted-foreground/20">
-              <div className="text-center space-y-2">
-                <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/50" />
-                <p className="text-sm font-medium text-muted-foreground">
-                  Task-Specific Factors Coming Soon
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  AI-powered factors tailored to your {taskType || 'automation'} workflow
-                </p>
-                <Button variant="outline" size="sm" disabled className="mt-2">
-                  <Sparkles className="h-3 w-3 mr-2" />
-                  Generate Factors
-                </Button>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">
+                  {taskType ? taskType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'General'}
+                </Badge>
+                {factorsGenerated && factorConfidence > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    {factorConfidence}% confidence
+                  </Badge>
+                )}
               </div>
             </div>
-
-            {/* Placeholder grid for future factor cards */}
-            <div className="hidden">
-              <Accordion type="multiple" className="space-y-3">
+            
+            {!factorsGenerated ? (
+              /* Generation prompt */
+              <div className="p-4 rounded-lg bg-muted/30 border-2 border-dashed border-muted-foreground/20">
+                <div className="text-center space-y-2">
+                  <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Generate AI-Powered ROI Factors
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Get intelligent, task-specific factors tailored to your {taskType || 'automation'} workflow
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={generateFactors}
+                    disabled={isGeneratingFactors}
+                  >
+                    {isGeneratingFactors ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3 w-3 mr-2" />
+                        Generate Factors
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* Display generated factors */
+              <Accordion type="multiple" defaultValue={["positive-factors", "negative-factors"]} className="space-y-3">
                 {/* Positive Factors */}
-                <AccordionItem value="positive-factors" className="border rounded-lg bg-green-50/50 dark:bg-green-950/10">
-                  <AccordionTrigger className="px-4 hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                      <span className="font-medium">Value Drivers (6)</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 pb-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Factor cards will go here */}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                {positiveFactors.length > 0 && (
+                  <AccordionItem value="positive-factors" className="border rounded-lg bg-green-50/50 dark:bg-green-950/10">
+                    <AccordionTrigger className="px-4 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                        <span className="font-medium">Value Drivers ({positiveFactors.length})</span>
+                        {positiveFactors.length > 0 && (
+                          <span className="text-xs text-green-600 ml-2">
+                            +${positiveFactors.reduce((sum, f) => {
+                              const value = factorValues[f.id] ?? f.suggestedValue;
+                              const ratio = value / f.suggestedValue;
+                              return sum + Math.round(f.estimatedMonthlyImpact * ratio);
+                            }, 0).toLocaleString()}/mo
+                          </span>
+                        )}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        {positiveFactors.map(factor => (
+                          <FactorCard
+                            key={factor.id}
+                            factor={factor}
+                            value={factorValues[factor.id] ?? factor.suggestedValue}
+                            onChange={(value) => handleFactorChange(factor.id, value)}
+                            onReset={() => handleFactorReset(factor.id)}
+                            variant="positive"
+                          />
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
                 
                 {/* Negative Factors */}
-                <AccordionItem value="negative-factors" className="border rounded-lg bg-red-50/50 dark:bg-red-950/10">
-                  <AccordionTrigger className="px-4 hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-red-600" />
-                      <span className="font-medium">Cost & Risk Factors (4)</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 pb-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Factor cards will go here */}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                {negativeFactors.length > 0 && (
+                  <AccordionItem value="negative-factors" className="border rounded-lg bg-red-50/50 dark:bg-red-950/10">
+                    <AccordionTrigger className="px-4 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                        <span className="font-medium">Cost & Risk Factors ({negativeFactors.length})</span>
+                        {negativeFactors.length > 0 && (
+                          <span className="text-xs text-red-600 ml-2">
+                            ${Math.abs(negativeFactors.reduce((sum, f) => {
+                              const value = factorValues[f.id] ?? f.suggestedValue;
+                              const ratio = value / f.suggestedValue;
+                              return sum + Math.round(f.estimatedMonthlyImpact * ratio);
+                            }, 0)).toLocaleString()}/mo
+                          </span>
+                        )}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        {negativeFactors.map(factor => (
+                          <FactorCard
+                            key={factor.id}
+                            factor={factor}
+                            value={factorValues[factor.id] ?? factor.suggestedValue}
+                            onChange={(value) => handleFactorChange(factor.id, value)}
+                            onReset={() => handleFactorReset(factor.id)}
+                            variant="negative"
+                          />
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+                
+                {/* Regenerate button */}
+                {factorsGenerated && (
+                  <div className="flex justify-center pt-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={generateFactors}
+                      disabled={isGeneratingFactors}
+                    >
+                      {isGeneratingFactors ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                          Regenerating...
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="h-3 w-3 mr-2" />
+                          Regenerate Factors
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </Accordion>
-            </div>
+            )}
           </div>
 
           {/* Advanced Factors Accordion - Simplified */}

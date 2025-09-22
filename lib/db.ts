@@ -69,6 +69,27 @@ export interface Scenario {
   emailPsText?: string;
   emailTestimonialText?: string;
   emailUrgencyText?: string;
+  
+  /* ---------- Task-Specific ROI Factors ---------- */
+  taskSpecificFactors?: {
+    positive: Record<string, number>; // factorId -> current value
+    negative: Record<string, number>; // factorId -> current value
+    definitions: {
+      positive: unknown[]; // PositiveFactor[] - stored as JSON
+      negative: unknown[]; // NegativeFactor[] - stored as JSON
+    };
+    generatedAt?: number; // Timestamp when factors were generated
+    confidence: number; // Overall confidence score 0-100
+  };
+  
+  // Calculated factor impacts
+  factorImpacts?: {
+    timeBoost: number;
+    revenueBoost: number;
+    riskReduction: number;
+    additionalCosts: number;
+    netImpact: number;
+  };
 }
 
 export interface FlowNode {
@@ -263,6 +284,40 @@ class ApicusDB extends Dexie {
             metric.metrics.appCosts = 0;
             metric.metrics.totalCosts = metric.metrics.platformCost;
             metric.metrics.appCostBreakdown = {};
+          }
+        });
+      });
+
+    // Version 10 – Add task-specific ROI factors
+    this.version(10)
+      .stores({
+        scenarios: "++id, slug, name, updatedAt, platform, originalTemplateId, searchQuery, emailYourName, taskType",
+        nodes: "++id, scenarioId, reactFlowId, type",
+        edges: "++id, scenarioId, reactFlowId",
+        metrics: "++id, scenarioId, timestamp, [scenarioId+timestamp]",
+      })
+      .upgrade(tx => {
+        tx.table("scenarios").toCollection().modify((sc: Scenario) => {
+          // Initialize task-specific factors if they don't exist
+          if (!sc.taskSpecificFactors) {
+            sc.taskSpecificFactors = {
+              positive: {},
+              negative: {},
+              definitions: {
+                positive: [],
+                negative: []
+              },
+              confidence: 0
+            };
+          }
+          if (!sc.factorImpacts) {
+            sc.factorImpacts = {
+              timeBoost: 0,
+              revenueBoost: 0,
+              riskReduction: 0,
+              additionalCosts: 0,
+              netImpact: 0
+            };
           }
         });
       });

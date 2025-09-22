@@ -5,12 +5,13 @@ import {
   calculateRiskValue,
   calculateRevenueValue,
   calculatePlatformCost,
-  calculateNetROI,
   calculateROIRatio,
   calculatePaybackPeriod,
   calculateAppCosts,
 } from "@/lib/roi-utils";
 import { pricing } from "@/app/api/data/pricing";
+import { calculateFactorImpacts, applyFactorImpacts } from "@/lib/factor-calculations";
+import type { PositiveFactor, NegativeFactor } from "@/app/api/openai/generate-roi-fields/types";
 
 export interface RoiSettings {
   platform: PlatformType;
@@ -27,6 +28,16 @@ export interface RoiSettings {
   monthlyVolume?: number;
   conversionRate?: number;
   valuePerConversion?: number;
+  // Task-specific factors
+  taskSpecificFactors?: {
+    positive: Record<string, number>;
+    negative: Record<string, number>;
+    definitions: {
+      positive: PositiveFactor[];
+      negative: NegativeFactor[];
+    };
+    confidence: number;
+  };
 }
 
 export interface RoiComputed {
@@ -47,6 +58,11 @@ export interface RoiComputed {
   paybackDays: number;
   breakEvenRuns: number;
   timeSavedHours: number;
+  
+  // Factor impacts
+  factorBoost?: number;
+  totalPositiveFactorImpact?: number;
+  totalNegativeFactorImpact?: number;
 }
 
 // Build an AppPricingData map from nodes if available
@@ -95,23 +111,63 @@ export function calculateRoiMetrics(
     monthlyVolume = 0,
     conversionRate = 0,
     valuePerConversion = 0,
+    taskSpecificFactors,
   } = settings;
 
   // Core values (monthly)
-  const timeValue = calculateTimeValue(runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier);
-  const riskValue = calculateRiskValue(complianceEnabled, runsPerMonth, riskFrequency, errorCost, riskLevel);
-  const revenueValue = calculateRevenueValue(revenueEnabled, monthlyVolume, conversionRate, valuePerConversion);
+  const baseTimeValue = calculateTimeValue(runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier);
+  const baseRiskValue = calculateRiskValue(complianceEnabled, runsPerMonth, riskFrequency, errorCost, riskLevel);
+  const baseRevenueValue = calculateRevenueValue(revenueEnabled, monthlyVolume, conversionRate, valuePerConversion);
+  
+  // Calculate factor impacts if factors are available
+  let timeValue = baseTimeValue;
+  let riskValue = baseRiskValue;
+  let revenueValue = baseRevenueValue;
+  let factorBoost = 0;
+  let totalPositiveFactorImpact = 0;
+  let totalNegativeFactorImpact = 0;
+  
+  if (taskSpecificFactors && taskSpecificFactors.definitions) {
+    const factorImpacts = calculateFactorImpacts(
+      taskSpecificFactors.definitions.positive || [],
+      taskSpecificFactors.definitions.negative || [],
+      {
+        ...taskSpecificFactors.positive,
+        ...taskSpecificFactors.negative,
+      }
+    );
+    
+    // Apply factor impacts
+    const enhanced = applyFactorImpacts(
+      {
+        timeValue: baseTimeValue,
+        riskValue: baseRiskValue,
+        revenueValue: baseRevenueValue,
+        platformCost: 0, // Will calculate below
+        appCosts: 0, // Will calculate below
+      },
+      factorImpacts
+    );
+    
+    timeValue = enhanced.enhancedTimeValue;
+    riskValue = enhanced.enhancedRiskValue;
+    revenueValue = enhanced.enhancedRevenueValue;
+    factorBoost = enhanced.factorBoost;
+    totalPositiveFactorImpact = factorImpacts.totalPositiveImpact;
+    totalNegativeFactorImpact = factorImpacts.totalNegativeImpact;
+  }
+  
   const totalValue = timeValue + riskValue + revenueValue;
 
-  // Costs (monthly)
+  // Costs (monthly) - including negative factor impacts
   const platformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodes.length || 5);
   const appPricing = appPricingMap || extractAppPricingFromNodes(nodes);
   const appCosts = calculateAppCosts(appPricing);
-  const totalCost = platformCost + appCosts;
+  const totalCost = platformCost + appCosts + totalNegativeFactorImpact;
 
   // Outcomes (monthly)
-  const netROI = calculateNetROI(totalValue, platformCost, appCosts);
-  const roiRatio = calculateROIRatio(totalValue, platformCost, appCosts);
+  const netROI = totalValue - totalCost;
+  const roiRatio = calculateROIRatio(totalValue, platformCost, appCosts + totalNegativeFactorImpact);
   const paybackDays = calculatePaybackPeriod(totalCost, netROI);
   const timeSavedHours = (runsPerMonth * minutesPerRun) / 60;
   const breakEvenRuns = totalCost > 0 && totalValue > totalCost
@@ -131,6 +187,9 @@ export function calculateRoiMetrics(
     paybackDays,
     breakEvenRuns,
     timeSavedHours,
+    factorBoost,
+    totalPositiveFactorImpact,
+    totalNegativeFactorImpact,
   };
 }
 
