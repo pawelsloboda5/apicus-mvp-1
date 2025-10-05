@@ -21,6 +21,7 @@ import { useROI } from "../hooks/useROI";
 import { useScenarioManager } from "../hooks/useScenarioManager";
 import { useEmailGeneration } from "../hooks/useEmailGeneration";
 import { useScenarioInitialization } from "../hooks/useScenarioInitialization";
+import { useInitialViewport } from "../hooks/useInitialViewport";
 
 // Import types
 import { NodeType, Scenario, NodeData, PlatformType } from "@/lib/types";
@@ -194,6 +195,17 @@ export function BuildPageContent() {
     nodes,
   });
 
+  // Initialize viewport management - fits all nodes with first node always visible
+  const { initializeViewport, resetViewport, fitToNodes } = useInitialViewport({
+    rfInstance,
+    nodes,
+    enabled: !isLoading, // Only enable after loading complete
+    minZoom: 0.1,
+    maxZoom: 2,
+    padding: 100,
+    duration: 800,
+  });
+
   // Load scenario data to canvas - stable callback
   const loadScenarioToCanvas = useCallback((scenario: Scenario) => {
     try {
@@ -220,10 +232,9 @@ export function BuildPageContent() {
       setNodes(loadedNodes);
       setEdges(loadedEdges);
       
-      // Update viewport if available
-      if (rfInstance && scenario.viewport) {
-        rfInstance.setViewport(scenario.viewport as Viewport);
-      }
+      // Note: Viewport is now handled by useInitialViewport hook
+      // which automatically calculates optimal zoom to fit all nodes
+      // while ensuring the first node is always visible
       
       // Delay to ensure state updates are complete
       setTimeout(() => {
