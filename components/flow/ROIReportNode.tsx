@@ -326,8 +326,9 @@ export const ROIReportNode: React.FC<ROIReportNodeProps> = ({ data }) => {
   }, [uniqueApps]);
 
   // Include app costs in total costs
-  const totalCosts = platformCost + appCosts;
-  const adjustedNetROI = netROI - appCosts; // Adjust net ROI to account for app costs
+  // Values are now computed upstream using unified calculator; avoid re-calculation drift
+  const totalCosts = (data as ROIReportNodeData & { totalCosts?: number }).totalCosts ?? (platformCost + appCosts);
+  const adjustedNetROI = netROI; // already includes appCosts and factor costs in generator
   const adjustedROIRatio = calculateROIRatio(timeValue + riskValue + revenueValue, platformCost, appCosts);
 
   // Calculate platform costs for all platforms

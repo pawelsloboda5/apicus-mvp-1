@@ -2,18 +2,11 @@ import { Node } from '@xyflow/react';
 import { nanoid } from 'nanoid';
 import { ROIReportNodeData } from '@/components/flow/ROIReportNode';
 import { 
-  calculateTimeValue,
-  calculateRiskValue,
-  calculateRevenueValue,
-  calculatePlatformCost,
-  calculateNetROI,
-  calculateROIRatio,
-  calculatePaybackPeriod,
   formatROIRatio,
-  calculateAppCosts,
 } from '@/lib/roi-utils';
-import { pricing } from '@/app/api/data/pricing';
-import { PlatformType, NodeData, AppPricingData } from '@/lib/types';
+import { PlatformType, NodeData } from '@/lib/types';
+import { calculateRoiMetrics } from '@/lib/roi-metrics';
+import type { PositiveFactor, NegativeFactor } from "@/app/api/openai/generate-roi-fields/types";
 
 interface ROIGeneratorConfig {
   // Position
@@ -43,6 +36,13 @@ interface ROIGeneratorConfig {
   
   // Workflow nodes for analysis
   nodes: Node[];
+  // Optional task-specific factors (already filtered/enabled)
+  taskSpecificFactors?: {
+    positive: Record<string, number>;
+    negative: Record<string, number>;
+    definitions: { positive: PositiveFactor[]; negative: NegativeFactor[] };
+    confidence?: number;
+  };
 }
 
 export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIReportNodeData> {
@@ -64,47 +64,43 @@ export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIRepor
     monthlyVolume = 100,
     conversionRate = 5,
     valuePerConversion = 200,
-    nodes = []
+    nodes = [],
+    taskSpecificFactors,
   } = config;
 
-  // Extract app pricing data from nodes
-  const appPricingMap: Record<string, AppPricingData> = {};
-  const uniqueApps = new Set<string>();
-  
-  nodes.forEach(node => {
-    const nodeData = node.data as Partial<NodeData>;
-    if (nodeData?.appId && nodeData?.pricingData) {
-      uniqueApps.add(nodeData.appId);
-      if (!appPricingMap[nodeData.appId]) {
-        appPricingMap[nodeData.appId] = {
-          appId: nodeData.appId,
-          appName: nodeData.appName || '',
-          appSlug: '',
-          hasFreeTier: nodeData.pricingData.hasFreeTier || false,
-          hasFreeTrial: false,
-          currency: nodeData.pricingData.currency || 'USD',
-          lowestMonthlyPrice: nodeData.pricingData.lowestMonthlyPrice || 0,
-          highestMonthlyPrice: 0,
-          tierCount: 0,
-          hasUsageBasedPricing: nodeData.pricingData.hasUsageBasedPricing || false,
-          hasAIFeatures: false,
-        };
-      }
-    }
-  });
-
-  // Calculate all ROI values
-  const timeValue = calculateTimeValue(runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier);
-  const riskValue = calculateRiskValue(complianceEnabled, runsPerMonth, riskFrequency, errorCost, riskLevel);
-  const revenueValue = calculateRevenueValue(revenueEnabled, monthlyVolume, conversionRate, valuePerConversion);
-  
-  const platformCost = calculatePlatformCost(platform, runsPerMonth, pricing, nodes.length);
-  const appCosts = calculateAppCosts(appPricingMap);
-  const totalValue = timeValue + riskValue + revenueValue;
-  const netROI = calculateNetROI(totalValue, platformCost, appCosts);
-  const roiRatio = calculateROIRatio(totalValue, platformCost, appCosts);
-  const totalCosts = platformCost + appCosts;
-  const paybackDays = calculatePaybackPeriod(totalCosts, netROI);
+  // Use unified calculator (includes task-specific factors and app pricing extracted from nodes)
+  const computed = calculateRoiMetrics({
+    platform,
+    runsPerMonth,
+    minutesPerRun,
+    hourlyRate,
+    taskMultiplier,
+    complianceEnabled,
+    riskLevel,
+    riskFrequency,
+    errorCost,
+    revenueEnabled,
+    monthlyVolume,
+    conversionRate,
+    valuePerConversion,
+    taskSpecificFactors: taskSpecificFactors
+      ? {
+          positive: taskSpecificFactors.positive,
+          negative: taskSpecificFactors.negative,
+          definitions: taskSpecificFactors.definitions,
+          confidence: taskSpecificFactors.confidence ?? 0,
+        }
+      : undefined,
+  }, nodes);
+  const timeValue = computed.timeValue;
+  const riskValue = computed.riskValue;
+  const revenueValue = computed.revenueValue;
+  const platformCost = computed.platformCost;
+  const appCosts = computed.appCosts;
+  const netROI = computed.netROI;
+  const roiRatio = computed.roiRatio;
+  const totalCosts = computed.totalCost;
+  const paybackDays = computed.paybackDays;
 
   // Extract workflow steps from nodes
   const workflowSteps = nodes
@@ -173,6 +169,8 @@ export function generateROIReportNode(config: ROIGeneratorConfig): Node<ROIRepor
       riskValue,
       revenueValue,
       platformCost,
+      appCosts,
+      totalCosts,
       netROI,
       roiRatio,
       paybackPeriod: paybackDays,

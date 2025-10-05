@@ -236,6 +236,10 @@ export function ROISettingsPanel({
   onGenerateReport,
   nodes = [],
 }: ROISettingsPanelProps) {
+  // Keep a stable ref to the scenario updater to avoid effect dependency loops
+  const updateScenarioROIRef = React.useRef(updateScenarioROI);
+  React.useEffect(() => { updateScenarioROIRef.current = updateScenarioROI; }, [updateScenarioROI]);
+  const lastPersistedSignatureRef = React.useRef<string>("");
   // Task-specific factors state
   const [positiveFactors, setPositiveFactors] = React.useState<PositiveFactor[]>([]);
   const [negativeFactors, setNegativeFactors] = React.useState<NegativeFactor[]>([]);
@@ -243,6 +247,8 @@ export function ROISettingsPanel({
   const [isGeneratingFactors, setIsGeneratingFactors] = React.useState(false);
   const [factorsGenerated, setFactorsGenerated] = React.useState(false);
   const [factorConfidence, setFactorConfidence] = React.useState(0);
+  const [lockedFactors, setLockedFactors] = React.useState<Record<string, boolean>>({});
+  const [enabledFactors, setEnabledFactors] = React.useState<Record<string, boolean>>({});
   
   // Generate task-specific factors using AI
   const generateFactors = useCallback(async () => {
@@ -314,35 +320,74 @@ export function ROISettingsPanel({
       const data: GenerateROIFieldsResponse = await response.json();
       
       if (data.success) {
-        setPositiveFactors(data.data.positiveFactors);
-        setNegativeFactors(data.data.negativeFactors);
+        // Merge with locked factors: keep locked ones unchanged
+        const prevPosMap = new Map(positiveFactors.map(f => [f.id, f]));
+        const prevNegMap = new Map(negativeFactors.map(f => [f.id, f]));
+
+        const mergedPositive: PositiveFactor[] = data.data.positiveFactors.map(f => {
+          return lockedFactors[f.id] && prevPosMap.has(f.id) ? prevPosMap.get(f.id)! : f;
+        });
+        const mergedNegative: NegativeFactor[] = data.data.negativeFactors.map(f => {
+          return lockedFactors[f.id] && prevNegMap.has(f.id) ? prevNegMap.get(f.id)! : f;
+        });
+
+        // Append any locked factors missing from response
+        positiveFactors.forEach(f => {
+          if (lockedFactors[f.id] && !mergedPositive.find(x => x.id === f.id)) {
+            mergedPositive.push(f);
+          }
+        });
+        negativeFactors.forEach(f => {
+          if (lockedFactors[f.id] && !mergedNegative.find(x => x.id === f.id)) {
+            mergedNegative.push(f);
+          }
+        });
+
+        setPositiveFactors(mergedPositive);
+        setNegativeFactors(mergedNegative);
         setFactorConfidence(data.data.metadata.confidenceScore);
-        
-        // Initialize factor values with suggested values
-        const initialValues: Record<string, number> = {};
-        data.data.positiveFactors.forEach(f => {
-          initialValues[f.id] = f.suggestedValue;
+
+        // Initialize/merge factor values
+        const newValues: Record<string, number> = { ...factorValues };
+        mergedPositive.forEach(f => {
+          newValues[f.id] = lockedFactors[f.id]
+            ? (factorValues[f.id] ?? f.suggestedValue)
+            : f.suggestedValue;
         });
-        data.data.negativeFactors.forEach(f => {
-          initialValues[f.id] = f.suggestedValue;
+        mergedNegative.forEach(f => {
+          newValues[f.id] = lockedFactors[f.id]
+            ? (factorValues[f.id] ?? f.suggestedValue)
+            : f.suggestedValue;
         });
-        setFactorValues(initialValues);
-        
+        setFactorValues(newValues);
+
+        // Initialize/merge enabled states (default true, keep prior for existing)
+        // Initialize enabled states (default true). Persist to scenario for global consistency
+        const computedEnabled: Record<string, boolean> = { ...enabledFactors };
+        mergedPositive.forEach(f => {
+          if (computedEnabled[f.id] === undefined) computedEnabled[f.id] = true;
+        });
+        mergedNegative.forEach(f => {
+          if (computedEnabled[f.id] === undefined) computedEnabled[f.id] = true;
+        });
+        setEnabledFactors(computedEnabled);
+        if (updateScenarioROI) {
+          updateScenarioROI({
+            ['taskSpecificFactors.enabled']: computedEnabled
+          } as unknown as Partial<Scenario>);
+        }
+
         setFactorsGenerated(true);
-        
-        // Save to scenario (optional)
+
+        // Save to scenario (optional) using merged arrays
         if (updateScenarioROI) {
           updateScenarioROI({
             taskSpecificFactors: {
-              positive: Object.fromEntries(
-                data.data.positiveFactors.map(f => [f.id, f.suggestedValue])
-              ),
-              negative: Object.fromEntries(
-                data.data.negativeFactors.map(f => [f.id, f.suggestedValue])
-              ),
+              positive: Object.fromEntries(mergedPositive.map(f => [f.id, newValues[f.id]])),
+              negative: Object.fromEntries(mergedNegative.map(f => [f.id, newValues[f.id]])),
               definitions: {
-                positive: data.data.positiveFactors,
-                negative: data.data.negativeFactors
+                positive: mergedPositive,
+                negative: mergedNegative
               },
               generatedAt: Date.now(),
               confidence: data.data.metadata.confidenceScore
@@ -359,7 +404,8 @@ export function ROISettingsPanel({
   }, [
     taskType, platform, nodes, runsPerMonth, minutesPerRun, hourlyRate, 
     taskMultiplier, complianceEnabled, riskLevel, riskFrequency, errorCost,
-    revenueEnabled, monthlyVolume, conversionRate, valuePerConversion, updateScenarioROI
+    revenueEnabled, monthlyVolume, conversionRate, valuePerConversion, updateScenarioROI,
+    lockedFactors, positiveFactors, negativeFactors, factorValues, enabledFactors
   ]);
   
   // Handle factor value changes
@@ -368,15 +414,7 @@ export function ROISettingsPanel({
       ...prev,
       [factorId]: value
     }));
-    
-    // Optionally update scenario
-    if (updateScenarioROI) {
-      const isPositive = factorId.startsWith('pf_');
-      updateScenarioROI({
-        [`taskSpecificFactors.${isPositive ? 'positive' : 'negative'}.${factorId}`]: value
-      } as unknown as Partial<Scenario>);
-    }
-  }, [updateScenarioROI]);
+  }, []);
   
   // Reset factor to suggested value
   const handleFactorReset = useCallback((factorId: string) => {
@@ -385,6 +423,50 @@ export function ROISettingsPanel({
       handleFactorChange(factorId, factor.suggestedValue);
     }
   }, [positiveFactors, negativeFactors, handleFactorChange]);
+
+  // Toggle lock state for a factor
+  const toggleFactorLock = useCallback((factorId: string) => {
+    setLockedFactors(prev => ({ ...prev, [factorId]: !prev[factorId] }));
+  }, []);
+
+  // Enable/disable a factor (excluded from ROI when disabled)
+  const handleFactorEnabledChange = useCallback((factorId: string, checked: boolean) => {
+    setEnabledFactors(prev => ({ ...prev, [factorId]: checked }));
+  }, []);
+
+  // Persist task-specific factors to scenario after state updates (avoids setState during render)
+  React.useEffect(() => {
+    if (!updateScenarioROIRef.current) return;
+    // Only persist if we have definitions (after generation)
+    if (positiveFactors.length === 0 && negativeFactors.length === 0) return;
+    const isEnabled = (id: string) => enabledFactors[id] !== false;
+    const filteredPositive = positiveFactors.filter(f => isEnabled(f.id));
+    const filteredNegative = negativeFactors.filter(f => isEnabled(f.id));
+    const valuesPositive = Object.fromEntries(
+      filteredPositive.map(f => [f.id, (factorValues[f.id] ?? f.suggestedValue)])
+    );
+    const valuesNegative = Object.fromEntries(
+      filteredNegative.map(f => [f.id, (factorValues[f.id] ?? f.suggestedValue)])
+    );
+    const payload = {
+      positive: valuesPositive,
+      negative: valuesNegative,
+      definitions: {
+        positive: positiveFactors,
+        negative: negativeFactors,
+      },
+      enabled: enabledFactors,
+      confidence: factorConfidence,
+    };
+    const signature = JSON.stringify(payload);
+    if (signature === lastPersistedSignatureRef.current) {
+      return;
+    }
+    lastPersistedSignatureRef.current = signature;
+    updateScenarioROIRef.current({
+      taskSpecificFactors: payload
+    } as unknown as Partial<Scenario>);
+  }, [enabledFactors, factorValues, positiveFactors, negativeFactors, factorConfidence]);
   
   // Calculate steps per run based on actual workflow nodes
   const stepsPerRun = useMemo(() => {
@@ -415,6 +497,17 @@ export function ROISettingsPanel({
   });
 
   const renderROISummary = () => {
+    // Build filtered factor payload including only enabled factors
+    const isEnabled = (id: string) => enabledFactors[id] !== false;
+    const filteredPositive = positiveFactors.filter(f => isEnabled(f.id));
+    const filteredNegative = negativeFactors.filter(f => isEnabled(f.id));
+    const filteredValuesPositive = Object.fromEntries(
+      filteredPositive.map(f => [f.id, factorValues[f.id] ?? f.suggestedValue])
+    );
+    const filteredValuesNegative = Object.fromEntries(
+      filteredNegative.map(f => [f.id, factorValues[f.id] ?? f.suggestedValue])
+    );
+
     const metrics = calculateRoiMetrics({
       platform,
       runsPerMonth,
@@ -429,17 +522,13 @@ export function ROISettingsPanel({
       monthlyVolume,
       conversionRate,
       valuePerConversion,
-      // Include task-specific factors if generated
-      taskSpecificFactors: factorsGenerated && positiveFactors.length > 0 ? {
-        positive: Object.fromEntries(
-          positiveFactors.map(f => [f.id, factorValues[f.id] ?? f.suggestedValue])
-        ),
-        negative: Object.fromEntries(
-          negativeFactors.map(f => [f.id, factorValues[f.id] ?? f.suggestedValue])
-        ),
+      // Include task-specific factors if generated (filter by enabled)
+      taskSpecificFactors: factorsGenerated && (filteredPositive.length > 0 || filteredNegative.length > 0) ? {
+        positive: filteredValuesPositive,
+        negative: filteredValuesNegative,
         definitions: {
-          positive: positiveFactors,
-          negative: negativeFactors,
+          positive: filteredPositive,
+          negative: filteredNegative,
         },
         confidence: factorConfidence
       } : undefined,
@@ -1033,6 +1122,10 @@ export function ROISettingsPanel({
                             onChange={(value) => handleFactorChange(factor.id, value)}
                             onReset={() => handleFactorReset(factor.id)}
                             variant="positive"
+                            locked={!!lockedFactors[factor.id]}
+                            onToggleLock={() => toggleFactorLock(factor.id)}
+                            enabled={enabledFactors[factor.id] !== false}
+                            onEnabledChange={(checked) => handleFactorEnabledChange(factor.id, checked)}
                           />
                         ))}
                       </div>
@@ -1068,6 +1161,10 @@ export function ROISettingsPanel({
                             onChange={(value) => handleFactorChange(factor.id, value)}
                             onReset={() => handleFactorReset(factor.id)}
                             variant="negative"
+                            locked={!!lockedFactors[factor.id]}
+                            onToggleLock={() => toggleFactorLock(factor.id)}
+                            enabled={enabledFactors[factor.id] !== false}
+                            onEnabledChange={(checked) => handleFactorEnabledChange(factor.id, checked)}
                           />
                         ))}
                       </div>

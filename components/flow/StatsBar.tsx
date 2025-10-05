@@ -37,6 +37,7 @@ import { useROICalculations } from "@/lib/hooks/useROICalculations";
 import { calculateRoiMetrics } from "@/lib/roi-metrics";
 import { generateROIReportNode } from "@/lib/roi-report-generator";
 import { toast } from "sonner";
+import type { PositiveFactor, NegativeFactor } from "@/app/api/openai/generate-roi-fields/types";
 
 interface StatsBarProps {
   platform: PlatformType;
@@ -176,6 +177,51 @@ export function StatsBar({
   const [roiRatio, setRoiRatio] = useState(0);
   const [isGeneratingROI, setIsGeneratingROI] = useState(false);
 
+  // Build task-specific factors from current scenario (filtered by enabled map)
+  // Extract the task-specific factors property for dependency tracking
+  const scenarioTaskFactors = currentScenario ? (currentScenario as Scenario & {
+    taskSpecificFactors?: {
+      positive?: Record<string, number>;
+      negative?: Record<string, number>;
+      definitions?: { positive?: PositiveFactor[]; negative?: NegativeFactor[] };
+      enabled?: Record<string, boolean>;
+      confidence?: number;
+    };
+  }).taskSpecificFactors : undefined;
+
+  const taskSpecificFactors = React.useMemo(() => {
+    if (!scenarioTaskFactors || !scenarioTaskFactors.definitions) return undefined;
+
+    const enabledMap = scenarioTaskFactors.enabled || {};
+    const isEnabled = (id: string) => enabledMap[id] !== false;
+
+    const positiveDefs = (scenarioTaskFactors.definitions.positive || []).filter(f => isEnabled(f.id));
+    const negativeDefs = (scenarioTaskFactors.definitions.negative || []).filter(f => isEnabled(f.id));
+    const positiveValues: Record<string, number> = {};
+    positiveDefs.forEach(f => {
+      const v = (scenarioTaskFactors.positive || {})[f.id];
+      if (typeof v === 'number') positiveValues[f.id] = v;
+    });
+    const negativeValues: Record<string, number> = {};
+    negativeDefs.forEach(f => {
+      const v = (scenarioTaskFactors.negative || {})[f.id];
+      if (typeof v === 'number') negativeValues[f.id] = v;
+    });
+
+    // If nothing remains enabled, skip passing factors
+    if (positiveDefs.length === 0 && negativeDefs.length === 0) return undefined;
+
+    return {
+      positive: positiveValues,
+      negative: negativeValues,
+      definitions: {
+        positive: positiveDefs,
+        negative: negativeDefs,
+      },
+      confidence: scenarioTaskFactors.confidence ?? 0,
+    } as const;
+  }, [scenarioTaskFactors]);
+
   // Keep hook for potential per-node panels; currently metrics use centralized monthly calculator
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const roiCalculations = useROICalculations({
@@ -231,6 +277,7 @@ export function StatsBar({
         monthlyVolume,
         conversionRate,
         valuePerConversion,
+        taskSpecificFactors,
       }, nodes || []);
 
       setTimeValue(metrics.totalValue);
@@ -239,7 +286,7 @@ export function StatsBar({
       setRoiRatio(metrics.roiRatio);
     }, 200);
     return () => clearTimeout(debounceTimeout);
-  }, [platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, nodes, complianceEnabled, riskLevel, riskFrequency, errorCost, revenueEnabled, monthlyVolume, conversionRate, valuePerConversion]);
+  }, [platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, nodes, complianceEnabled, riskLevel, riskFrequency, errorCost, revenueEnabled, monthlyVolume, conversionRate, valuePerConversion, taskSpecificFactors]);
 
   // Responsive configurations
   const isCompact = screenSize === 'xs' || screenSize === 'sm';
@@ -364,7 +411,7 @@ export function StatsBar({
                     console.warn('❌ onGenerateROIReport is not available');
                     return;
                   }
-                  try {
+                try {
                     setIsGeneratingROI(true);
                     // Prepare sanitized workflow for the API
                     const sanitizedNodes = (nodes || []).map(n => {
@@ -436,7 +483,8 @@ export function StatsBar({
                       monthlyVolume: currentScenario?.monthlyVolume || 100,
                       conversionRate: currentScenario?.conversionRate || 5,
                       valuePerConversion: currentScenario?.valuePerConversion || 200,
-                      nodes: nodes || []
+                      nodes: nodes || [],
+                      taskSpecificFactors: taskSpecificFactors,
                     });
                     if (businessImpact) {
                       roiNode.data.businessImpact = businessImpact;
@@ -567,7 +615,8 @@ export function StatsBar({
                     monthlyVolume: currentScenario?.monthlyVolume || 100,
                     conversionRate: currentScenario?.conversionRate || 5,
                     valuePerConversion: currentScenario?.valuePerConversion || 200,
-                    nodes: nodes || []
+                    nodes: nodes || [],
+                    taskSpecificFactors: taskSpecificFactors,
                   });
                   if (businessImpact) {
                     roiNode.data.businessImpact = businessImpact;

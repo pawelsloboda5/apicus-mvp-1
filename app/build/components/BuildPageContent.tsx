@@ -20,19 +20,13 @@ import { toast } from "sonner";
 import { useROI } from "../hooks/useROI";
 import { useScenarioManager } from "../hooks/useScenarioManager";
 import { useEmailGeneration } from "../hooks/useEmailGeneration";
+import { useScenarioInitialization } from "../hooks/useScenarioInitialization";
 
 // Import types
 import { NodeType, Scenario, NodeData, PlatformType } from "@/lib/types";
 
 // Import constants
 import { TASK_TYPE_MULTIPLIERS, BENCHMARKS, CANVAS_CONFIG } from "@/lib/utils/constants";
-
-// Import utilities
-import { transformTemplateNodes, transformTemplateEdges } from "@/lib/flow-utils";
-// import { formatROIRatio } from "@/lib/roi-utils";
-
-// Import default template
-import { DEFAULT_TEMPLATE } from "@/lib/templates/default-template";
 
 // Import database and utilities
 import { db, createScenario } from "@/lib/db";
@@ -122,6 +116,7 @@ export function BuildPageContent() {
   const templateIdParam = params.get("tid");
   const queryParam = params.get("q");
   const useDefaultTemplate = params.get("default") === "true";
+  const importParam = params.get("import");
 
   // Force light mode
   useEffect(() => {
@@ -146,7 +141,6 @@ export function BuildPageContent() {
 
   // UI state
   const [activeTab, setActiveTab] = useState<'canvas' | 'analytics'>('canvas');
-  const [isLoading, setIsLoading] = useState(true);
   const [isROISettingsOpen, setIsROISettingsOpen] = useState(false);
   
   // Scenario editing state
@@ -173,6 +167,16 @@ export function BuildPageContent() {
   // Initialize scenario manager without circular dependency
   const scenarioManager = useScenarioManager({
     initialScenarioId: scenarioIdParam || undefined,
+  });
+
+  // Handle scenario initialization with duplicate prevention
+  const { isLoading } = useScenarioInitialization({
+    scenarioIdParam,
+    templateIdParam,
+    queryParam,
+    useDefaultTemplate,
+    importParam,
+    scenarioManager,
   });
 
   // Memoize the ROI settings change handler to prevent infinite loops
@@ -431,145 +435,6 @@ export function BuildPageContent() {
   const selectedGroup = selectedGroupId ? nodes.find(n => n.id === selectedGroupId) : null;
   const selectedEmailNode = selectedEmailNodeId ? nodes.find(n => n.id === selectedEmailNodeId) : null;
   const selectedROINode = selectedROINodeId ? nodes.find(n => n.id === selectedROINodeId) : null;
-
-  // Initialize scenario on mount - React 19 Compiler handles memoization
-  const initializeScenario = async () => {
-    setIsLoading(true);
-    
-    try {
-      if (scenarioIdParam) {
-        await scenarioManager.loadScenario(scenarioIdParam);
-      } else {
-        // Create new scenario
-        let name = templateIdParam ? "Loading Template..." : 
-                    queryParam ? `Search: ${queryParam}` : 
-                    "Untitled Scenario";
-        
-        let templateData: Parameters<typeof scenarioManager.createScenario>[1] = undefined;
-
-        // Handle session import first
-        const importParam = params.get("import");
-        if (!templateIdParam && importParam === "session" && typeof window !== 'undefined') {
-          const stored = sessionStorage.getItem('importedTemplate');
-          if (stored) {
-            try {
-              const payload = JSON.parse(stored);
-              let nodesSnapshot: Node[] = [];
-              let edgesSnapshot: Edge[] = [];
-              const platform = payload?.metadata?.platform || payload?.platform || "zapier";
-
-              // If parser returned React Flow nodes directly
-              if (Array.isArray(payload?.nodes) && payload.nodes[0]?.id) {
-                nodesSnapshot = payload.nodes as Node[];
-                edgesSnapshot = (payload.edges as Edge[]) || [];
-              }
-              // If template uses reactFlowId shape
-              else if (Array.isArray(payload?.nodes) && payload.nodes[0]?.reactFlowId) {
-                nodesSnapshot = transformTemplateNodes(
-                  payload.nodes,
-                  'import',
-                  (payload?.metadata?.platform || payload?.platform) === 'n8n' ? 'n8n' : (payload?.metadata?.platform || payload?.platform) === 'make' ? 'make' : 'zapier'
-                );
-                edgesSnapshot = transformTemplateEdges(payload.edges || [], 'import');
-              }
-
-              if (nodesSnapshot.length > 0) {
-                templateData = {
-                  nodesSnapshot,
-                  edgesSnapshot,
-                  platform,
-                };
-                name = payload?.metadata?.originalName || payload?.title || "Imported Workflow";
-                // optional: clear after use
-                sessionStorage.removeItem('importedTemplate');
-              }
-            } catch {
-              // ignore parse errors; fall back to default behavior
-            }
-          }
-        }
-        
-        // Use default template if requested
-        if (!templateData && useDefaultTemplate) {
-          templateData = {
-            nodesSnapshot: DEFAULT_TEMPLATE.nodes,
-            edgesSnapshot: DEFAULT_TEMPLATE.edges,
-            platform: DEFAULT_TEMPLATE.platform,
-            runsPerMonth: DEFAULT_TEMPLATE.runsPerMonth,
-            minutesPerRun: DEFAULT_TEMPLATE.minutesPerRun,
-            hourlyRate: DEFAULT_TEMPLATE.hourlyRate,
-            taskMultiplier: DEFAULT_TEMPLATE.taskMultiplier,
-            taskType: DEFAULT_TEMPLATE.taskType,
-          };
-          name = queryParam ? `${queryParam} - ${DEFAULT_TEMPLATE.name}` : DEFAULT_TEMPLATE.name;
-        }
-        // Load template data if template ID is provided
-        else if (!templateData && templateIdParam) {
-          try {
-            const response = await fetch(`/api/templates/${templateIdParam}`);
-            if (response.ok) {
-              const template = await response.json();
-              console.log('Template loaded:', template); // Debug log
-              
-              // Transform nodes to have 'id' instead of 'reactFlowId'
-              const transformedNodes = transformTemplateNodes(
-                template.nodes,
-                templateIdParam,
-                (template.platform || template.source) === 'n8n' ? 'n8n' : (template.platform || template.source) === 'make' ? 'make' : 'zapier'
-              );
-              
-              // Transform edges to have proper 'id', 'source', and 'target'
-              const transformedEdges = transformTemplateEdges(template.edges, templateIdParam);
-              
-              templateData = {
-                nodesSnapshot: transformedNodes,
-                edgesSnapshot: transformedEdges,
-                platform: template.platform || template.source || "zapier",
-                viewport: template.viewport,
-                // Copy other template metadata
-                taskType: template.taskType,
-                runsPerMonth: template.runsPerMonth,
-                minutesPerRun: template.minutesPerRun,
-                hourlyRate: template.hourlyRate,
-                taskMultiplier: template.taskMultiplier,
-              };
-              name = template.title || template.templateName || template.name || "Template Scenario";
-              console.log('Template data prepared:', templateData); // Debug log
-            } else {
-              console.error('Failed to load template:', response.statusText);
-              toast.error('Failed to load template');
-            }
-          } catch (error) {
-            console.error('Error loading template:', error);
-            toast.error('Error loading template');
-          }
-        }
-        
-        const newScenario = await scenarioManager.createScenario(name, templateData);
-        
-        // Update URL
-        const urlQuery = new URLSearchParams(window.location.search);
-        urlQuery.set("sid", newScenario.id!.toString());
-        // Clean up the import param from URL if present
-        urlQuery.delete("import");
-        if (templateIdParam && !templateData) urlQuery.set("tid", templateIdParam); // Keep tid if template failed to load
-        if (queryParam) urlQuery.set("q", queryParam);
-        router.replace(`/build?${urlQuery.toString()}`, { scroll: false });
-      }
-      
-    } catch (error) {
-      console.error('Failed to initialize scenario:', error);
-      toast.error('Failed to initialize scenario');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Initialize scenario on mount - with stable dependencies
-  useEffect(() => {
-    initializeScenario();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenarioIdParam, templateIdParam, queryParam, useDefaultTemplate]); // initializeScenario deliberately omitted - React 19 handles optimization
 
   // Save scenario when nodes/edges change
   useEffect(() => {
