@@ -33,18 +33,20 @@ interface ROINodePropertiesPanelProps {
 }
 
 const TASK_TYPES = [
-  { value: 'general', label: 'General Automation', multiplier: 1.0 },
-  { value: 'admin', label: 'Administrative', multiplier: 0.8 },
-  { value: 'data_entry', label: 'Data Entry', multiplier: 0.9 },
-  { value: 'customer_service', label: 'Customer Service', multiplier: 1.2 },
-  { value: 'sales', label: 'Sales Enablement', multiplier: 1.5 },
-  { value: 'marketing', label: 'Marketing', multiplier: 1.3 },
-  { value: 'finance', label: 'Finance', multiplier: 1.8 },
-  { value: 'hr', label: 'Human Resources', multiplier: 1.1 },
-  { value: 'it', label: 'IT Operations', multiplier: 1.4 },
-  { value: 'compliance', label: 'Compliance/Legal', multiplier: 2.0 },
-  { value: 'operations', label: 'Operations', multiplier: 1.1 },
-  { value: 'lead_gen', label: 'Lead Generation', multiplier: 1.6 },
+  { value: 'internal_admin', label: 'Internal Admin', multiplier: 1.0 },
+  { value: 'client_communication', label: 'Client Communication', multiplier: 1.2 },
+  { value: 'data_cleaning', label: 'Data Cleaning or Entry', multiplier: 1.2 },
+  { value: 'scheduling', label: 'Scheduling or Routing', multiplier: 1.3 },
+  { value: 'reporting', label: 'Reporting or Dashboards', multiplier: 1.3 },
+  { value: 'onboarding', label: 'Onboarding or Intake', multiplier: 1.5 },
+  { value: 'cross_platform_sync', label: 'Cross-Platform Sync', multiplier: 1.5 },
+  { value: 'outreach', label: 'Outreach or Follow-up', multiplier: 1.6 },
+  { value: 'lead_scoring', label: 'Lead Scoring or Qualification', multiplier: 1.8 },
+  { value: 'sales_enablement', label: 'Sales Enablement', multiplier: 2.0 },
+  { value: 'revenue_capture', label: 'Revenue Capture', multiplier: 2.2 },
+  { value: 'contract_legal', label: 'Contract or Legal', multiplier: 2.2 },
+  { value: 'booking_appointment', label: 'Booking or Appointment Flow', multiplier: 2.3 },
+  { value: 'pipeline_closing', label: 'Pipeline Movement or Closing', multiplier: 2.5 },
 ];
 
 const COLOR_SCHEMES = [

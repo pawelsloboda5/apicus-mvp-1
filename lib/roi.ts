@@ -203,17 +203,23 @@ export function formatPaybackPeriod(days: number): string {
 
 /**
  * Get benchmark data for different task types
+ * @deprecated Use TASK_TYPE_MULTIPLIERS from lib/utils/constants.ts instead
  */
 export const taskTypeMultipliers = {
-  general: 1.0,
-  admin: 1.2,
-  data_entry: 1.1,
-  customer_service: 1.3,
-  sales: 1.5,
-  marketing: 1.4,
-  finance: 1.6,
-  hr: 1.3,
-  it: 1.7,
+  internal_admin: 1.0,
+  client_communication: 1.2,
+  data_cleaning: 1.2,
+  scheduling: 1.3,
+  reporting: 1.3,
+  onboarding: 1.5,
+  cross_platform_sync: 1.5,
+  outreach: 1.6,
+  lead_scoring: 1.8,
+  sales_enablement: 2.0,
+  revenue_capture: 2.2,
+  contract_legal: 2.2,
+  booking_appointment: 2.3,
+  pipeline_closing: 2.5,
 };
 
 /**

@@ -15,12 +15,24 @@ import {
   formatROIRatio,
 } from '@/lib/roi-utils';
 import { pricing } from '@/app/api/data/pricing';
+import { calculateRoiMetrics } from '@/lib/roi-metrics';
+// Scenario type already exported in lib/types; avoid duplicate import/name clashes
+import type { PositiveFactor, NegativeFactor } from '@/app/api/openai/generate-roi-fields/types';
 import { 
   DEFAULT_ROI_SETTINGS,
   TASK_TYPE_MULTIPLIERS,
   BENCHMARKS,
 } from '@/lib/utils/constants';
 import { PlatformType, Scenario } from '@/lib/types';
+
+// Minimal task-specific factors type used for centralized ROI calculations
+export type TaskSpecificFactors = {
+  positive: Record<string, number>;
+  negative: Record<string, number>;
+  definitions: { positive: PositiveFactor[]; negative: NegativeFactor[] };
+  confidence: number;
+  enabled?: Record<string, boolean>;
+} | undefined;
 
 export interface UseROIOptions {
   /** Initial scenario to load ROI settings from */
@@ -29,6 +41,8 @@ export interface UseROIOptions {
   onSettingsChange?: (settings: Partial<Scenario>) => void;
   /** Nodes array for platform cost calculation */
   nodes?: Node[];
+  /** Optional task specific factors for AI-powered ROI (will be filtered by enabled map if provided) */
+  taskSpecificFactors?: TaskSpecificFactors;
 }
 
 export interface ROIMetrics {
@@ -47,6 +61,11 @@ export interface ROIMetrics {
   monthlySavings: number;
   yearlySavings: number;
   timeSavedHours: number;
+  appCosts?: number;
+  totalCost?: number;
+  factorBoost?: number;
+  totalPositiveFactorImpact?: number;
+  totalNegativeFactorImpact?: number;
 }
 
 export interface ROIState {
@@ -74,7 +93,8 @@ export interface ROIState {
 export function useROI({ 
   initialScenario, 
   onSettingsChange, 
-  nodes = [] 
+  nodes = [],
+  taskSpecificFactors,
 }: UseROIOptions = {}) {
   
   // Initialize state from scenario or defaults
@@ -95,69 +115,89 @@ export function useROI({
     valuePerConversion: initialScenario?.valuePerConversion || DEFAULT_ROI_SETTINGS.valuePerConversion,
   }));
 
-  // Calculate all ROI metrics
+  // Calculate all ROI metrics (centralized, includes platform costs, app costs, and AI factors)
   const metrics = useMemo((): ROIMetrics => {
-    const timeValue = calculateTimeValue(
-      roiState.runsPerMonth,
-      roiState.minutesPerRun,
-      roiState.hourlyRate,
-      roiState.taskMultiplier
-    );
+    // Build filtered task-specific factors payload if provided
+    let filteredFactors: {
+      positive: Record<string, number>;
+      negative: Record<string, number>;
+      definitions: { positive: PositiveFactor[]; negative: NegativeFactor[] };
+      confidence: number;
+    } | undefined;
 
-    const riskValue = calculateRiskValue(
-      roiState.complianceEnabled,
-      roiState.runsPerMonth,
-      roiState.riskFrequency,
-      roiState.errorCost,
-      roiState.riskLevel
-    );
+    if (taskSpecificFactors && taskSpecificFactors.definitions) {
+      const enabledMap = (taskSpecificFactors.enabled) || {};
+      const isEnabled = (id: string) => enabledMap[id] !== false;
 
-    const revenueValue = calculateRevenueValue(
-      roiState.revenueEnabled,
-      roiState.monthlyVolume,
-      roiState.conversionRate,
-      roiState.valuePerConversion
-    );
+      const positiveDefs = (taskSpecificFactors.definitions.positive as PositiveFactor[] || []).filter(f => isEnabled(f.id));
+      const negativeDefs = (taskSpecificFactors.definitions.negative as NegativeFactor[] || []).filter(f => isEnabled(f.id));
 
-    const totalValue = calculateTotalValue(timeValue, riskValue, revenueValue);
-    
-    const platformCost = calculatePlatformCost(
-      roiState.platform,
-      roiState.runsPerMonth,
-      pricing,
-      nodes.length
-    );
+      const positiveValues: Record<string, number> = {};
+      positiveDefs.forEach(f => {
+        const v = (taskSpecificFactors.positive || {})[f.id];
+        if (typeof v === 'number') positiveValues[f.id] = v;
+      });
 
-    const netROI = calculateNetROI(totalValue, platformCost);
-    const roiRatio = calculateROIRatio(totalValue, platformCost);
-    const paybackDays = calculatePaybackPeriod(platformCost, netROI);
+      const negativeValues: Record<string, number> = {};
+      negativeDefs.forEach(f => {
+        const v = (taskSpecificFactors.negative || {})[f.id];
+        if (typeof v === 'number') negativeValues[f.id] = v;
+      });
 
-    // Additional derived metrics
-    const timeSavedHours = (roiState.runsPerMonth * roiState.minutesPerRun) / 60;
-    const monthlySavings = netROI;
-    const yearlySavings = netROI * 12;
-    const breakEvenRuns = platformCost > 0 && totalValue > platformCost 
-      ? Math.ceil(platformCost / ((totalValue / roiState.runsPerMonth) - (platformCost / roiState.runsPerMonth)))
-      : 0;
+      if (positiveDefs.length > 0 || negativeDefs.length > 0) {
+        filteredFactors = {
+          positive: positiveValues,
+          negative: negativeValues,
+          definitions: { positive: positiveDefs, negative: negativeDefs },
+          confidence: taskSpecificFactors.confidence ?? 0,
+        };
+      }
+    }
+
+    const computed = calculateRoiMetrics({
+      platform: roiState.platform,
+      runsPerMonth: roiState.runsPerMonth,
+      minutesPerRun: roiState.minutesPerRun,
+      hourlyRate: roiState.hourlyRate,
+      taskMultiplier: roiState.taskMultiplier,
+      complianceEnabled: roiState.complianceEnabled,
+      riskLevel: roiState.riskLevel,
+      riskFrequency: roiState.riskFrequency,
+      errorCost: roiState.errorCost,
+      revenueEnabled: roiState.revenueEnabled,
+      monthlyVolume: roiState.monthlyVolume,
+      conversionRate: roiState.conversionRate,
+      valuePerConversion: roiState.valuePerConversion,
+      taskSpecificFactors: filteredFactors,
+    }, nodes);
+
+    const roiRatioFormatted = formatROIRatio(computed.roiRatio);
+    const paybackPeriod = formatPaybackPeriod(computed.paybackDays);
 
     return {
-      timeValue,
-      riskValue,
-      revenueValue,
-      totalValue,
-      platformCost,
-      netROI,
-      roiRatio,
-      roiRatioFormatted: formatROIRatio(roiRatio),
-      paybackDays,
-      paybackPeriod: formatPaybackPeriod(paybackDays),
-      breakEvenRuns,
-      isPositiveROI: netROI > 0,
-      monthlySavings,
-      yearlySavings,
-      timeSavedHours,
-    };
-  }, [roiState, nodes.length]);
+      timeValue: computed.timeValue,
+      riskValue: computed.riskValue,
+      revenueValue: computed.revenueValue,
+      totalValue: computed.totalValue,
+      platformCost: computed.platformCost,
+      netROI: computed.netROI,
+      roiRatio: computed.roiRatio,
+      roiRatioFormatted,
+      paybackDays: computed.paybackDays,
+      paybackPeriod,
+      breakEvenRuns: computed.breakEvenRuns,
+      isPositiveROI: computed.netROI > 0,
+      monthlySavings: computed.netROI,
+      yearlySavings: computed.netROI * 12,
+      timeSavedHours: computed.timeSavedHours,
+      // Extended fields from centralized calculator
+      appCosts: computed.appCosts,
+      totalCost: computed.totalCost,
+      factorBoost: computed.factorBoost || 0,
+      totalPositiveFactorImpact: computed.totalPositiveFactorImpact || 0,
+      totalNegativeFactorImpact: computed.totalNegativeFactorImpact || 0,
+    } as ROIMetrics;
+  }, [roiState, nodes, taskSpecificFactors]);
 
   // Update individual settings
   const updateSetting = useCallback(<K extends keyof ROIState>(

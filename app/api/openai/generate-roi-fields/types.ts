@@ -3,15 +3,20 @@
  */
 
 export type TaskType = 
-  | 'general' 
-  | 'admin' 
-  | 'customer_support' 
-  | 'sales' 
-  | 'marketing' 
-  | 'compliance' 
-  | 'operations' 
-  | 'finance' 
-  | 'lead_gen';
+  | 'internal_admin' 
+  | 'client_communication' 
+  | 'data_cleaning' 
+  | 'scheduling' 
+  | 'reporting' 
+  | 'onboarding' 
+  | 'cross_platform_sync' 
+  | 'outreach' 
+  | 'lead_scoring' 
+  | 'sales_enablement' 
+  | 'revenue_capture' 
+  | 'contract_legal' 
+  | 'booking_appointment' 
+  | 'pipeline_closing';
 
 export type PlatformType = 'zapier' | 'make' | 'n8n';
 export type CompanySize = 'small' | 'medium' | 'large' | 'enterprise';

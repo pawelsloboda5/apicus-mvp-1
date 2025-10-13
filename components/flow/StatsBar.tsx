@@ -29,7 +29,7 @@ import {
   Timer,
   ArrowLeft
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatNumberMax2 } from "@/lib/utils";
 import { PlatformType, Scenario, NodeData } from "@/lib/types";
 import { Node } from "@xyflow/react";
 import { formatROIRatio } from "@/lib/roi-utils";
@@ -50,6 +50,16 @@ interface StatsBarProps {
   onUpdateMinutes: (minutes: number) => void;
   nodes?: Node[];
   currentScenario?: Scenario | null;
+  // Centralized ROI metrics (preferred). If provided, StatsBar will display these instead of recomputing locally.
+  precomputedMetrics?: {
+    totalValue: number;
+    netROI: number;
+    roiRatio: number;
+    paybackDays: number;
+    timeSavedHours: number;
+    totalCost?: number;
+    platformCost?: number;
+  };
   
   // Risk & Compliance parameters
   complianceEnabled?: boolean;
@@ -139,6 +149,7 @@ export function StatsBar({
   onUpdateRuns,
   onUpdateMinutes,
   nodes,
+  precomputedMetrics,
   // Risk & Compliance parameters with defaults
   complianceEnabled = false,
   riskLevel = 3,
@@ -176,6 +187,17 @@ export function StatsBar({
   const [netROI, setNetROI] = useState(0);
   const [roiRatio, setRoiRatio] = useState(0);
   const [isGeneratingROI, setIsGeneratingROI] = useState(false);
+
+  // If centralized metrics are provided, use them as source of truth
+  useEffect(() => {
+    if (!precomputedMetrics) return;
+    setTimeValue(precomputedMetrics.totalValue);
+    // Prefer totalCost if present, else platformCost
+    const cost = precomputedMetrics.totalCost ?? precomputedMetrics.platformCost ?? 0;
+    setPlatformCost(cost);
+    setNetROI(precomputedMetrics.netROI);
+    setRoiRatio(precomputedMetrics.roiRatio);
+  }, [precomputedMetrics]);
 
   // Build task-specific factors from current scenario (filtered by enabled map)
   // Extract the task-specific factors property for dependency tracking
@@ -260,8 +282,9 @@ export function StatsBar({
     setTempRuns(runsPerMonth);
   }, [minutesPerRun, runsPerMonth]);
 
-  // Calculate unified monthly ROI values using centralized metrics
+  // Local fallback calculation only when precomputed metrics are not provided
   useEffect(() => {
+    if (precomputedMetrics) return; // centralized metrics drive the UI
     const debounceTimeout = setTimeout(() => {
       const metrics = calculateRoiMetrics({
         platform,
@@ -286,7 +309,7 @@ export function StatsBar({
       setRoiRatio(metrics.roiRatio);
     }, 200);
     return () => clearTimeout(debounceTimeout);
-  }, [platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, nodes, complianceEnabled, riskLevel, riskFrequency, errorCost, revenueEnabled, monthlyVolume, conversionRate, valuePerConversion, taskSpecificFactors]);
+  }, [precomputedMetrics, platform, runsPerMonth, minutesPerRun, hourlyRate, taskMultiplier, nodes, complianceEnabled, riskLevel, riskFrequency, errorCost, revenueEnabled, monthlyVolume, conversionRate, valuePerConversion, taskSpecificFactors]);
 
   // Responsive configurations
   const isCompact = screenSize === 'xs' || screenSize === 'sm';
@@ -1035,9 +1058,10 @@ export function StatsBar({
   // ROI Metrics Display Component - Redesigned for consistency
   const ROIMetricsDisplay = () => {
     const isPositiveROI = netROI > 0;
-    const paybackDays = platformCost > 0 ? Math.ceil(platformCost / (netROI / 30)) : 0;
-    const paybackPeriod = paybackDays > 30 ? `${Math.ceil(paybackDays / 30)}mo` : `${paybackDays}d`;
-    const timeSavedHours = (runsPerMonth * minutesPerRun) / 60;
+    const derivedPaybackDays = platformCost > 0 ? Math.ceil(platformCost / (netROI / 30)) : 0;
+    const paybackDays = precomputedMetrics?.paybackDays ?? derivedPaybackDays;
+    const paybackPeriod = paybackDays > 30 ? `${Math.ceil(paybackDays / 30)}mo` : `${formatNumberMax2(paybackDays)}d`;
+    const timeSavedHours = precomputedMetrics?.timeSavedHours ?? ((runsPerMonth * minutesPerRun) / 60);
     const formattedRoiRatio = formatROIRatio(roiRatio);
 
     if (isUltraCompact) {
@@ -1062,20 +1086,20 @@ export function StatsBar({
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-muted-foreground font-medium">Time Saved</p>
-                  <p className="font-semibold">{timeSavedHours.toFixed(1)} hrs/mo</p>
+                  <p className="font-semibold">{formatNumberMax2(timeSavedHours)} hrs/mo</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground font-medium">Time Value</p>
-                  <p className="font-semibold text-green-600">${timeValue.toLocaleString()}</p>
+                  <p className="font-semibold text-green-600">${timeValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground font-medium">Platform Cost</p>
-                  <p className="font-semibold text-red-600">${platformCost.toLocaleString()}</p>
+                  <p className="font-semibold text-red-600">${platformCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground font-medium">Net ROI</p>
                   <p className={cn("font-semibold", isPositiveROI ? "text-green-600" : "text-red-600")}>
-                    ${netROI.toLocaleString()}
+                    ${netROI.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div>
@@ -1099,13 +1123,13 @@ export function StatsBar({
     const metrics = [
       {
         icon: Timer,
-        value: `${timeSavedHours.toFixed(1)}h`,
+        value: `${formatNumberMax2(timeSavedHours)}h`,
         label: "Time saved per month",
         color: "text-blue-600 dark:text-blue-400"
       },
       {
         icon: DollarSign,
-        value: `$${Math.abs(netROI).toLocaleString()}`,
+        value: `$${Math.abs(netROI).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
         label: "Net monthly ROI",
         color: isPositiveROI ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
       },

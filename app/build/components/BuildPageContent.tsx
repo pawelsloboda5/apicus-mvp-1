@@ -193,6 +193,7 @@ export function BuildPageContent() {
     initialScenario: scenarioManager.scenario,
     onSettingsChange: handleROISettingsChange,
     nodes,
+    taskSpecificFactors: (scenarioManager.scenario as any)?.taskSpecificFactors,
   });
 
   // Initialize viewport management - fits all nodes with first node always visible
@@ -672,6 +673,15 @@ export function BuildPageContent() {
           minutesPerRun={roi.settings.minutesPerRun}
           hourlyRate={roi.settings.hourlyRate}
           taskMultiplier={roi.settings.taskMultiplier}
+          precomputedMetrics={{
+            totalValue: roi.metrics.totalValue,
+            netROI: roi.metrics.netROI,
+            roiRatio: roi.metrics.roiRatio,
+            paybackDays: roi.metrics.paybackDays,
+            timeSavedHours: roi.metrics.timeSavedHours,
+            totalCost: (roi.metrics as any).totalCost,
+            platformCost: roi.metrics.platformCost,
+          }}
           nodes={nodes}
           currentScenario={scenarioManager.scenario}
           complianceEnabled={roi.settings.complianceEnabled}
