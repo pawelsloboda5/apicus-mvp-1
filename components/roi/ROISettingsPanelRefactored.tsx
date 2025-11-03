@@ -114,7 +114,6 @@ export function ROISettingsPanelRefactored({
   const lastPersistedSignatureRef = React.useRef<string>("");
   const onConfigChangeRef = React.useRef(onConfigChange);
   const localConfigRef = React.useRef(localConfig);
-  const lastSyncedConfigRef = React.useRef<string>("");
   
   React.useEffect(() => { 
     updateScenarioROIRef.current = updateScenarioROI;
@@ -173,7 +172,6 @@ export function ROISettingsPanelRefactored({
     if (config.revenue.valuePerConversion !== current.revenue.valuePerConversion) {
       dispatch({ type: 'UPDATE_REVENUE', field: 'valuePerConversion', value: config.revenue.valuePerConversion });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]); // Only depend on config prop, NOT localConfig
 
   // NOTE: We do NOT sync localConfig back to parent automatically
@@ -402,14 +400,11 @@ export function ROISettingsPanelRefactored({
 
   const handleMinutesChange = useCallback((value: number) => {
     const formatted = parseFloat(Math.max(0.1, value).toFixed(1));
-    console.log('🔵 handleMinutesChange called with:', value, 'formatted:', formatted);
-    
     // Update local state
     dispatch({ type: 'UPDATE_CORE', field: 'minutesPerRun', value: formatted });
-    
     // Sync to parent - get current values from ref and update the specific field
     const currentCore = localConfigRef.current.core;
-    const configUpdate = { 
+    onConfigChangeRef.current({ 
       core: { 
         runsPerMonth: currentCore.runsPerMonth,
         minutesPerRun: formatted,
@@ -417,24 +412,8 @@ export function ROISettingsPanelRefactored({
         taskMultiplier: currentCore.taskMultiplier,
         taskType: currentCore.taskType,
       }
-    };
-    console.log('🔵 Calling onConfigChange with:', configUpdate);
-    console.log('🔵 onConfigChangeRef.current exists?', !!onConfigChangeRef.current);
-    console.log('🔵 onConfigChangeRef.current type:', typeof onConfigChangeRef.current);
-    if (onConfigChangeRef.current) {
-      try {
-        console.log('🔵 About to call onConfigChangeRef.current...');
-        onConfigChangeRef.current(configUpdate);
-        console.log('🔵 onConfigChangeRef.current call completed successfully');
-      } catch (error) {
-        console.error('❌ Error calling onConfigChangeRef.current:', error);
-      }
-    } else {
-      console.error('❌ onConfigChangeRef.current is undefined!');
-    }
-    
+    });
     // Persist to database
-    console.log('🔵 Calling updateScenarioROI with:', { minutesPerRun: formatted });
     updateScenarioROI({ minutesPerRun: formatted });
   }, [updateScenarioROI]);
 

@@ -1,4 +1,7 @@
-# ROI Metrics Synchronization Fix
+# ROI Metrics Synchronization - Complete Solution
+
+## Overview
+This document explains how we fixed the synchronization issues between `StatsBar` and `ROISettingsPanelRefactored` to ensure both components always display identical ROI metrics.
 
 ## Problem
 The ROI metrics displayed in **StatsBar** and **ROISettingsPanelRefactored** were showing different values because they were using different task-specific factors data sources.
@@ -246,16 +249,61 @@ Now ALL handlers follow the same pattern:
 2. Notify parent (`onConfigChange`) → triggers useROI recalculation → StatsBar updates
 3. Persist to DB (`updateScenarioROI`)
 
+## Problem 4: TaskType Auto-Fill Resets Minutes
+
+### Problem 4: Auto-Fill Triggered on Same Value
+**Symptom**: Minutes changed to 14, but then reset back to 3
+
+**Root Cause**: 
+When changing minutes, the handler passed all 5 core fields to the adapter (including unchanged taskType). The adapter called `setTaskType('internal_admin')` even though it was already 'internal_admin'. The `useROI` hook had auto-fill logic that reset minutes/hourly rate whenever taskType was set, even to the same value!
+
+**Fix Applied**:
+1. **useROI Hook** (`app/build/hooks/useROI.ts`): Only auto-fill when taskType **actually changes**
+```typescript
+if (key === 'taskType' && typeof value === 'string' && prev.taskType !== value) {
+  // Only auto-fill when taskType CHANGES, not when re-set to same value
+  newState.minutesPerRun = benchmark;
+}
+```
+
+2. **Adapter** (`components/roi/ROISettingsPanelAdapter.tsx`): Only call setters for fields that changed from previous props
+```typescript
+if (partial.core.minutesPerRun !== undefined && 
+    partial.core.minutesPerRun !== prev.minutesPerRun) {
+  setMinutesPerRun(partial.core.minutesPerRun);
+  prev.minutesPerRun = partial.core.minutesPerRun;
+}
+```
+
 ## Files Modified
-1. `components/roi/ROISettingsPanelAdapter.tsx` - Extract and pass task-specific factors
+1. `components/roi/ROISettingsPanel.tsx` - Adapter with task-specific factors + change detection + proper types
 2. `app/build/components/BuildPageContent.tsx` - Pass currentScenario to panel
 3. `components/roi/types.ts` - Add SYNC_FROM_PARENT action type
 4. `components/roi/reducer.ts` - Implement SYNC_FROM_PARENT handler
-5. `components/roi/ROISettingsPanelRefactored.tsx` - Add bidirectional sync logic + fix all inline handlers
+5. `components/roi/ROISettingsPanelRefactored.tsx` - Field-by-field sync + all handlers notify parent
+6. `app/build/hooks/useROI.ts` - Smart auto-fill (only when taskType actually changes)
+
+## Files Deleted
+- `components/roi/ROISettingsPanelAdapter.tsx` - Duplicate adapter (merged into ROISettingsPanel.tsx)
+- `docs/roi-sync-data-flow.md` - Redundant docs
+- `docs/roi-sync-final-fix.md` - Redundant docs
+- `docs/roi-sync-dependency-fix.md` - Redundant docs
+- `docs/roi-sync-complete-solution.md` - Redundant docs
+
+## Summary
+
+All synchronization issues are now resolved! ✅
+
+**Both StatsBar and ROISettingsPanelRefactored now**:
+- Use identical task-specific factors from scenario
+- Calculate with the same settings (runs, minutes, rate, etc.)
+- Update in real-time when ANY setting changes
+- Never lose user edits or reset values unexpectedly
 
 ## Related Components
-- `app/build/hooks/useROI.ts` - Centralized ROI state and metrics
-- `components/flow/StatsBar.tsx` - Top bar ROI display
-- `components/roi/ROISettingsPanelRefactored.tsx` - ROI settings side panel
+- `app/build/hooks/useROI.ts` - Centralized ROI state and metrics (with smart auto-fill)
+- `components/flow/StatsBar.tsx` - Top bar ROI display (uses precomputed metrics)
+- `components/roi/ROISettingsPanelRefactored.tsx` - ROI settings side panel (field-by-field sync)
+- `components/roi/ROISettingsPanelAdapter.tsx` - Adapter layer (change detection)
 - `lib/roi-metrics.ts` - Core ROI calculation engine
 
