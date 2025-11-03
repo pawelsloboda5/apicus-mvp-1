@@ -54,7 +54,7 @@ import type {
   TaskType,
   PlatformType as ROIPlatformType
 } from "@/app/api/openai/generate-roi-fields/types";
-import type { ROIConfiguration, ROIAction } from "./types";
+import type { ROIConfiguration } from "./types";
 import { roiReducer } from "./reducer";
 
 export interface ROISettingsPanelRefactoredProps {
@@ -114,12 +114,36 @@ export function ROISettingsPanelRefactored({
   const lastPersistedSignatureRef = React.useRef<string>("");
   const onConfigChangeRef = React.useRef(onConfigChange);
   const localConfigRef = React.useRef(localConfig);
+  const lastSyncedConfigRef = React.useRef<string>("");
   
   React.useEffect(() => { 
     updateScenarioROIRef.current = updateScenarioROI;
     onConfigChangeRef.current = onConfigChange;
     localConfigRef.current = localConfig;
   }, [updateScenarioROI, onConfigChange, localConfig]);
+
+  // Sync incoming config prop changes to localConfig (parent → child)
+  // This ensures the panel stays in sync with external changes (e.g., from StatsBar)
+  React.useEffect(() => {
+    const configSignature = JSON.stringify({
+      core: config.core,
+      compliance: config.compliance,
+      revenue: config.revenue,
+    });
+    
+    // Only sync if the core config actually changed (ignore factors to prevent loops)
+    if (configSignature !== lastSyncedConfigRef.current) {
+      lastSyncedConfigRef.current = configSignature;
+      
+      // Bulk update local state to match incoming props (preserves factors)
+      dispatch({
+        type: 'SYNC_FROM_PARENT',
+        core: config.core,
+        compliance: config.compliance,
+        revenue: config.revenue,
+      });
+    }
+  }, [config]);
 
   // NOTE: We do NOT sync localConfig back to parent automatically
   // This would cause circular dependency: localConfig → onConfigChange → parent setters → new props → new config → localConfig → loop!
@@ -324,7 +348,7 @@ export function ROISettingsPanelRefactored({
       hourlyRate,
       taskMultiplier,
     });
-  }, [benchmarks, taskTypeMultipliers, updateScenarioROI]);
+  }, [benchmarks, taskTypeMultipliers, updateScenarioROI, localConfig.core.runsPerMonth]);
 
   // Handle core metric changes - use refs to avoid dependency issues
   const handleRunsChange = useCallback((value: number) => {
@@ -689,6 +713,9 @@ export function ROISettingsPanelRefactored({
                           checked={localConfig.compliance.enabled}
                           onCheckedChange={(checked) => {
                             dispatch({ type: 'UPDATE_COMPLIANCE', field: 'enabled', value: checked });
+                            onConfigChangeRef.current({
+                              compliance: { ...localConfigRef.current.compliance, enabled: checked }
+                            });
                             updateScenarioROI({ complianceEnabled: checked });
                           }}
                         />
@@ -709,6 +736,9 @@ export function ROISettingsPanelRefactored({
                             onValueChange={(values) => {
                               const v = values[0];
                               dispatch({ type: 'UPDATE_COMPLIANCE', field: 'riskLevel', value: v });
+                              onConfigChangeRef.current({
+                                compliance: { ...localConfigRef.current.compliance, riskLevel: v }
+                              });
                               updateScenarioROI({ riskLevel: v });
                             }}
                             className="flex-1"
@@ -728,6 +758,9 @@ export function ROISettingsPanelRefactored({
                             onValueChange={(values) => {
                               const v = values[0];
                               dispatch({ type: 'UPDATE_COMPLIANCE', field: 'riskFrequency', value: v });
+                              onConfigChangeRef.current({
+                                compliance: { ...localConfigRef.current.compliance, riskFrequency: v }
+                              });
                               updateScenarioROI({ riskFrequency: v });
                             }}
                             className="flex-1"
@@ -746,6 +779,9 @@ export function ROISettingsPanelRefactored({
                           onChange={(e) => {
                             const v = Number(e.target.value);
                             dispatch({ type: 'UPDATE_COMPLIANCE', field: 'errorCost', value: v });
+                            onConfigChangeRef.current({
+                              compliance: { ...localConfigRef.current.compliance, errorCost: v }
+                            });
                             updateScenarioROI({ errorCost: v });
                           }}
                         />
@@ -767,6 +803,9 @@ export function ROISettingsPanelRefactored({
                           checked={localConfig.revenue.enabled}
                           onCheckedChange={(checked) => {
                             dispatch({ type: 'UPDATE_REVENUE', field: 'enabled', value: checked });
+                            onConfigChangeRef.current({
+                              revenue: { ...localConfigRef.current.revenue, enabled: checked }
+                            });
                             updateScenarioROI({ revenueEnabled: checked });
                           }}
                         />
@@ -786,6 +825,9 @@ export function ROISettingsPanelRefactored({
                           onChange={(e) => {
                             const v = Number(e.target.value);
                             dispatch({ type: 'UPDATE_REVENUE', field: 'monthlyVolume', value: v });
+                            onConfigChangeRef.current({
+                              revenue: { ...localConfigRef.current.revenue, monthlyVolume: v }
+                            });
                             updateScenarioROI({ monthlyVolume: v });
                           }}
                         />
@@ -802,6 +844,9 @@ export function ROISettingsPanelRefactored({
                             onValueChange={(values) => {
                               const v = values[0];
                               dispatch({ type: 'UPDATE_REVENUE', field: 'conversionRate', value: v });
+                              onConfigChangeRef.current({
+                                revenue: { ...localConfigRef.current.revenue, conversionRate: v }
+                              });
                               updateScenarioROI({ conversionRate: v });
                             }}
                             className="flex-1"
@@ -820,6 +865,9 @@ export function ROISettingsPanelRefactored({
                           onChange={(e) => {
                             const v = Number(e.target.value);
                             dispatch({ type: 'UPDATE_REVENUE', field: 'valuePerConversion', value: v });
+                            onConfigChangeRef.current({
+                              revenue: { ...localConfigRef.current.revenue, valuePerConversion: v }
+                            });
                             updateScenarioROI({ valuePerConversion: v });
                           }}
                         />

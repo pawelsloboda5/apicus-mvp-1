@@ -2,19 +2,6 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { Node } from '@xyflow/react';
-import {
-  calculateTimeValue,
-  calculatePlatformCost,
-  calculateRiskValue,
-  calculateRevenueValue,
-  calculateTotalValue,
-  calculateNetROI,
-  calculateROIRatio,
-  calculatePaybackPeriod,
-  formatPaybackPeriod,
-  formatROIRatio,
-} from '@/lib/roi-utils';
-import { pricing } from '@/app/api/data/pricing';
 import { calculateRoiMetrics } from '@/lib/roi-metrics';
 // Scenario type already exported in lib/types; avoid duplicate import/name clashes
 import type { PositiveFactor, NegativeFactor } from '@/app/api/openai/generate-roi-fields/types';
@@ -171,8 +158,8 @@ export function useROI({
       taskSpecificFactors: filteredFactors,
     }, nodes);
 
-    const roiRatioFormatted = formatROIRatio(computed.roiRatio);
-    const paybackPeriod = formatPaybackPeriod(computed.paybackDays);
+    const roiRatioFormatted = computed.roiRatio.toFixed(2); // Assuming formatROIRatio is removed
+    const paybackPeriod = computed.paybackDays.toFixed(2); // Assuming formatPaybackPeriod is removed
 
     return {
       timeValue: computed.timeValue,

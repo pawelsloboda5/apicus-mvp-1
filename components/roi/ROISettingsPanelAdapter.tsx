@@ -55,95 +55,155 @@ interface LegacyROISettingsPanelProps {
   updateScenarioROI: (partial: Partial<Scenario>) => void;
   onGenerateReport?: () => void;
   nodes?: Node[];
+  currentScenario?: Scenario | null;
 }
 
 /**
  * Adapter component that converts legacy props to new grouped props interface
  */
 export function ROISettingsPanel(props: LegacyROISettingsPanelProps) {
-  // Convert legacy props to new grouped config
+  const {
+    runsPerMonth,
+    minutesPerRun,
+    hourlyRate,
+    taskType,
+    taskMultiplier,
+    complianceEnabled,
+    riskLevel,
+    riskFrequency,
+    errorCost,
+    revenueEnabled,
+    monthlyVolume,
+    conversionRate,
+    valuePerConversion,
+    setRunsPerMonth,
+    setMinutesPerRun,
+    setHourlyRate,
+    setTaskType,
+    setTaskMultiplier,
+    setComplianceEnabled,
+    setRiskLevel,
+    setRiskFrequency,
+    setErrorCost,
+    setRevenueEnabled,
+    setMonthlyVolume,
+    setConversionRate,
+    setValuePerConversion,
+  } = props;
+  // Extract task-specific factors from scenario
+  const taskSpecificFactors = props.currentScenario?.taskSpecificFactors as {
+    positive?: Record<string, number>;
+    negative?: Record<string, number>;
+    definitions?: {
+      positive?: Array<{ id: string; name: string; description: string; suggestedValue: number; estimatedMonthlyImpact: number; category: string }>;
+      negative?: Array<{ id: string; name: string; description: string; suggestedValue: number; estimatedMonthlyImpact: number; category: string }>;
+    };
+    enabled?: Record<string, boolean>;
+    confidence?: number;
+    generatedAt?: number;
+  } | undefined;
+
+  // Convert legacy props to new grouped config with task-specific factors from scenario
   const config: ROIConfiguration = useMemo(() => ({
     core: {
-      runsPerMonth: props.runsPerMonth,
-      minutesPerRun: props.minutesPerRun,
-      hourlyRate: props.hourlyRate,
-      taskType: props.taskType,
-      taskMultiplier: props.taskMultiplier,
+      runsPerMonth,
+      minutesPerRun,
+      hourlyRate,
+      taskType,
+      taskMultiplier,
     },
     compliance: {
-      enabled: props.complianceEnabled,
-      riskLevel: props.riskLevel,
-      riskFrequency: props.riskFrequency,
-      errorCost: props.errorCost,
+      enabled: complianceEnabled,
+      riskLevel,
+      riskFrequency,
+      errorCost,
     },
     revenue: {
-      enabled: props.revenueEnabled,
-      monthlyVolume: props.monthlyVolume,
-      conversionRate: props.conversionRate,
-      valuePerConversion: props.valuePerConversion,
+      enabled: revenueEnabled,
+      monthlyVolume,
+      conversionRate,
+      valuePerConversion,
     },
     factors: {
-      positive: [],
-      negative: [],
-      factorValues: {},
+      positive: (taskSpecificFactors?.definitions?.positive || []) as Array<{
+        id: string;
+        name: string;
+        description: string;
+        suggestedValue: number;
+        estimatedMonthlyImpact: number;
+        category: string;
+      }>,
+      negative: (taskSpecificFactors?.definitions?.negative || []) as Array<{
+        id: string;
+        name: string;
+        description: string;
+        suggestedValue: number;
+        estimatedMonthlyImpact: number;
+        category: string;
+      }>,
+      factorValues: {
+        ...(taskSpecificFactors?.positive || {}),
+        ...(taskSpecificFactors?.negative || {}),
+      },
       lockedFactors: {},
-      enabledFactors: {},
-      confidence: 0,
-      generated: false,
+      enabledFactors: taskSpecificFactors?.enabled || {},
+      confidence: taskSpecificFactors?.confidence || 0,
+      generated: !!(taskSpecificFactors?.definitions?.positive?.length || taskSpecificFactors?.definitions?.negative?.length),
     },
   }), [
-    props.runsPerMonth,
-    props.minutesPerRun,
-    props.hourlyRate,
-    props.taskType,
-    props.taskMultiplier,
-    props.complianceEnabled,
-    props.riskLevel,
-    props.riskFrequency,
-    props.errorCost,
-    props.revenueEnabled,
-    props.monthlyVolume,
-    props.conversionRate,
-    props.valuePerConversion,
+    runsPerMonth,
+    minutesPerRun,
+    hourlyRate,
+    taskType,
+    taskMultiplier,
+    complianceEnabled,
+    riskLevel,
+    riskFrequency,
+    errorCost,
+    revenueEnabled,
+    monthlyVolume,
+    conversionRate,
+    valuePerConversion,
+    taskSpecificFactors,
   ]);
 
   // Handle config changes by calling individual setters
   const handleConfigChange = React.useCallback((partial: Partial<ROIConfiguration>) => {
     if (partial.core) {
-      if (partial.core.runsPerMonth !== undefined) props.setRunsPerMonth(partial.core.runsPerMonth);
-      if (partial.core.minutesPerRun !== undefined) props.setMinutesPerRun(partial.core.minutesPerRun);
-      if (partial.core.hourlyRate !== undefined) props.setHourlyRate(partial.core.hourlyRate);
-      if (partial.core.taskType !== undefined) props.setTaskType(partial.core.taskType);
-      if (partial.core.taskMultiplier !== undefined) props.setTaskMultiplier(partial.core.taskMultiplier);
+      if (partial.core.runsPerMonth !== undefined) setRunsPerMonth(partial.core.runsPerMonth);
+      if (partial.core.minutesPerRun !== undefined) setMinutesPerRun(partial.core.minutesPerRun);
+      if (partial.core.hourlyRate !== undefined) setHourlyRate(partial.core.hourlyRate);
+      if (partial.core.taskType !== undefined) setTaskType(partial.core.taskType);
+      if (partial.core.taskMultiplier !== undefined) setTaskMultiplier(partial.core.taskMultiplier);
     }
     
     if (partial.compliance) {
-      if (partial.compliance.enabled !== undefined) props.setComplianceEnabled(partial.compliance.enabled);
-      if (partial.compliance.riskLevel !== undefined) props.setRiskLevel(partial.compliance.riskLevel);
-      if (partial.compliance.riskFrequency !== undefined) props.setRiskFrequency(partial.compliance.riskFrequency);
-      if (partial.compliance.errorCost !== undefined) props.setErrorCost(partial.compliance.errorCost);
+      if (partial.compliance.enabled !== undefined) setComplianceEnabled(partial.compliance.enabled);
+      if (partial.compliance.riskLevel !== undefined) setRiskLevel(partial.compliance.riskLevel);
+      if (partial.compliance.riskFrequency !== undefined) setRiskFrequency(partial.compliance.riskFrequency);
+      if (partial.compliance.errorCost !== undefined) setErrorCost(partial.compliance.errorCost);
     }
     
     if (partial.revenue) {
-      if (partial.revenue.enabled !== undefined) props.setRevenueEnabled(partial.revenue.enabled);
-      if (partial.revenue.monthlyVolume !== undefined) props.setMonthlyVolume(partial.revenue.monthlyVolume);
-      if (partial.revenue.conversionRate !== undefined) props.setConversionRate(partial.revenue.conversionRate);
-      if (partial.revenue.valuePerConversion !== undefined) props.setValuePerConversion(partial.revenue.valuePerConversion);
+      if (partial.revenue.enabled !== undefined) setRevenueEnabled(partial.revenue.enabled);
+      if (partial.revenue.monthlyVolume !== undefined) setMonthlyVolume(partial.revenue.monthlyVolume);
+      if (partial.revenue.conversionRate !== undefined) setConversionRate(partial.revenue.conversionRate);
+      if (partial.revenue.valuePerConversion !== undefined) setValuePerConversion(partial.revenue.valuePerConversion);
     }
   }, [
-    props.setRunsPerMonth,
-    props.setMinutesPerRun,
-    props.setHourlyRate,
-    props.setTaskType,
-    props.setTaskMultiplier,
-    props.setComplianceEnabled,
-    props.setRiskLevel,
-    props.setRiskFrequency,
-    props.setErrorCost,
-    props.setRevenueEnabled,
-    props.setMonthlyVolume,
-    props.setConversionRate,
-    props.setValuePerConversion,
+    setRunsPerMonth,
+    setMinutesPerRun,
+    setHourlyRate,
+    setTaskType,
+    setTaskMultiplier,
+    setComplianceEnabled,
+    setRiskLevel,
+    setRiskFrequency,
+    setErrorCost,
+    setRevenueEnabled,
+    setMonthlyVolume,
+    setConversionRate,
+    setValuePerConversion,
   ]);
 
   return (

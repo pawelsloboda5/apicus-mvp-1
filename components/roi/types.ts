@@ -131,4 +131,5 @@ export type ROIAction =
   | { type: 'TOGGLE_FACTOR'; factorId: string; enabled: boolean }
   | { type: 'SET_FACTORS'; positive: PositiveFactor[]; negative: NegativeFactor[]; confidence: number }
   | { type: 'SET_FACTORS_GENERATING'; generating: boolean }
-  | { type: 'LOAD_CONFIG'; config: ROIConfiguration };
+  | { type: 'LOAD_CONFIG'; config: ROIConfiguration }
+  | { type: 'SYNC_FROM_PARENT'; core: ROICoreConfig; compliance: ROIComplianceConfig; revenue: ROIRevenueConfig };

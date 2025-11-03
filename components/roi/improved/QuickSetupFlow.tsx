@@ -27,7 +27,6 @@ import {
   TrendingUp, 
   Clock, 
   DollarSign,
-  Zap,
   HelpCircle
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -100,7 +99,7 @@ export function QuickSetupFlow({
   onSwitchToAdvanced,
 }: QuickSetupFlowProps) {
   const selectedTaskType = taskTypes.find(t => t.value === taskType);
-  const selectedPlatform = platforms.find(p => p.value === platform);
+  // selectedPlatform not used presently; keep platform visual state via platform value
 
   return (
     <div className="space-y-6">
@@ -258,7 +257,7 @@ export function QuickSetupFlow({
                       <strong>Tips:</strong>
                       <br />• Include time to switch contexts
                       <br />• Count manual steps eliminated
-                      <br />• Don't count waiting/idle time
+                      <br />• Don&apos;t count waiting/idle time
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -275,6 +274,40 @@ export function QuickSetupFlow({
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>30 seconds</span>
               <span>1 hour</span>
+            </div>
+          </div>
+
+          {/* Hourly rate */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Labor Cost per Hour</Label>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-base font-bold px-3">
+                  ${hourlyRate}
+                </Badge>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      Estimate fully loaded hourly labor cost (incl. benefits and overhead)
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+            <Slider
+              min={10}
+              max={250}
+              step={5}
+              value={[hourlyRate]}
+              onValueChange={([value]) => onHourlyRateChange(value)}
+              className="[&_[role=slider]]:h-5 [&_[role=slider]]:w-5"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>$10/hr</span>
+              <span>$250/hr</span>
             </div>
           </div>
 
@@ -419,7 +452,7 @@ export function QuickSetupFlow({
                 Monthly Value
               </div>
               <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-                ${roiPreview.monthlyValue.toLocaleString()}
+                ${roiPreview.monthlyValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 Total automation value
@@ -431,7 +464,7 @@ export function QuickSetupFlow({
                 Net ROI
               </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                ${roiPreview.netROI.toLocaleString()}
+                ${roiPreview.netROI.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 After platform costs

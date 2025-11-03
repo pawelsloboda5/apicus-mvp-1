@@ -217,8 +217,8 @@ export function StatsBar({
     const enabledMap = scenarioTaskFactors.enabled || {};
     const isEnabled = (id: string) => enabledMap[id] !== false;
 
-    const positiveDefs = (scenarioTaskFactors.definitions.positive || []).filter(f => isEnabled(f.id));
-    const negativeDefs = (scenarioTaskFactors.definitions.negative || []).filter(f => isEnabled(f.id));
+    const positiveDefs = (scenarioTaskFactors.definitions.positive || [] as PositiveFactor[]).filter((f: PositiveFactor) => isEnabled(f.id));
+    const negativeDefs = (scenarioTaskFactors.definitions.negative || [] as NegativeFactor[]).filter((f: NegativeFactor) => isEnabled(f.id));
     const positiveValues: Record<string, number> = {};
     positiveDefs.forEach(f => {
       const v = (scenarioTaskFactors.positive || {})[f.id];

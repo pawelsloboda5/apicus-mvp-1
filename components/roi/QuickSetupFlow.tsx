@@ -27,7 +27,6 @@ import {
   TrendingUp, 
   Clock, 
   DollarSign,
-  Zap,
   HelpCircle
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -100,7 +99,7 @@ export function QuickSetupFlow({
   onSwitchToAdvanced,
 }: QuickSetupFlowProps) {
   const selectedTaskType = taskTypes.find(t => t.value === taskType);
-  const selectedPlatform = platforms.find(p => p.value === platform);
+  // selectedPlatform no longer needed; platform is rendered directly where needed
 
   return (
     <div className="space-y-6">
@@ -258,7 +257,7 @@ export function QuickSetupFlow({
                       <strong>Tips:</strong>
                       <br />• Include time to switch contexts
                       <br />• Count manual steps eliminated
-                      <br />• Don't count waiting/idle time
+                      <br />• Don&apos;t count waiting/idle time
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -275,6 +274,30 @@ export function QuickSetupFlow({
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>30 seconds</span>
               <span>1 hour</span>
+            </div>
+          </div>
+
+          {/* Hourly rate */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Labor Cost / hr</Label>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-base font-bold px-3">
+                  ${hourlyRate}
+                </Badge>
+              </div>
+            </div>
+            <Slider
+              min={10}
+              max={300}
+              step={1}
+              value={[hourlyRate]}
+              onValueChange={([value]) => onHourlyRateChange(value)}
+              className="[&_[role=slider]]:h-5 [&_[role=slider]]:w-5"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>$10/hr</span>
+              <span>$300/hr</span>
             </div>
           </div>
 
@@ -430,7 +453,7 @@ export function QuickSetupFlow({
               <div className="text-xs text-muted-foreground mb-1">
                 Net ROI
               </div>
-              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+              <div className="text-3xl font-bold text-green-600 dark:text-green-400">
                 ${roiPreview.netROI.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
@@ -442,7 +465,7 @@ export function QuickSetupFlow({
               <div className="text-xs text-muted-foreground mb-1">
                 Time Saved
               </div>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {formatNumberMax2(roiPreview.timeSaved)}h
               </div>
               <div className="text-xs text-muted-foreground mt-1">
@@ -454,7 +477,7 @@ export function QuickSetupFlow({
               <div className="text-xs text-muted-foreground mb-1">
                 Payback Period
               </div>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-gray-700 dark:text-gray-300">
                 {roiPreview.paybackDays > 0 ? `${formatNumberMax2(roiPreview.paybackDays)}d` : 'Immediate'}
               </div>
               <div className="text-xs text-muted-foreground mt-1">

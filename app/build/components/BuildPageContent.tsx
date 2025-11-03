@@ -8,7 +8,6 @@ import {
   useEdgesState,
   Edge,
   Node,
-  Viewport,
   ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -18,6 +17,7 @@ import { toast } from "sonner";
 
 // Import our extracted hooks
 import { useROI } from "../hooks/useROI";
+import type { TaskSpecificFactors } from "../hooks/useROI";
 import { useScenarioManager } from "../hooks/useScenarioManager";
 import { useEmailGeneration } from "../hooks/useEmailGeneration";
 import { useScenarioInitialization } from "../hooks/useScenarioInitialization";
@@ -193,11 +193,11 @@ export function BuildPageContent() {
     initialScenario: scenarioManager.scenario,
     onSettingsChange: handleROISettingsChange,
     nodes,
-    taskSpecificFactors: (scenarioManager.scenario as any)?.taskSpecificFactors,
+    taskSpecificFactors: scenarioManager.scenario?.taskSpecificFactors as TaskSpecificFactors,
   });
 
   // Initialize viewport management - fits all nodes with first node always visible
-  const { initializeViewport, resetViewport, fitToNodes } = useInitialViewport({
+  useInitialViewport({
     rfInstance,
     nodes,
     enabled: !isLoading, // Only enable after loading complete
@@ -679,7 +679,7 @@ export function BuildPageContent() {
             roiRatio: roi.metrics.roiRatio,
             paybackDays: roi.metrics.paybackDays,
             timeSavedHours: roi.metrics.timeSavedHours,
-            totalCost: (roi.metrics as any).totalCost,
+            totalCost: roi.metrics.totalCost ?? 0,
             platformCost: roi.metrics.platformCost,
           }}
           nodes={nodes}
@@ -1085,6 +1085,7 @@ export function BuildPageContent() {
               benchmarks={BENCHMARKS}
               updateScenarioROI={(updates) => scenarioManager.updateScenario(updates)}
               nodes={nodes}
+              currentScenario={scenarioManager.scenario}
               onGenerateReport={async () => {
                 try {
                   // Determine placement similar to StatsBar path

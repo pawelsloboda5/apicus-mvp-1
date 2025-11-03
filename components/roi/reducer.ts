@@ -120,6 +120,16 @@ export function roiReducer(state: ROIConfiguration, action: ROIAction): ROIConfi
     case 'LOAD_CONFIG':
       return action.config;
 
+    case 'SYNC_FROM_PARENT':
+      // Sync core settings from parent without touching factors
+      return {
+        ...state,
+        core: action.core,
+        compliance: action.compliance,
+        revenue: action.revenue,
+        // Preserve factors - they might be being edited in the panel
+      };
+
     default:
       return state;
   }

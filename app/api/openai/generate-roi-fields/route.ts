@@ -8,6 +8,7 @@ import {
   NegativeFactor,
   ErrorResponse 
 } from './types';
+import type { TaskType } from './types';
 import { getDefaultFactors } from './defaults';
 
 // Use Node.js runtime instead of Edge for better module resolution
@@ -39,6 +40,9 @@ const openai = new OpenAI({
 // Simple in-memory cache for development
 const factorCache = new Map<string, { data: GenerateROIFieldsResponse['data']; timestamp: number }>();
 const CACHE_TTL = 3600000; // 1 hour in milliseconds
+
+// Map of task types that are considered compliance-related for suggestions
+const COMPLIANCE_TASK_TYPES: TaskType[] = ['contract_legal'];
 
 // Clear cache on restart to ensure fresh calculations
 factorCache.clear();
@@ -351,7 +355,7 @@ export async function POST(req: Request) {
     if (positiveFactors.some(f => f.category === 'revenue')) {
       metadata.suggestions.push('Track actual conversion improvements after implementation');
     }
-    if (request.taskType === 'compliance') {
+    if (COMPLIANCE_TASK_TYPES.includes(request.taskType)) {
       metadata.suggestions.push('Document error reduction metrics for audit purposes');
     }
     

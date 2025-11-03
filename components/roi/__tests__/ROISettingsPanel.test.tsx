@@ -12,12 +12,12 @@
  * - Performance optimization
  */
 
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { ROISettingsPanel } from '../ROISettingsPanel';
 import type { Node } from '@xyflow/react';
-import type { Scenario } from '@/lib/db';
+// Scenario type is not used directly in this suite
 
 expect.extend(toHaveNoViolations);
 
@@ -202,7 +202,6 @@ describe('ROISettingsPanel', () => {
 
   describe('Slider Controls', () => {
     it('should update runs per month via slider', async () => {
-      const user = userEvent.setup();
       render(<ROISettingsPanel {...defaultProps} />);
       
       const slider = screen.getByRole('slider', { name: /runs-slider/i });

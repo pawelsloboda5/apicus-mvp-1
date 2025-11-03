@@ -65,9 +65,10 @@ export function useInitialViewport({
       return;
     }
 
-    // Get canvas dimensions from the viewport
-    const viewport = rfInstance.getViewport();
-    const canvasElement = rfInstance.getNodes()[0]?.parentElement?.parentElement;
+    // Get canvas dimensions from the React Flow container (client-side only)
+    const canvasElement = (typeof window !== 'undefined'
+      ? (document.querySelector('.react-flow') as HTMLElement | null)
+      : null);
     
     const canvasWidth = canvasElement?.clientWidth || window.innerWidth;
     const canvasHeight = canvasElement?.clientHeight || window.innerHeight;
@@ -118,7 +119,9 @@ export function useInitialViewport({
     const selectedNodes = nodes.filter(n => nodeIds.includes(n.id));
     if (selectedNodes.length === 0) return;
 
-    const canvasElement = rfInstance.getNodes()[0]?.parentElement?.parentElement;
+    const canvasElement = (typeof window !== 'undefined'
+      ? (document.querySelector('.react-flow') as HTMLElement | null)
+      : null);
     const canvasWidth = canvasElement?.clientWidth || window.innerWidth;
     const canvasHeight = canvasElement?.clientHeight || window.innerHeight;
 
