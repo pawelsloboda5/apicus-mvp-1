@@ -1,6 +1,6 @@
 # ROI Synchronization - Complete Solution Summary
 
-## Three Critical Issues Fixed ✅
+## Four Critical Issues Fixed ✅
 
 ### Issue 1: Missing Task-Specific Factors
 **Symptom**: Panel and StatsBar showed different ROI values even on initial load
@@ -51,6 +51,45 @@
   - Monthly volume input
   - Conversion rate slider
   - Value per conversion input
+
+---
+
+### Issue 4: Aggressive Bulk Sync Overwrites User Edits
+**Symptom**: 
+- Changing "minutes per run" doesn't update StatsBar
+- Changing "runs per month" resets "minutes per run" to an old value
+
+**Root Cause**:
+- The SYNC_FROM_PARENT effect was syncing the **entire config object** whenever any field changed
+- This overwrote ALL fields with the parent's values, even fields the user just edited
+- Example: User changes runs → parent updates → SYNC_FROM_PARENT overwrites minutes with whatever parent had
+
+**Fix**:
+- Replaced bulk sync with **field-by-field comparison**
+- Only dispatches updates for fields that are actually different
+- Prevents overwriting fields that haven't changed in the parent
+- Each field is independently compared: `if (config.field !== localConfig.field)`
+
+**Before (bulk sync - overwrites everything)**:
+```typescript
+dispatch({
+  type: 'SYNC_FROM_PARENT',
+  core: config.core,              // Overwrites ALL core fields
+  compliance: config.compliance,  // Overwrites ALL compliance fields
+  revenue: config.revenue,        // Overwrites ALL revenue fields
+});
+```
+
+**After (selective sync - only updates what changed)**:
+```typescript
+if (config.core.runsPerMonth !== localConfig.core.runsPerMonth) {
+  dispatch({ type: 'UPDATE_CORE', field: 'runsPerMonth', value: config.core.runsPerMonth });
+}
+if (config.core.minutesPerRun !== localConfig.core.minutesPerRun) {
+  dispatch({ type: 'UPDATE_CORE', field: 'minutesPerRun', value: config.core.minutesPerRun });
+}
+// ... only updates fields that actually changed
+```
 
 ---
 
@@ -200,9 +239,10 @@ The synchronization is now **complete and bulletproof**:
 
 1. ✅ **Same input data** (task-specific factors from scenario)
 2. ✅ **Same calculation engine** (calculateRoiMetrics)
-3. ✅ **Bidirectional sync** (panel ↔ parent always in sync)
+3. ✅ **Selective field-by-field sync** (only updates changed fields, preserves user edits)
 4. ✅ **All handlers notify parent** (every change triggers recalculation)
 5. ✅ **Real-time updates** (StatsBar updates immediately on any change)
+6. ✅ **No overwriting user edits** (intelligent sync prevents data loss)
 
-**Result**: Change **ANY** setting in the ROI Panel, and the StatsBar updates **instantly** with the **exact same values**! 🎉
+**Result**: Change **ANY** setting in the ROI Panel, and the StatsBar updates **instantly** with the **exact same values** - and your edits are never lost! 🎉
 

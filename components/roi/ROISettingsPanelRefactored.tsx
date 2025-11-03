@@ -124,26 +124,57 @@ export function ROISettingsPanelRefactored({
 
   // Sync incoming config prop changes to localConfig (parent → child)
   // This ensures the panel stays in sync with external changes (e.g., from StatsBar)
+  // IMPORTANT: Only sync when config prop changes, NOT when localConfig changes (to allow user edits)
   React.useEffect(() => {
-    const configSignature = JSON.stringify({
-      core: config.core,
-      compliance: config.compliance,
-      revenue: config.revenue,
-    });
+    // Use ref to get current localConfig without adding it as dependency
+    const current = localConfigRef.current;
     
-    // Only sync if the core config actually changed (ignore factors to prevent loops)
-    if (configSignature !== lastSyncedConfigRef.current) {
-      lastSyncedConfigRef.current = configSignature;
-      
-      // Bulk update local state to match incoming props (preserves factors)
-      dispatch({
-        type: 'SYNC_FROM_PARENT',
-        core: config.core,
-        compliance: config.compliance,
-        revenue: config.revenue,
-      });
+    // Field-by-field comparison to only update what changed
+    if (config.core.runsPerMonth !== current.core.runsPerMonth) {
+      dispatch({ type: 'UPDATE_CORE', field: 'runsPerMonth', value: config.core.runsPerMonth });
     }
-  }, [config]);
+    if (config.core.minutesPerRun !== current.core.minutesPerRun) {
+      dispatch({ type: 'UPDATE_CORE', field: 'minutesPerRun', value: config.core.minutesPerRun });
+    }
+    if (config.core.hourlyRate !== current.core.hourlyRate) {
+      dispatch({ type: 'UPDATE_CORE', field: 'hourlyRate', value: config.core.hourlyRate });
+    }
+    if (config.core.taskMultiplier !== current.core.taskMultiplier) {
+      dispatch({ type: 'UPDATE_CORE', field: 'taskMultiplier', value: config.core.taskMultiplier });
+    }
+    if (config.core.taskType !== current.core.taskType) {
+      dispatch({ type: 'UPDATE_CORE', field: 'taskType', value: config.core.taskType });
+    }
+    
+    // Compliance fields
+    if (config.compliance.enabled !== current.compliance.enabled) {
+      dispatch({ type: 'UPDATE_COMPLIANCE', field: 'enabled', value: config.compliance.enabled });
+    }
+    if (config.compliance.riskLevel !== current.compliance.riskLevel) {
+      dispatch({ type: 'UPDATE_COMPLIANCE', field: 'riskLevel', value: config.compliance.riskLevel });
+    }
+    if (config.compliance.riskFrequency !== current.compliance.riskFrequency) {
+      dispatch({ type: 'UPDATE_COMPLIANCE', field: 'riskFrequency', value: config.compliance.riskFrequency });
+    }
+    if (config.compliance.errorCost !== current.compliance.errorCost) {
+      dispatch({ type: 'UPDATE_COMPLIANCE', field: 'errorCost', value: config.compliance.errorCost });
+    }
+    
+    // Revenue fields
+    if (config.revenue.enabled !== current.revenue.enabled) {
+      dispatch({ type: 'UPDATE_REVENUE', field: 'enabled', value: config.revenue.enabled });
+    }
+    if (config.revenue.monthlyVolume !== current.revenue.monthlyVolume) {
+      dispatch({ type: 'UPDATE_REVENUE', field: 'monthlyVolume', value: config.revenue.monthlyVolume });
+    }
+    if (config.revenue.conversionRate !== current.revenue.conversionRate) {
+      dispatch({ type: 'UPDATE_REVENUE', field: 'conversionRate', value: config.revenue.conversionRate });
+    }
+    if (config.revenue.valuePerConversion !== current.revenue.valuePerConversion) {
+      dispatch({ type: 'UPDATE_REVENUE', field: 'valuePerConversion', value: config.revenue.valuePerConversion });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config]); // Only depend on config prop, NOT localConfig
 
   // NOTE: We do NOT sync localConfig back to parent automatically
   // This would cause circular dependency: localConfig → onConfigChange → parent setters → new props → new config → localConfig → loop!
@@ -354,9 +385,16 @@ export function ROISettingsPanelRefactored({
   const handleRunsChange = useCallback((value: number) => {
     // Update local state
     dispatch({ type: 'UPDATE_CORE', field: 'runsPerMonth', value });
-    // Sync to parent - use ref to get latest config without causing re-renders
+    // Sync to parent - get current values from ref and update the specific field
+    const currentCore = localConfigRef.current.core;
     onConfigChangeRef.current({ 
-      core: { ...localConfigRef.current.core, runsPerMonth: value }
+      core: { 
+        runsPerMonth: value,
+        minutesPerRun: currentCore.minutesPerRun,
+        hourlyRate: currentCore.hourlyRate,
+        taskMultiplier: currentCore.taskMultiplier,
+        taskType: currentCore.taskType,
+      }
     });
     // Persist to database
     updateScenarioROI({ runsPerMonth: value });
@@ -364,22 +402,55 @@ export function ROISettingsPanelRefactored({
 
   const handleMinutesChange = useCallback((value: number) => {
     const formatted = parseFloat(Math.max(0.1, value).toFixed(1));
+    console.log('🔵 handleMinutesChange called with:', value, 'formatted:', formatted);
+    
     // Update local state
     dispatch({ type: 'UPDATE_CORE', field: 'minutesPerRun', value: formatted });
-    // Sync to parent - use ref to get latest config without causing re-renders
-    onConfigChangeRef.current({ 
-      core: { ...localConfigRef.current.core, minutesPerRun: formatted }
-    });
+    
+    // Sync to parent - get current values from ref and update the specific field
+    const currentCore = localConfigRef.current.core;
+    const configUpdate = { 
+      core: { 
+        runsPerMonth: currentCore.runsPerMonth,
+        minutesPerRun: formatted,
+        hourlyRate: currentCore.hourlyRate,
+        taskMultiplier: currentCore.taskMultiplier,
+        taskType: currentCore.taskType,
+      }
+    };
+    console.log('🔵 Calling onConfigChange with:', configUpdate);
+    console.log('🔵 onConfigChangeRef.current exists?', !!onConfigChangeRef.current);
+    console.log('🔵 onConfigChangeRef.current type:', typeof onConfigChangeRef.current);
+    if (onConfigChangeRef.current) {
+      try {
+        console.log('🔵 About to call onConfigChangeRef.current...');
+        onConfigChangeRef.current(configUpdate);
+        console.log('🔵 onConfigChangeRef.current call completed successfully');
+      } catch (error) {
+        console.error('❌ Error calling onConfigChangeRef.current:', error);
+      }
+    } else {
+      console.error('❌ onConfigChangeRef.current is undefined!');
+    }
+    
     // Persist to database
+    console.log('🔵 Calling updateScenarioROI with:', { minutesPerRun: formatted });
     updateScenarioROI({ minutesPerRun: formatted });
   }, [updateScenarioROI]);
 
   const handleHourlyRateChange = useCallback((value: number) => {
     // Update local state
     dispatch({ type: 'UPDATE_CORE', field: 'hourlyRate', value });
-    // Sync to parent - use ref to get latest config without causing re-renders
+    // Sync to parent - get current values from ref and update the specific field
+    const currentCore = localConfigRef.current.core;
     onConfigChangeRef.current({ 
-      core: { ...localConfigRef.current.core, hourlyRate: value }
+      core: { 
+        runsPerMonth: currentCore.runsPerMonth,
+        minutesPerRun: currentCore.minutesPerRun,
+        hourlyRate: value,
+        taskMultiplier: currentCore.taskMultiplier,
+        taskType: currentCore.taskType,
+      }
     });
     // Persist to database
     updateScenarioROI({ hourlyRate: value });

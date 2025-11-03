@@ -90,6 +90,23 @@ export function ROISettingsPanel(props: LegacyROISettingsPanelProps) {
     setConversionRate,
     setValuePerConversion,
   } = props;
+  
+  // Track previous prop values to detect actual changes
+  const prevPropsRef = React.useRef({
+    runsPerMonth,
+    minutesPerRun,
+    hourlyRate,
+    taskType,
+    taskMultiplier,
+    complianceEnabled,
+    riskLevel,
+    riskFrequency,
+    errorCost,
+    revenueEnabled,
+    monthlyVolume,
+    conversionRate,
+    valuePerConversion,
+  });
   // Extract task-specific factors from scenario
   const taskSpecificFactors = props.currentScenario?.taskSpecificFactors as {
     positive?: Record<string, number>;
@@ -168,27 +185,76 @@ export function ROISettingsPanel(props: LegacyROISettingsPanelProps) {
   ]);
 
   // Handle config changes by calling individual setters
+  // CRITICAL: Only call setters for fields that actually changed from PREVIOUS PROPS
+  // This prevents triggering auto-fill logic in useROI (e.g., taskType auto-fills minutes)
   const handleConfigChange = React.useCallback((partial: Partial<ROIConfiguration>) => {
+    console.log('🟢 Adapter handleConfigChange received:', partial);
+    const prev = prevPropsRef.current;
+    
     if (partial.core) {
-      if (partial.core.runsPerMonth !== undefined) setRunsPerMonth(partial.core.runsPerMonth);
-      if (partial.core.minutesPerRun !== undefined) setMinutesPerRun(partial.core.minutesPerRun);
-      if (partial.core.hourlyRate !== undefined) setHourlyRate(partial.core.hourlyRate);
-      if (partial.core.taskType !== undefined) setTaskType(partial.core.taskType);
-      if (partial.core.taskMultiplier !== undefined) setTaskMultiplier(partial.core.taskMultiplier);
+      if (partial.core.runsPerMonth !== undefined && partial.core.runsPerMonth !== prev.runsPerMonth) {
+        console.log('🟢 Setting runsPerMonth:', prev.runsPerMonth, '→', partial.core.runsPerMonth);
+        setRunsPerMonth(partial.core.runsPerMonth);
+        prev.runsPerMonth = partial.core.runsPerMonth;
+      }
+      if (partial.core.minutesPerRun !== undefined && partial.core.minutesPerRun !== prev.minutesPerRun) {
+        console.log('🟢 Setting minutesPerRun:', prev.minutesPerRun, '→', partial.core.minutesPerRun);
+        setMinutesPerRun(partial.core.minutesPerRun);
+        prev.minutesPerRun = partial.core.minutesPerRun;
+      }
+      if (partial.core.hourlyRate !== undefined && partial.core.hourlyRate !== prev.hourlyRate) {
+        console.log('🟢 Setting hourlyRate:', prev.hourlyRate, '→', partial.core.hourlyRate);
+        setHourlyRate(partial.core.hourlyRate);
+        prev.hourlyRate = partial.core.hourlyRate;
+      }
+      if (partial.core.taskType !== undefined && partial.core.taskType !== prev.taskType) {
+        console.log('🟢 Setting taskType:', prev.taskType, '→', partial.core.taskType);
+        setTaskType(partial.core.taskType);
+        prev.taskType = partial.core.taskType;
+      }
+      if (partial.core.taskMultiplier !== undefined && partial.core.taskMultiplier !== prev.taskMultiplier) {
+        console.log('🟢 Setting taskMultiplier:', prev.taskMultiplier, '→', partial.core.taskMultiplier);
+        setTaskMultiplier(partial.core.taskMultiplier);
+        prev.taskMultiplier = partial.core.taskMultiplier;
+      }
     }
     
     if (partial.compliance) {
-      if (partial.compliance.enabled !== undefined) setComplianceEnabled(partial.compliance.enabled);
-      if (partial.compliance.riskLevel !== undefined) setRiskLevel(partial.compliance.riskLevel);
-      if (partial.compliance.riskFrequency !== undefined) setRiskFrequency(partial.compliance.riskFrequency);
-      if (partial.compliance.errorCost !== undefined) setErrorCost(partial.compliance.errorCost);
+      if (partial.compliance.enabled !== undefined && partial.compliance.enabled !== prev.complianceEnabled) {
+        setComplianceEnabled(partial.compliance.enabled);
+        prev.complianceEnabled = partial.compliance.enabled;
+      }
+      if (partial.compliance.riskLevel !== undefined && partial.compliance.riskLevel !== prev.riskLevel) {
+        setRiskLevel(partial.compliance.riskLevel);
+        prev.riskLevel = partial.compliance.riskLevel;
+      }
+      if (partial.compliance.riskFrequency !== undefined && partial.compliance.riskFrequency !== prev.riskFrequency) {
+        setRiskFrequency(partial.compliance.riskFrequency);
+        prev.riskFrequency = partial.compliance.riskFrequency;
+      }
+      if (partial.compliance.errorCost !== undefined && partial.compliance.errorCost !== prev.errorCost) {
+        setErrorCost(partial.compliance.errorCost);
+        prev.errorCost = partial.compliance.errorCost;
+      }
     }
     
     if (partial.revenue) {
-      if (partial.revenue.enabled !== undefined) setRevenueEnabled(partial.revenue.enabled);
-      if (partial.revenue.monthlyVolume !== undefined) setMonthlyVolume(partial.revenue.monthlyVolume);
-      if (partial.revenue.conversionRate !== undefined) setConversionRate(partial.revenue.conversionRate);
-      if (partial.revenue.valuePerConversion !== undefined) setValuePerConversion(partial.revenue.valuePerConversion);
+      if (partial.revenue.enabled !== undefined && partial.revenue.enabled !== prev.revenueEnabled) {
+        setRevenueEnabled(partial.revenue.enabled);
+        prev.revenueEnabled = partial.revenue.enabled;
+      }
+      if (partial.revenue.monthlyVolume !== undefined && partial.revenue.monthlyVolume !== prev.monthlyVolume) {
+        setMonthlyVolume(partial.revenue.monthlyVolume);
+        prev.monthlyVolume = partial.revenue.monthlyVolume;
+      }
+      if (partial.revenue.conversionRate !== undefined && partial.revenue.conversionRate !== prev.conversionRate) {
+        setConversionRate(partial.revenue.conversionRate);
+        prev.conversionRate = partial.revenue.conversionRate;
+      }
+      if (partial.revenue.valuePerConversion !== undefined && partial.revenue.valuePerConversion !== prev.valuePerConversion) {
+        setValuePerConversion(partial.revenue.valuePerConversion);
+        prev.valuePerConversion = partial.revenue.valuePerConversion;
+      }
     }
   }, [
     setRunsPerMonth,

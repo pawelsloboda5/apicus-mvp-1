@@ -191,11 +191,14 @@ export function useROI({
     key: K,
     value: ROIState[K]
   ) => {
+    console.log('🟣 useROI.updateSetting called:', key, '=', value);
     setROIState(prev => {
       const newState = { ...prev, [key]: value };
       
       // Handle task type changes - update multiplier automatically
-      if (key === 'taskType' && typeof value === 'string') {
+      // CRITICAL: Only auto-fill if taskType actually changed (not just re-set to same value)
+      if (key === 'taskType' && typeof value === 'string' && prev.taskType !== value) {
+        console.log('🟣 TaskType changed from', prev.taskType, 'to', value, '- applying auto-fill');
         const multiplier = TASK_TYPE_MULTIPLIERS[value as keyof typeof TASK_TYPE_MULTIPLIERS];
         if (multiplier) {
           newState.taskMultiplier = multiplier;
@@ -209,13 +212,17 @@ export function useROI({
             newState.hourlyRate = rateBenchmark;
           }
         }
+      } else if (key === 'taskType' && prev.taskType === value) {
+        console.log('🟣 TaskType unchanged (', value, ') - skipping auto-fill');
       }
       
+      console.log('🟣 useROI new state:', newState);
       return newState;
     });
 
     // Notify parent of changes
     if (onSettingsChange) {
+      console.log('🟣 Calling onSettingsChange with:', { [key]: value });
       onSettingsChange({ [key]: value });
     }
   }, [onSettingsChange]);
